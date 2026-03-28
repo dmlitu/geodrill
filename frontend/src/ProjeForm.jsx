@@ -1,0 +1,136 @@
+import { useState } from "react"
+
+const inputStyle = {
+  width: "100%", padding: "10px 14px",
+  border: "1.5px solid #E2E8F0", borderRadius: "8px",
+  fontSize: "14px", outline: "none", boxSizing: "border-box",
+  color: "#1E293B", background: "white"
+}
+
+const labelStyle = {
+  color: "#374151", fontSize: "13px",
+  fontWeight: "600", display: "block", marginBottom: "6px"
+}
+
+const selectStyle = {
+  ...inputStyle, cursor: "pointer"
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <label style={labelStyle}>{label}</label>
+      {children}
+    </div>
+  )
+}
+
+function Card({ title, children }) {
+  return (
+    <div style={{
+      background: "white", borderRadius: "12px",
+      border: "1px solid #E2E8F0", padding: "24px",
+      marginBottom: "20px",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
+    }}>
+      <h3 style={{
+        color: "#1B3A6B", fontSize: "15px",
+        fontWeight: "700", marginBottom: "20px",
+        paddingBottom: "12px", borderBottom: "2px solid #EFF6FF"
+      }}>
+        {title}
+      </h3>
+      <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px"}}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+export default function ProjeForm({ data, onChange }) {
+  return (
+    <div>
+      <div style={{marginBottom: "24px"}}>
+        <h2 style={{color: "#1B3A6B", fontSize: "22px", fontWeight: "700"}}>
+          Proje Bilgileri
+        </h2>
+        <p style={{color: "#94A3B8", fontSize: "14px", marginTop: "4px"}}>
+          Proje, saha ve kazık parametrelerini girin
+        </p>
+      </div>
+
+      <Card title="📋 Proje Tanımı">
+        <Field label="Proje Adı">
+          <input style={inputStyle} value={data.projeAdi}
+            onChange={e => onChange("projeAdi", e.target.value)}
+            placeholder="Örnek Kazık Projesi" />
+        </Field>
+        <Field label="Proje Kodu">
+          <input style={inputStyle} value={data.projeKodu}
+            onChange={e => onChange("projeKodu", e.target.value)}
+            placeholder="PRJ-001" />
+        </Field>
+        <Field label="Saha Kodu">
+          <input style={inputStyle} value={data.sahaKodu}
+            onChange={e => onChange("sahaKodu", e.target.value)}
+            placeholder="SH-01" />
+        </Field>
+        <Field label="Lokasyon">
+          <input style={inputStyle} value={data.lokasyon}
+            onChange={e => onChange("lokasyon", e.target.value)}
+            placeholder="İstanbul" />
+        </Field>
+        <Field label="İş Tipi">
+          <select style={selectStyle} value={data.isTipi}
+            onChange={e => onChange("isTipi", e.target.value)}>
+            <option>Fore Kazık</option>
+            <option>Ankraj</option>
+            <option>Mini Kazık</option>
+          </select>
+        </Field>
+      </Card>
+
+      <Card title="⚙️ Kazık Parametreleri">
+        <Field label="Kazık Boyu (m)">
+          <input style={inputStyle} type="number" value={data.kazikBoyu}
+            onChange={e => onChange("kazikBoyu", parseFloat(e.target.value))}
+            min="1" step="0.5" />
+        </Field>
+        <Field label="Kazık Çapı (mm)">
+          <input style={inputStyle} type="number" value={data.kazikCapi}
+            onChange={e => onChange("kazikCapi", parseInt(e.target.value))}
+            min="100" step="50" />
+        </Field>
+        <Field label="Kazık Adedi">
+          <input style={inputStyle} type="number" value={data.kazikAdedi}
+            onChange={e => onChange("kazikAdedi", parseInt(e.target.value))}
+            min="1" />
+        </Field>
+        <Field label="Yeraltı Suyu Seviyesi (m)">
+          <input style={inputStyle} type="number" value={data.yeraltiSuyu}
+            onChange={e => onChange("yeraltiSuyu", parseFloat(e.target.value))}
+            min="0" step="0.5" />
+        </Field>
+      </Card>
+
+      <Card title="📝 Notlar">
+        <div style={{gridColumn: "1 / -1"}}>
+          <Field label="Proje Notu">
+            <textarea style={{...inputStyle, height: "80px", resize: "vertical"}}
+              value={data.projeNotu}
+              onChange={e => onChange("projeNotu", e.target.value)}
+              placeholder="Şantiye koşulları, özel durumlar..." />
+          </Field>
+        </div>
+        <div style={{gridColumn: "1 / -1"}}>
+          <Field label="Teklif Notu">
+            <textarea style={{...inputStyle, height: "80px", resize: "vertical"}}
+              value={data.teklifNotu}
+              onChange={e => onChange("teklifNotu", e.target.value)}
+              placeholder="Teklif açıklamaları..." />
+          </Field>
+        </div>
+      </Card>
+    </div>
+  )
+}
