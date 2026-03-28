@@ -55,41 +55,65 @@ GeoDrill, kazık sondaj projelerini yönetmek için geliştirilmiş bir geotekni
 
 ---
 
-## 🔲 FAZ 3 — Validasyon & Hata Yönetimi *(Sıradaki)*
+## ✅ FAZ 3 — Landing Page & Auth UI *(Tamamlandı)*
+
+### Landing Page (`/`)
+- [x] **Hero section** — ürün başlığı, kısa açıklama, CTA butonları ("Giriş Yap" / "Kayıt Ol")
+- [x] **Özellikler bölümü** — tork hesabı, zemin logu, analiz, ekipman yönetimi kartları
+- [x] **Nasıl çalışır?** — 3 adımlı akış (zemin gir → analiz et → rapor al)
+- [x] **Footer** — proje adı, linkler
+- [x] Giriş yapmış kullanıcılar direkt uygulamaya yönlendirilsin
+
+### Sign Up Sayfası
+- [x] **`RegisterPage.jsx`** — ad, e-posta, kullanıcı adı, şifre, şifre tekrar alanları
+- [x] `POST /auth/register` endpoint'ine bağlan (Faz 1'de mevcut)
+- [x] Başarılı kayıt sonrası otomatik login ve uygulamaya yönlendirme
+- [x] Login sayfasından "Hesap oluştur" linki; Register sayfasından "Giriş yap" linki
+
+### Login Sayfası İyileştirmeleri
+- [x] Tasarım tutarlılığı (Landing ile aynı stil/renk paleti)
+- [x] "← Ana Sayfa" geri linki
+- [ ] "Şifremi unuttum" placeholder (Faz 7'ye ertelendi, link deaktif)
+
+---
+
+## ✅ FAZ 4 — Validasyon & Hata Yönetimi *(Tamamlandı)*
 
 ### Frontend Validasyonları
 
-- [ ] **ProjeForm** — Proje adı boş bırakılamaz; kazık boyu > 0, çap > 0, adet > 0 zorunlu
-- [ ] **ZeminLogu** — başlangıç ≥ bitiş uyarısı; katmanlar arası boşluk/çakışma tespiti; SPT 0–300, UCS ≥ 0, RQD 0–100 aralık kontrolü; katman toplamının kazık boyunu karşılaması kontrolü
-- [ ] **MakinePark** — makine adı boş bırakılamaz; tork, derinlik, çap > 0 kontrolü
-- [ ] **React Error Boundary** — herhangi bir hesap hatası tüm sayfayı çökertmesin
+- [x] **ProjeForm** — Proje adı boş bırakılamaz; kazık boyu > 0, çap > 0, adet > 0; inline kırmızı border + mesaj
+- [x] **ZeminLogu** — başlangıç ≥ bitiş uyarısı; SPT 0–300, UCS ≥ 0, RQD 0–100 aralık kontrolü; kazık boyunu karşılama kontrolü; `kazikBoyu` prop eklendi
+- [x] **MakinePark** — makine adı boş bırakılamaz; tork, derinlik, çap > 0; inline kırmızı border + tooltip
+- [x] **React Error Boundary** — AnalizSonucu çökerse kırmızı hata kutusu + "Tekrar Dene" butonu
 
 ### Backend Validasyonları
 
-- [ ] Pydantic şemalarına `validator` ekle: `bitis > baslangic` kontrolü soil layer'da
-- [ ] Backend'den dönen validation hatalarını frontend'de okunabilir şekilde göster
+- [x] `SoilLayerCreate`'e `model_validator` eklendi: `bitis > baslangic` kontrolü
+- [x] Backend validation hataları zaten `request()` wrapper'ı aracılığıyla frontend'e iletiliyor
 
 ---
 
-## 🔲 FAZ 4 — Rapor & Dışa Aktarma
+## ✅ FAZ 5 — Rapor & Dışa Aktarma *(Tamamlandı)*
 
-- [ ] **PDF Raporu** — `GET /projects/{id}/report` endpoint'i; ReportLab ile proje özeti, zemin logu, analiz sonuçları
-- [ ] **Zemin Logu CSV/Excel** — pandas ile `GET /projects/{id}/soil-layers/export`
-- [ ] **Analiz Sonucu CSV** — tork, süre, yakıt verilerini export et
-- [ ] **Tarayıcı baskı stili** — `@media print` CSS
-
----
-
-## 🔲 FAZ 5 — Görselleştirme
-
-- [ ] **Zemin profili diyagramı** — derinliğe göre renklendirilmiş katman çizimi (SVG veya Canvas)
-- [ ] **Tork-derinlik grafiği** — her katman için hesaplanan tork değerinin grafiği (Recharts)
-- [ ] **Gantt şeması** — toplam proje zaman çizelgesi
-- [ ] **Senaryo karşılaştırması** — farklı ekipman/çap kombinasyonlarını yan yana kıyasla
+- [x] **PDF Raporu** — `GET /projects/{id}/report`; ReportLab ile proje özeti, zemin logu (renkli stabilite), ekipman uygunluk tablosu
+- [x] **Zemin Logu CSV** — pandas ile `GET /projects/{id}/soil-layers/export`; UTF-8 BOM ile Türkçe uyumlu
+- [x] **Analiz Sonucu CSV** — client-side; tork, casing, süre, yakıt + makine uygunluk verileri
+- [x] **Tarayıcı baskı stili** — `@media print` CSS; sidebar/header gizle, gölge kaldır
+- [x] **Butonlar** — AnalizSonucu başlığına "Analiz CSV", "Zemin CSV", "PDF Rapor", "Yazdır" butonları eklendi
 
 ---
 
-## 🔲 FAZ 6 — Refactor & Kalite
+## ✅ FAZ 6 — Görselleştirme *(Tamamlandı)*
+
+- [x] **Zemin profili diyagramı** — SVG ile derinlik eksenli, zemin tipine göre renklendirilmiş katman çizimi; YAS ve kazık ucu işaretleri
+- [x] **Tork-derinlik grafiği** — Recharts BarChart; her katman için tork değeri, zemin rengine göre renklendirilmiş barlar
+- [x] **Gantt şeması** — SVG; mobilizasyon, kazık delme, bekleme/test, demobilizasyon fazları
+- [x] **Senaryo karşılaştırması** — ±200/±400 mm çap değişimi için tork ve süre karşılaştırmalı Recharts BarChart; mevcut senaryo koyu renk
+- [x] **`Gorseller.jsx`** — tüm görsel bileşenler ayrı dosyaya taşındı; recharts kuruldu
+
+---
+
+## 🔲 FAZ 7 — Refactor & Kalite
 
 - [ ] **Tailwind CSS** — ~7600 satır inline stili Tailwind class'larıyla değiştir
 - [ ] **useMemo optimizasyonu** — AnalizSonucu her render'da tüm hesapları yeniden yapıyor

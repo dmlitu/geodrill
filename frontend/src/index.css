@@ -11,3 +11,19 @@ body {
   background-color: #F8FAFC;
   color: #1E293B;
 }
+
+@media print {
+  .no-print { display: none !important; }
+
+  /* Sidebar ve header gizle */
+  nav, header { display: none !important; }
+
+  body { background: white !important; }
+
+  /* Kart gölgeleri baskıda gereksiz */
+  * { box-shadow: none !important; }
+
+  /* Sayfa sonu kontrolü */
+  table { page-break-inside: avoid; }
+  h2, h3 { page-break-after: avoid; }
+}

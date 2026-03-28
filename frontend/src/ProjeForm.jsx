@@ -15,11 +15,12 @@ const labelStyle = {
 
 const selectStyle = { ...inputStyle, cursor: "pointer" }
 
-function Field({ label, children }) {
+function Field({ label, children, hata }) {
   return (
     <div>
       <label style={labelStyle}>{label}</label>
       {children}
+      {hata && <span style={{ color: "#DC2626", fontSize: "12px", marginTop: "4px", display: "block" }}>{hata}</span>}
     </div>
   )
 }
@@ -46,11 +47,27 @@ function Card({ title, children }) {
   )
 }
 
+function dogrula(data) {
+  const hatalar = {}
+  if (!data.projeAdi || !data.projeAdi.trim()) hatalar.projeAdi = "Proje adı zorunlu"
+  if (!(Number(data.kazikBoyu) > 0)) hatalar.kazikBoyu = "0'dan büyük olmalı"
+  if (!(Number(data.kazikCapi) > 0)) hatalar.kazikCapi = "0'dan büyük olmalı"
+  if (!(Number(data.kazikAdedi) > 0)) hatalar.kazikAdedi = "0'dan büyük olmalı"
+  return hatalar
+}
+
 export default function ProjeForm({ data, onChange, projeId, onProjeIdChange }) {
   const [kayitDurumu, setKayitDurumu] = useState(null) // null | "loading" | "ok" | "error"
   const [hata, setHata] = useState("")
+  const [hatalar, setHatalar] = useState({})
 
   const kaydet = async () => {
+    const dogrulamaHatalari = dogrula(data)
+    if (Object.keys(dogrulamaHatalari).length > 0) {
+      setHatalar(dogrulamaHatalari)
+      return
+    }
+    setHatalar({})
     setKayitDurumu("loading")
     setHata("")
     try {
@@ -103,9 +120,11 @@ export default function ProjeForm({ data, onChange, projeId, onProjeIdChange }) 
       </div>
 
       <Card title="📋 Proje Tanımı">
-        <Field label="Proje Adı">
-          <input style={inputStyle} value={data.projeAdi}
-            onChange={e => onChange("projeAdi", e.target.value)}
+        <Field label="Proje Adı *" hata={hatalar.projeAdi}>
+          <input
+            style={{ ...inputStyle, borderColor: hatalar.projeAdi ? "#FCA5A5" : undefined }}
+            value={data.projeAdi}
+            onChange={e => { onChange("projeAdi", e.target.value); setHatalar(h => ({ ...h, projeAdi: "" })) }}
             placeholder="Örnek Kazık Projesi" />
         </Field>
         <Field label="Proje Kodu">
@@ -134,19 +153,25 @@ export default function ProjeForm({ data, onChange, projeId, onProjeIdChange }) 
       </Card>
 
       <Card title="⚙️ Kazık Parametreleri">
-        <Field label="Kazık Boyu (m)">
-          <input style={inputStyle} type="number" value={data.kazikBoyu}
-            onChange={e => onChange("kazikBoyu", parseFloat(e.target.value))}
+        <Field label="Kazık Boyu (m) *" hata={hatalar.kazikBoyu}>
+          <input
+            style={{ ...inputStyle, borderColor: hatalar.kazikBoyu ? "#FCA5A5" : undefined }}
+            type="number" value={data.kazikBoyu}
+            onChange={e => { onChange("kazikBoyu", parseFloat(e.target.value)); setHatalar(h => ({ ...h, kazikBoyu: "" })) }}
             min="1" step="0.5" />
         </Field>
-        <Field label="Kazık Çapı (mm)">
-          <input style={inputStyle} type="number" value={data.kazikCapi}
-            onChange={e => onChange("kazikCapi", parseInt(e.target.value))}
+        <Field label="Kazık Çapı (mm) *" hata={hatalar.kazikCapi}>
+          <input
+            style={{ ...inputStyle, borderColor: hatalar.kazikCapi ? "#FCA5A5" : undefined }}
+            type="number" value={data.kazikCapi}
+            onChange={e => { onChange("kazikCapi", parseInt(e.target.value)); setHatalar(h => ({ ...h, kazikCapi: "" })) }}
             min="100" step="50" />
         </Field>
-        <Field label="Kazık Adedi">
-          <input style={inputStyle} type="number" value={data.kazikAdedi}
-            onChange={e => onChange("kazikAdedi", parseInt(e.target.value))}
+        <Field label="Kazık Adedi *" hata={hatalar.kazikAdedi}>
+          <input
+            style={{ ...inputStyle, borderColor: hatalar.kazikAdedi ? "#FCA5A5" : undefined }}
+            type="number" value={data.kazikAdedi}
+            onChange={e => { onChange("kazikAdedi", parseInt(e.target.value)); setHatalar(h => ({ ...h, kazikAdedi: "" })) }}
             min="1" />
         </Field>
         <Field label="Yeraltı Suyu Seviyesi (m)">

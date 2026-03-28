@@ -34,9 +34,19 @@ const DEFAULT_MAKINELER = [
   { id: 3, ad: "Rig C", tip: "Fore Kazık", marka: "Klemm KR", maxDerinlik: 20, maxCap: 800, tork: 130, casing: "Hayır", darAlan: "Evet", yakitSinifi: "Düşük", not: "Dar alan için uygun" },
 ]
 
+function makineHatasi(m) {
+  const h = {}
+  if (!m.ad || !m.ad.trim()) h.ad = "Makine adı zorunlu"
+  if (!(Number(m.tork) > 0)) h.tork = "> 0 olmalı"
+  if (!(Number(m.maxDerinlik) > 0)) h.maxDerinlik = "> 0 olmalı"
+  if (!(Number(m.maxCap) > 0)) h.maxCap = "> 0 olmalı"
+  return h
+}
+
 export default function MakinePark({ data, onChange }) {
   const [kayitDurumu, setKayitDurumu] = useState(null)
   const [hata, setHata] = useState("")
+  const [showHatalar, setShowHatalar] = useState(false)
 
   const makineler = data.length > 0 ? data : DEFAULT_MAKINELER
 
@@ -52,6 +62,15 @@ export default function MakinePark({ data, onChange }) {
   }
 
   const kaydet = async () => {
+    const tümHatalar = makineler.map(makineHatasi)
+    const herhangiHata = tümHatalar.some(h => Object.keys(h).length > 0)
+    if (herhangiHata) {
+      setShowHatalar(true)
+      setHata("Satırlardaki hataları düzeltin.")
+      setKayitDurumu("error")
+      return
+    }
+    setShowHatalar(false)
     setKayitDurumu("loading")
     setHata("")
     try {
@@ -123,14 +142,18 @@ export default function MakinePark({ data, onChange }) {
               </tr>
             </thead>
             <tbody>
-              {makineler.map((m, idx) => (
+              {makineler.map((m, idx) => {
+                const mh = showHatalar ? makineHatasi(m) : {}
+                const errStyle = (key) => mh[key] ? { borderColor: "#FCA5A5" } : {}
+                return (
                 <tr key={m.id} style={{
                   borderBottom: "1px solid #F1F5F9",
                   background: idx % 2 === 0 ? "white" : "#FAFAFA"
                 }}>
                   <td style={tdStyle}>
-                    <input style={{ ...cellInput, width: "110px" }}
+                    <input style={{ ...cellInput, width: "110px", ...errStyle("ad") }}
                       value={m.ad} placeholder="Rig A"
+                      title={mh.ad || ""}
                       onChange={e => updateRow(m.id, "ad", e.target.value)} />
                   </td>
                   <td style={tdStyle}>
@@ -145,18 +168,18 @@ export default function MakinePark({ data, onChange }) {
                       onChange={e => updateRow(m.id, "marka", e.target.value)} />
                   </td>
                   <td style={tdStyle}>
-                    <input style={{ ...cellInput, width: "80px" }} type="number"
-                      value={m.maxDerinlik} min="1"
+                    <input style={{ ...cellInput, width: "80px", ...errStyle("maxDerinlik") }} type="number"
+                      value={m.maxDerinlik} min="1" title={mh.maxDerinlik || ""}
                       onChange={e => updateRow(m.id, "maxDerinlik", parseInt(e.target.value))} />
                   </td>
                   <td style={tdStyle}>
-                    <input style={{ ...cellInput, width: "90px" }} type="number"
-                      value={m.maxCap} min="100" step="50"
+                    <input style={{ ...cellInput, width: "90px", ...errStyle("maxCap") }} type="number"
+                      value={m.maxCap} min="100" step="50" title={mh.maxCap || ""}
                       onChange={e => updateRow(m.id, "maxCap", parseInt(e.target.value))} />
                   </td>
                   <td style={tdStyle}>
-                    <input style={{ ...cellInput, width: "80px" }} type="number"
-                      value={m.tork} min="0"
+                    <input style={{ ...cellInput, width: "80px", ...errStyle("tork") }} type="number"
+                      value={m.tork} min="0" title={mh.tork || ""}
                       onChange={e => updateRow(m.id, "tork", parseInt(e.target.value))} />
                   </td>
                   <td style={tdStyle}>
@@ -189,7 +212,7 @@ export default function MakinePark({ data, onChange }) {
                     }}>✕</button>
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>

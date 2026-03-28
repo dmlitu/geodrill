@@ -52,9 +52,19 @@ const DEFAULT_ROW = () => ({
   aciklama: ""
 })
 
-export default function ZeminLogu({ data, onChange, yeraltiSuyu, projeId }) {
+function satirHatasi(row) {
+  const h = {}
+  if (row.bitis <= row.baslangic) h.derinlik = "Bitiş > Başlangıç olmalı"
+  if (row.spt < 0 || row.spt > 300) h.spt = "0–300 arası"
+  if (row.ucs < 0) h.ucs = "≥ 0 olmalı"
+  if (row.rqd < 0 || row.rqd > 100) h.rqd = "0–100 arası"
+  return h
+}
+
+export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, projeId }) {
   const [kayitDurumu, setKayitDurumu] = useState(null)
   const [hata, setHata] = useState("")
+  const [showHatalar, setShowHatalar] = useState(false)
 
   const satirlar = data.length > 0 ? data : [DEFAULT_ROW()]
 
@@ -80,6 +90,26 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, projeId }) {
       setKayitDurumu("error")
       return
     }
+    // Satır validasyonu
+    const satirHatalari = satirlar.map(satirHatasi)
+    const herhangiHata = satirHatalari.some(h => Object.keys(h).length > 0)
+    if (herhangiHata) {
+      setShowHatalar(true)
+      setHata("Satırlardaki hataları düzeltin.")
+      setKayitDurumu("error")
+      return
+    }
+    // Kapsama kontrolü
+    if (kazikBoyu) {
+      const maxBitis = Math.max(...satirlar.map(r => r.bitis))
+      if (maxBitis < kazikBoyu) {
+        setShowHatalar(true)
+        setHata(`Zemin logu kazık boyunu (${kazikBoyu} m) karşılamıyor (max bitiş: ${maxBitis} m).`)
+        setKayitDurumu("error")
+        return
+      }
+    }
+    setShowHatalar(false)
     setKayitDurumu("loading")
     setHata("")
     try {
@@ -155,18 +185,22 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, projeId }) {
                 const risk = stabiliteRiski(row.zemTipi, row.kohezyon, row.spt, yeraltiSuyu)
                 const uc = ucOneri(row.zemTipi, row.ucs)
                 const renkler = RISK_RENK[risk]
+                const rh = showHatalar ? satirHatasi(row) : {}
+                const errStyle = (key) => rh[key] ? { borderColor: "#FCA5A5" } : {}
                 return (
                   <tr key={row.id} style={{
                     borderBottom: "1px solid #F1F5F9",
                     background: idx % 2 === 0 ? "white" : "#FAFAFA"
                   }}>
                     <td style={tdStyle}>
-                      <input style={{ ...cellInput, width: "80px" }} type="number"
+                      <input style={{ ...cellInput, width: "80px", ...errStyle("derinlik") }} type="number"
+                        title={rh.derinlik || ""}
                         value={row.baslangic} step="0.5"
                         onChange={e => updateRow(row.id, "baslangic", parseFloat(e.target.value))} />
                     </td>
                     <td style={tdStyle}>
-                      <input style={{ ...cellInput, width: "80px" }} type="number"
+                      <input style={{ ...cellInput, width: "80px", ...errStyle("derinlik") }} type="number"
+                        title={rh.derinlik || ""}
                         value={row.bitis} step="0.5"
                         onChange={e => updateRow(row.id, "bitis", parseFloat(e.target.value))} />
                     </td>
@@ -191,17 +225,20 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, projeId }) {
                       </select>
                     </td>
                     <td style={tdStyle}>
-                      <input style={{ ...cellInput, width: "70px" }} type="number"
-                        value={row.spt} min="0"
+                      <input style={{ ...cellInput, width: "70px", ...errStyle("spt") }} type="number"
+                        title={rh.spt || ""}
+                        value={row.spt} min="0" max="300"
                         onChange={e => updateRow(row.id, "spt", parseInt(e.target.value))} />
                     </td>
                     <td style={tdStyle}>
-                      <input style={{ ...cellInput, width: "80px" }} type="number"
+                      <input style={{ ...cellInput, width: "80px", ...errStyle("ucs") }} type="number"
+                        title={rh.ucs || ""}
                         value={row.ucs} min="0" step="0.5"
                         onChange={e => updateRow(row.id, "ucs", parseFloat(e.target.value))} />
                     </td>
                     <td style={tdStyle}>
-                      <input style={{ ...cellInput, width: "70px" }} type="number"
+                      <input style={{ ...cellInput, width: "70px", ...errStyle("rqd") }} type="number"
+                        title={rh.rqd || ""}
                         value={row.rqd} min="0" max="100"
                         onChange={e => updateRow(row.id, "rqd", parseInt(e.target.value))} />
                     </td>

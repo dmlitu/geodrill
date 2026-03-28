@@ -1,14 +1,40 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, Component } from "react"
 import AnalizSonucu from "./AnalizSonucu"
 import MakinePark from "./MakinePark"
 import ZeminLogu from "./ZeminLogu"
 import ProjeForm from "./ProjeForm"
+import LandingPage from "./LandingPage"
+import RegisterPage from "./RegisterPage"
 import {
   login, logout, getToken,
   listProjects, getProject,
   listEquipment,
   fromSnake, fromSnakeLayer, fromSnakeMakine,
 } from "./api"
+
+// ─── Error Boundary ───────────────────────────────────────────────────────────
+
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { hata: null } }
+  static getDerivedStateFromError(err) { return { hata: err.message || "Bilinmeyen hata" } }
+  render() {
+    if (this.state.hata) return (
+      <div style={{
+        background: "#FEF2F2", border: "1.5px solid #FECACA", borderRadius: "12px",
+        padding: "32px", color: "#DC2626", fontSize: "14px"
+      }}>
+        <strong>Analiz hesaplanırken bir hata oluştu:</strong>
+        <pre style={{ marginTop: "8px", fontSize: "12px", whiteSpace: "pre-wrap" }}>{this.state.hata}</pre>
+        <button onClick={() => this.setState({ hata: null })} style={{
+          marginTop: "16px", padding: "8px 18px", border: "none",
+          borderRadius: "8px", background: "#DC2626", color: "white",
+          fontSize: "13px", fontWeight: "600", cursor: "pointer"
+        }}>Tekrar Dene</button>
+      </div>
+    )
+    return this.props.children
+  }
+}
 
 const NAV_ITEMS = [
   { id: "proje", label: "Proje Bilgileri", icon: "📋" },
@@ -26,7 +52,7 @@ const BOS_PROJE = {
 
 // ─── LoginPage ────────────────────────────────────────────────────────────────
 
-function LoginPage({ onLogin }) {
+function LoginPage({ onLogin, onGoRegister, onGoLanding }) {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -50,14 +76,23 @@ function LoginPage({ onLogin }) {
     <div style={{
       minHeight: "100vh", display: "flex",
       alignItems: "center", justifyContent: "center",
-      background: "linear-gradient(135deg, #1B3A6B 0%, #2D5BA3 100%)"
+      background: "linear-gradient(160deg, #0F2447 0%, #1B3A6B 45%, #2D5BA3 100%)"
     }}>
       <div style={{
-        background: "white", borderRadius: "16px",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
-        padding: "48px 40px", width: "100%", maxWidth: "420px"
+        background: "white", borderRadius: "20px",
+        boxShadow: "0 24px 72px rgba(0,0,0,0.25)",
+        padding: "48px 44px", width: "100%", maxWidth: "420px"
       }}>
         <div style={{textAlign: "center", marginBottom: "36px"}}>
+          {onGoLanding && (
+            <button onClick={onGoLanding} style={{
+              background: "none", border: "none", cursor: "pointer",
+              color: "#94A3B8", fontSize: "13px", marginBottom: "16px",
+              display: "flex", alignItems: "center", gap: "4px", margin: "0 auto 16px"
+            }}>
+              ← Ana Sayfa
+            </button>
+          )}
           <div style={{marginBottom: "4px"}}>
             <span style={{color: "#1B3A6B", fontSize: "32px", fontWeight: "900"}}>Geo</span>
             <span style={{color: "#2D5BA3", fontSize: "32px", fontWeight: "900"}}>Drill</span>
@@ -65,7 +100,7 @@ function LoginPage({ onLogin }) {
           <div style={{color: "#1B3A6B", fontSize: "11px", letterSpacing: "5px", fontWeight: "700"}}>
             — INSIGHT —
           </div>
-          <p style={{color: "#94A3B8", fontSize: "13px", marginTop: "10px"}}>
+          <p style={{color: "#94A3B8", fontSize: "13px", marginTop: "10px", marginBottom: 0}}>
             Geoteknik Karar Destek Sistemi
           </p>
         </div>
@@ -110,7 +145,17 @@ function LoginPage({ onLogin }) {
           </button>
         </div>
 
-        <p style={{color: "#CBD5E1", fontSize: "12px", textAlign: "center", marginTop: "24px"}}>
+        <p style={{textAlign: "center", marginTop: "20px", fontSize: "14px", color: "#64748B"}}>
+          Hesabınız yok mu?{" "}
+          <button onClick={onGoRegister} style={{
+            background: "none", border: "none", color: "#2D5BA3",
+            fontWeight: "600", cursor: "pointer", fontSize: "14px", padding: 0
+          }}>
+            Kayıt Ol
+          </button>
+        </p>
+
+        <p style={{color: "#CBD5E1", fontSize: "12px", textAlign: "center", marginTop: "12px"}}>
           Demo: <strong>demo</strong> / <strong>demo</strong>
         </p>
       </div>
@@ -256,6 +301,7 @@ function Dashboard({ username, onLogout }) {
               data={zemin}
               onChange={setZemin}
               yeraltiSuyu={proje.yeraltiSuyu}
+              kazikBoyu={proje.kazikBoyu}
               projeId={projeId}
             />
           )}
@@ -266,11 +312,14 @@ function Dashboard({ username, onLogout }) {
             />
           )}
           {activePage === "analiz" && (
-            <AnalizSonucu
-              proje={proje}
-              zemin={zemin}
-              makineler={makineler}
-            />
+            <ErrorBoundary>
+              <AnalizSonucu
+                proje={proje}
+                zemin={zemin}
+                makineler={makineler}
+                projeId={projeId}
+              />
+            </ErrorBoundary>
           )}
         </main>
       </div>
@@ -282,10 +331,11 @@ function Dashboard({ username, onLogout }) {
 
 export default function App() {
   const [user, setUser] = useState(() => {
-    // Token varsa otomatik oturumu sürdür
     if (!getToken()) return null
     return localStorage.getItem("gd_username") || null
   })
+  // "landing" | "login" | "register"
+  const [authPage, setAuthPage] = useState("landing")
 
   const handleLogin = (username) => {
     localStorage.setItem("gd_username", username)
@@ -295,8 +345,32 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem("gd_username")
     setUser(null)
+    setAuthPage("landing")
   }
 
-  if (!user) return <LoginPage onLogin={handleLogin} />
-  return <Dashboard username={user} onLogout={handleLogout} />
+  if (user) return <Dashboard username={user} onLogout={handleLogout} />
+
+  if (authPage === "register")
+    return (
+      <RegisterPage
+        onLogin={handleLogin}
+        onGoLogin={() => setAuthPage("login")}
+      />
+    )
+
+  if (authPage === "login")
+    return (
+      <LoginPage
+        onLogin={handleLogin}
+        onGoRegister={() => setAuthPage("register")}
+        onGoLanding={() => setAuthPage("landing")}
+      />
+    )
+
+  return (
+    <LandingPage
+      onGoLogin={() => setAuthPage("login")}
+      onGoRegister={() => setAuthPage("register")}
+    />
+  )
 }

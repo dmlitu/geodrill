@@ -1,10 +1,8 @@
 import { useState } from "react"
+import { downloadPdfReport, downloadSoilLayersCsv } from "./api"
+import { ZeminProfilDiyagrami, TorkDerinlikGrafigi, GanttSemasi, SenaryoKarsilastirma } from "./Gorseller"
 
 // ── Hesaplama fonksiyonları ──────────────────────────────
-function zemTorkKatsayisi(tip) {
-  const m = { "Dolgu": 40, "Kil": 60, "Silt": 55, "Kum": 70, "Çakıl": 90, "Ayrışmış Kaya": 130, "Kumtaşı": 150, "Kireçtaşı": 165, "Sert Kaya": 190 }
-  return m[tip] || 70
-}
 
 function gerekliTork(zemin, capMm) {
   const capM = capMm / 1000
@@ -29,7 +27,7 @@ function stabiliteRiski(tip, kohezyon, spt, yas) {
   return "Düşük"
 }
 
-function casingDurum(zemin, yas, kazikBoyu) {
+function casingDurum(zemin, yas) {
   const gerekce = []
   let zorunlu = false, sartli = false
   for (const row of zemin) {
@@ -123,8 +121,48 @@ function MetrikKart({ baslik, deger, renk, alt }) {
   )
 }
 
+// ── CSV indirme (client-side) ─────────────────────────────
+function analizCsvIndir(proje, tork, casingDur, casingM, sure, toplamGun, mBasi, topMazot, makineUygunluklari) {
+  const satirlar = [
+    ["Metrik", "Değer"],
+    ["Gerekli Min. Tork (kNm)", tork],
+    ["Casing Durumu", casingDur],
+    ["Tahmini Casing (m)", casingM],
+    ["1 Kazık Süresi (saat)", sure],
+    ["Toplam İş Süresi (gün)", toplamGun],
+    ["Metre Başı Mazot (L/m)", mBasi],
+    ["Toplam Mazot (L)", Math.round(topMazot * proje.kazikAdedi)],
+    [],
+    ["Makine", "Karar", "Gerekçe"],
+    ...makineUygunluklari.map(m => [m.ad, m.karar, m.gerekce]),
+  ]
+  const csv = satirlar.map(r => r.join(";")).join("\n")
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = `analiz_${proje.projeKodu || "sonucu"}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 // ── Ana bileşen ─────────────────────────────────────────
-export default function AnalizSonucu({ proje, zemin, makineler }) {
+export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
+  const [pdfYukleniyor, setPdfYukleniyor] = useState(false)
+  const [csvYukleniyor, setCsvYukleniyor] = useState(false)
+
+  const handlePdf = async () => {
+    if (!projeId) return
+    setPdfYukleniyor(true)
+    try { await downloadPdfReport(projeId) } finally { setPdfYukleniyor(false) }
+  }
+
+  const handleZeminCsv = async () => {
+    if (!projeId) return
+    setCsvYukleniyor(true)
+    try { await downloadSoilLayersCsv(projeId) } finally { setCsvYukleniyor(false) }
+  }
+
   if (!zemin.length) {
     return (
       <div style={{display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", textAlign: "center"}}>
@@ -136,7 +174,7 @@ export default function AnalizSonucu({ proje, zemin, makineler }) {
   }
 
   const tork = gerekliTork(zemin, proje.kazikCapi)
-  const { durum: casingDur, gerekce, zorunlu } = casingDurum(zemin, proje.yeraltiSuyu, proje.kazikBoyu)
+  const { durum: casingDur, gerekce, zorunlu } = casingDurum(zemin, proje.yeraltiSuyu)
   const casingM = casingMetreHesapla(zemin, proje.yeraltiSuyu)
   const sure = kazikSuresi(zemin, proje.kazikCapi, proje.kazikBoyu, casingM)
   const { mBasi, toplam: topMazot } = mazotTahmini(tork, proje.kazikBoyu)
@@ -154,11 +192,35 @@ export default function AnalizSonucu({ proje, zemin, makineler }) {
 
   return (
     <div>
-      <div style={{marginBottom: "24px"}}>
-        <h2 style={{color: "#1B3A6B", fontSize: "22px", fontWeight: "700"}}>Analiz Sonucu</h2>
-        <p style={{color: "#94A3B8", fontSize: "14px", marginTop: "4px"}}>
-          {proje.projeAdi || "Proje"} — {proje.kazikBoyu}m / Ø{proje.kazikCapi}mm / {proje.kazikAdedi} adet
-        </p>
+      <div style={{marginBottom: "24px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "12px"}}>
+        <div>
+          <h2 style={{color: "#1B3A6B", fontSize: "22px", fontWeight: "700"}}>Analiz Sonucu</h2>
+          <p style={{color: "#94A3B8", fontSize: "14px", marginTop: "4px"}}>
+            {proje.projeAdi || "Proje"} — {proje.kazikBoyu}m / Ø{proje.kazikCapi}mm / {proje.kazikAdedi} adet
+          </p>
+        </div>
+        <div style={{display: "flex", gap: "8px", flexShrink: 0}} className="no-print">
+          {projeId && (
+            <>
+              <button onClick={() => analizCsvIndir(proje, tork, casingDur, casingM, sure, toplamGun, mBasi, topMazot, makineUygunluklari)}
+                style={{padding: "8px 16px", border: "1.5px solid #E2E8F0", borderRadius: "8px", background: "white", color: "#475569", fontSize: "13px", fontWeight: "600", cursor: "pointer"}}>
+                Analiz CSV
+              </button>
+              <button onClick={handleZeminCsv} disabled={csvYukleniyor}
+                style={{padding: "8px 16px", border: "1.5px solid #E2E8F0", borderRadius: "8px", background: "white", color: "#475569", fontSize: "13px", fontWeight: "600", cursor: csvYukleniyor ? "wait" : "pointer"}}>
+                {csvYukleniyor ? "..." : "Zemin CSV"}
+              </button>
+              <button onClick={handlePdf} disabled={pdfYukleniyor}
+                style={{padding: "8px 16px", border: "none", borderRadius: "8px", background: "linear-gradient(135deg, #1B3A6B, #2D5BA3)", color: "white", fontSize: "13px", fontWeight: "600", cursor: pdfYukleniyor ? "wait" : "pointer"}}>
+                {pdfYukleniyor ? "Oluşturuluyor..." : "PDF Rapor"}
+              </button>
+              <button onClick={() => window.print()}
+                style={{padding: "8px 16px", border: "1.5px solid #E2E8F0", borderRadius: "8px", background: "white", color: "#475569", fontSize: "13px", fontWeight: "600", cursor: "pointer"}}>
+                Yazdır
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Metrik kartlar */}
@@ -247,6 +309,25 @@ export default function AnalizSonucu({ proje, zemin, makineler }) {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Görselleştirmeler */}
+      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "20px", marginBottom: "20px", alignItems: "start" }}>
+        <div style={{ background: "white", borderRadius: "12px", border: "1px solid #E2E8F0", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+          <ZeminProfilDiyagrami zemin={zemin} yeraltiSuyu={proje.yeraltiSuyu} kazikBoyu={proje.kazikBoyu} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div style={{ background: "white", borderRadius: "12px", border: "1px solid #E2E8F0", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+            <TorkDerinlikGrafigi zemin={zemin} kazikCapi={proje.kazikCapi} />
+          </div>
+          <div style={{ background: "white", borderRadius: "12px", border: "1px solid #E2E8F0", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+            <GanttSemasi kazikAdedi={proje.kazikAdedi} sure={sure} toplamGun={toplamGun} />
+          </div>
+        </div>
+      </div>
+
+      <div style={{ background: "white", borderRadius: "12px", border: "1px solid #E2E8F0", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", marginBottom: "20px" }}>
+        <SenaryoKarsilastirma zemin={zemin} kazikCapi={proje.kazikCapi} kazikBoyu={proje.kazikBoyu} kazikAdedi={proje.kazikAdedi} />
       </div>
 
       {/* Makine uygunluk */}

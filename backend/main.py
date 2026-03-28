@@ -10,6 +10,7 @@ from routers import auth as auth_router
 from routers import projects as projects_router
 from routers import soil as soil_router
 from routers import equipment as equipment_router
+from routers import reports as reports_router
 
 
 def seed_default_users():
@@ -58,6 +59,7 @@ app.include_router(auth_router.router)
 app.include_router(projects_router.router)
 app.include_router(soil_router.router)
 app.include_router(equipment_router.router)
+app.include_router(reports_router.router)
 
 
 @app.get("/")

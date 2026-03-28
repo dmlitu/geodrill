@@ -60,6 +60,19 @@ export function logout() {
   clearToken()
 }
 
+export async function register(username, email, fullName, password) {
+  const res = await fetch(`${BASE}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, email, full_name: fullName, password }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.detail || "Kayıt başarısız")
+  }
+  return res.json()
+}
+
 export async function getMe() {
   return request("/auth/me")
 }
@@ -108,6 +121,38 @@ export async function bulkReplaceEquipment(items) {
   })
 }
 
+// ─── Reports ──────────────────────────────────────────────────────────────────
+
+export async function downloadPdfReport(projectId) {
+  const token = getToken()
+  const res = await fetch(`${BASE}/projects/${projectId}/report`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = `geodrill_rapor_${projectId}.pdf`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+export async function downloadSoilLayersCsv(projectId) {
+  const token = getToken()
+  const res = await fetch(`${BASE}/projects/${projectId}/soil-layers/export`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = `zemin_logu_${projectId}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 // ─── Field name mapping (camelCase ↔ snake_case) ──────────────────────────────
 
 function toSnake(proje) {
@@ -120,7 +165,7 @@ function toSnake(proje) {
     kazik_boyu: Number(proje.kazikBoyu) || 18,
     kazik_capi: Number(proje.kazikCapi) || 800,
     kazik_adedi: Number(proje.kazikAdedi) || 30,
-    yeralti_suyu: Number(proje.yeraltiSuyu) ?? 4,
+    yeralti_suyu: Number(proje.yeraltiSuyu) || 0,
     proje_notu: proje.projeNotu ?? "",
     teklif_notu: proje.teklifNotu ?? "",
   }

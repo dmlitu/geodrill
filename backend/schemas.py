@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # ─── Auth ────────────────────────────────────────────────────────────────────
@@ -36,6 +36,12 @@ class SoilLayerCreate(BaseModel):
     ucs: float = Field(0.0, ge=0)
     rqd: float = Field(0.0, ge=0, le=100)
     aciklama: str = ""
+
+    @model_validator(mode="after")
+    def bitis_gt_baslangic(self):
+        if self.bitis <= self.baslangic:
+            raise ValueError("Bitiş derinliği başlangıç derinliğinden büyük olmalı")
+        return self
 
 
 class SoilLayerOut(SoilLayerCreate):
