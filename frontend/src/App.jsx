@@ -165,58 +165,116 @@ function LoginPage({ onLogin, onGoRegister, onGoLanding }) {
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
-function Sidebar({ active, onNav }) {
+function Sidebar({ active, onNav, open, onClose }) {
   return (
-    <div style={{width: "240px", minHeight: "100vh", background: "#1B3A6B", display: "flex", flexDirection: "column", flexShrink: 0}}>
-      <div style={{padding: "24px 20px", borderBottom: "1px solid rgba(255,255,255,0.1)"}}>
-        <div>
-          <span style={{color: "white", fontSize: "20px", fontWeight: "900"}}>Geo</span>
-          <span style={{color: "#93C5FD", fontSize: "20px", fontWeight: "900"}}>Drill</span>
+    <>
+      {/* Mobil overlay */}
+      {open && (
+        <div
+          onClick={onClose}
+          aria-hidden="true"
+          style={{
+            position: "fixed", inset: 0, zIndex: 40,
+            background: "rgba(0,0,0,0.45)",
+            display: "none"
+          }}
+          className="sidebar-overlay"
+        />
+      )}
+      <div
+        role="navigation"
+        aria-label="Ana menü"
+        style={{
+          width: "240px", minHeight: "100vh",
+          background: "#1B3A6B", display: "flex",
+          flexDirection: "column", flexShrink: 0,
+          position: "relative", zIndex: 50
+        }}
+        className={`sidebar${open ? " sidebar-open" : ""}`}
+      >
+        <div style={{padding: "24px 20px", borderBottom: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "space-between"}}>
+          <div>
+            <span style={{color: "white", fontSize: "20px", fontWeight: "900"}}>Geo</span>
+            <span style={{color: "#93C5FD", fontSize: "20px", fontWeight: "900"}}>Drill</span>
+            <div style={{color: "rgba(255,255,255,0.5)", fontSize: "9px", letterSpacing: "4px", fontWeight: "600"}}>INSIGHT</div>
+          </div>
+          {/* Mobil kapat butonu */}
+          <button
+            onClick={onClose}
+            aria-label="Menüyü kapat"
+            style={{
+              background: "none", border: "none", color: "rgba(255,255,255,0.6)",
+              fontSize: "20px", cursor: "pointer", lineHeight: 1,
+              display: "none"
+            }}
+            className="sidebar-close-btn"
+          >✕</button>
         </div>
-        <div style={{color: "rgba(255,255,255,0.5)", fontSize: "9px", letterSpacing: "4px", fontWeight: "600"}}>
-          INSIGHT
-        </div>
+        <nav style={{padding: "16px 12px", flex: 1}}>
+          {NAV_ITEMS.map(item => (
+            <button
+              key={item.id}
+              onClick={() => { onNav(item.id); onClose() }}
+              aria-current={active === item.id ? "page" : undefined}
+              style={{
+                width: "100%", display: "flex", alignItems: "center",
+                gap: "10px", padding: "11px 14px",
+                background: active === item.id ? "rgba(255,255,255,0.15)" : "transparent",
+                border: "none", borderRadius: "8px",
+                color: active === item.id ? "white" : "rgba(255,255,255,0.65)",
+                fontSize: "14px", fontWeight: active === item.id ? "600" : "400",
+                cursor: "pointer", marginBottom: "4px", textAlign: "left"
+              }}
+            >
+              <span aria-hidden="true">{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
       </div>
-      <nav style={{padding: "16px 12px", flex: 1}}>
-        {NAV_ITEMS.map(item => (
-          <button key={item.id} onClick={() => onNav(item.id)} style={{
-            width: "100%", display: "flex", alignItems: "center",
-            gap: "10px", padding: "11px 14px",
-            background: active === item.id ? "rgba(255,255,255,0.15)" : "transparent",
-            border: "none", borderRadius: "8px",
-            color: active === item.id ? "white" : "rgba(255,255,255,0.65)",
-            fontSize: "14px", fontWeight: active === item.id ? "600" : "400",
-            cursor: "pointer", marginBottom: "4px", textAlign: "left"
-          }}>
-            <span>{item.icon}</span>
-            <span>{item.label}</span>
-          </button>
-        ))}
-      </nav>
-    </div>
+    </>
   )
 }
 
 // ─── Header ───────────────────────────────────────────────────────────────────
 
-function Header({ username, onLogout }) {
+function Header({ username, onLogout, onMenuOpen }) {
   return (
     <header style={{
       height: "60px", background: "white",
       borderBottom: "1px solid #E2E8F0",
       display: "flex", alignItems: "center",
-      justifyContent: "flex-end",
+      justifyContent: "space-between",
       padding: "0 28px", gap: "16px",
       boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
     }}>
-      <span style={{color: "#64748B", fontSize: "14px"}}>
+      {/* Mobil hamburger */}
+      <button
+        onClick={onMenuOpen}
+        aria-label="Menüyü aç"
+        aria-expanded="false"
+        style={{
+          background: "none", border: "none", cursor: "pointer",
+          color: "#1B3A6B", fontSize: "22px", lineHeight: 1,
+          padding: "4px", display: "none"
+        }}
+        className="hamburger-btn"
+      >
+        ☰
+      </button>
+
+      <span style={{color: "#64748B", fontSize: "14px", marginLeft: "auto"}}>
         Hoş geldin, <strong style={{color: "#1B3A6B"}}>{username}</strong>
       </span>
-      <button onClick={onLogout} style={{
-        padding: "7px 16px", border: "1.5px solid #E2E8F0",
-        borderRadius: "8px", background: "white",
-        color: "#64748B", fontSize: "13px", cursor: "pointer"
-      }}>
+      <button
+        onClick={onLogout}
+        aria-label="Oturumu kapat"
+        style={{
+          padding: "7px 16px", border: "1.5px solid #E2E8F0",
+          borderRadius: "8px", background: "white",
+          color: "#64748B", fontSize: "13px", cursor: "pointer"
+        }}
+      >
         Çıkış
       </button>
     </header>
@@ -227,6 +285,7 @@ function Header({ username, onLogout }) {
 
 function Dashboard({ username, onLogout }) {
   const [activePage, setActivePage] = useState("proje")
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [projeId, setProjeId] = useState(null)
   const [proje, setProje] = useState(BOS_PROJE)
   const [zemin, setZemin] = useState([])
@@ -274,7 +333,7 @@ function Dashboard({ username, onLogout }) {
   if (yukleniyor) {
     return (
       <div style={{display: "flex", minHeight: "100vh"}}>
-        <Sidebar active={activePage} onNav={setActivePage} />
+        <Sidebar active={activePage} onNav={setActivePage} open={false} onClose={() => {}} />
         <div style={{flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "#F8FAFC"}}>
           <p style={{color: "#94A3B8", fontSize: "15px"}}>Veriler yükleniyor...</p>
         </div>
@@ -284,9 +343,9 @@ function Dashboard({ username, onLogout }) {
 
   return (
     <div style={{display: "flex", minHeight: "100vh"}}>
-      <Sidebar active={activePage} onNav={setActivePage} />
-      <div style={{flex: 1, display: "flex", flexDirection: "column"}}>
-        <Header username={username} onLogout={handleLogout} />
+      <Sidebar active={activePage} onNav={setActivePage} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div style={{flex: 1, display: "flex", flexDirection: "column", minWidth: 0}}>
+        <Header username={username} onLogout={handleLogout} onMenuOpen={() => setSidebarOpen(true)} />
         <main style={{flex: 1, padding: "32px 28px", background: "#F8FAFC", overflowY: "auto"}}>
           {activePage === "proje" && (
             <ProjeForm

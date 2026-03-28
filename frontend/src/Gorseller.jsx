@@ -1,8 +1,8 @@
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell, Legend, RadarChart, Radar,
-  PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  ResponsiveContainer, Cell, Legend,
 } from "recharts"
+import { ropHesapla } from "./hesaplamalar"
 
 // ─── Renk haritası ────────────────────────────────────────────────────────────
 
@@ -227,23 +227,8 @@ export function GanttSemasi({ kazikAdedi, sure, toplamGun }) {
 
 // ─── 4. Senaryo Karşılaştırması ───────────────────────────────────────────────
 
-function gerekliTork(zemin, capMm) {
-  const capM = capMm / 1000
-  let max = 0
-  for (const row of zemin) {
-    const t = katmanTork(row, capMm) / (Math.pow(capM, 3) / (Math.pow(capMm / 1000, 3)))
-    if (t > max) max = t
-  }
-  // Basit yeniden hesap: en yüksek katman torku direkt kullan
+function senaryoTork(zemin, capMm) {
   return Math.max(...zemin.map(r => katmanTork(r, capMm)))
-}
-
-function ropHesapla(tip, ucs, capMm) {
-  const capM = capMm / 1000
-  let baz = { "Dolgu": 8, "Kil": 6, "Silt": 6.5, "Kum": 5, "Çakıl": 3.5, "Ayrışmış Kaya": 2, "Kumtaşı": 1.2, "Kireçtaşı": 0.9, "Sert Kaya": 0.5 }[tip] || 3
-  if (ucs > 0) baz *= Math.max(0.25, 1 - (ucs / 100) * 0.75)
-  baz *= Math.max(0.45, 1 - (capM - 0.8) * 0.5)
-  return Math.max(baz, 0.25)
 }
 
 function sureTahmini(zemin, capMm, kazikBoyu) {
@@ -267,7 +252,7 @@ export function SenaryoKarsilastirma({ zemin, kazikCapi, kazikBoyu, kazikAdedi }
   const senaryolar = [-400, -200, 0, 200, 400].map(delta => {
     const cap = kazikCapi + delta
     if (cap <= 0) return null
-    const tork = gerekliTork(zemin, cap)
+    const tork = senaryoTork(zemin, cap)
     const sure = sureTahmini(zemin, cap, kazikBoyu)
     return { cap, tork, sure, toplamGun: Math.round((sure * kazikAdedi) / 10 * 10) / 10, isMain: delta === 0 }
   }).filter(Boolean)

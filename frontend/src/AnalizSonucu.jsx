@@ -1,110 +1,10 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { downloadPdfReport, downloadSoilLayersCsv } from "./api"
 import { ZeminProfilDiyagrami, TorkDerinlikGrafigi, GanttSemasi, SenaryoKarsilastirma } from "./Gorseller"
-
-// ── Hesaplama fonksiyonları ──────────────────────────────
-
-function gerekliTork(zemin, capMm) {
-  const capM = capMm / 1000
-  let maxTork = 0
-  for (const row of zemin) {
-    const spt = parseFloat(row.spt) || 0
-    const ucs = parseFloat(row.ucs) || 0
-    const rqd = parseFloat(row.rqd) || 0
-    let tau = ucs > 0 ? (ucs * 1000) / 10 : row.kohezyon === "Kohezyonlu" ? Math.max(spt * 4, 20) : Math.max(spt * 2, 15)
-    if (rqd > 0) tau *= rqd < 25 ? 1.35 : rqd < 50 ? 1.20 : rqd < 75 ? 1.10 : 1.0
-    const t = tau * Math.PI * Math.pow(capM, 3) / 8 * 1.25
-    if (t > maxTork) maxTork = t
-  }
-  return Math.round(maxTork * 10) / 10
-}
-
-function stabiliteRiski(tip, kohezyon, spt, yas) {
-  if (["Kum", "Çakıl"].includes(tip) && yas >= 0) return "Yüksek"
-  if (kohezyon === "Kohezyonsuz" && spt <= 10) return "Yüksek"
-  if (kohezyon === "Kohezyonsuz" && spt <= 30) return "Orta"
-  if (tip === "Dolgu") return "Orta"
-  return "Düşük"
-}
-
-function casingDurum(zemin, yas) {
-  const gerekce = []
-  let zorunlu = false, sartli = false
-  for (const row of zemin) {
-    const spt = parseFloat(row.spt) || 0
-    const kalinlik = row.bitis - row.baslangic
-    if (["Kum", "Çakıl"].includes(row.zemTipi) && kalinlik > 0.5) { zorunlu = true; gerekce.push(`${row.baslangic}-${row.bitis}m: ${row.zemTipi} - casing zorunlu`) }
-    if (row.kohezyon === "Kohezyonsuz" && yas > 0 && row.baslangic >= yas) { zorunlu = true; gerekce.push(`${row.baslangic}-${row.bitis}m: Kohezyonsuz + YAS`) }
-    if (spt < 10 && row.kohezyon === "Kohezyonsuz") { zorunlu = true; gerekce.push(`${row.baslangic}-${row.bitis}m: Cok gevşek (SPT=${spt})`) }
-    if (row.zemTipi === "Dolgu" && kalinlik > 2) { sartli = true; gerekce.push(`${row.baslangic}-${row.bitis}m: Kalin dolgu`) }
-  }
-  if (!gerekce.length) gerekce.push("Zemin kosullari casing gerektirmiyor")
-  const durum = zorunlu ? "Gerekli" : sartli ? "Sartli onerilir" : "Gerekmeyebilir"
-  return { durum, gerekce, zorunlu }
-}
-
-function casingMetreHesapla(zemin, yas) {
-  let toplam = 0
-  for (const row of zemin) {
-    const kalinlik = row.bitis - row.baslangic
-    const risk = stabiliteRiski(row.zemTipi, row.kohezyon, row.spt, yas)
-    if (risk === "Yüksek") toplam += kalinlik
-    else if (risk === "Orta") toplam += kalinlik * 0.5
-  }
-  return Math.round(toplam * 10) / 10
-}
-
-function ropHesapla(tip, ucs, capMm) {
-  const capM = capMm / 1000
-  let baz = { "Dolgu": 8, "Kil": 6, "Silt": 6.5, "Kum": 5, "Çakıl": 3.5, "Ayrışmış Kaya": 2, "Kumtaşı": 1.2, "Kireçtaşı": 0.9, "Sert Kaya": 0.5 }[tip] || 3
-  if (ucs > 0) baz *= Math.max(0.25, 1 - (ucs / 100) * 0.75)
-  baz *= Math.max(0.45, 1 - (capM - 0.8) * 0.5)
-  return Math.max(baz, 0.25)
-}
-
-function kazikSuresi(zemin, capMm, kazikBoyu, casingM) {
-  let sure = 0.75
-  let ucDeg = 0
-  let oncekiTip = null
-  for (const row of zemin) {
-    const kalinlik = row.bitis - row.baslangic
-    const rop = ropHesapla(row.zemTipi, row.ucs, capMm)
-    sure += kalinlik / rop
-    if (["Kumtaşı", "Kireçtaşı", "Sert Kaya", "Ayrışmış Kaya"].includes(row.zemTipi) && oncekiTip !== row.zemTipi) ucDeg++
-    oncekiTip = row.zemTipi
-  }
-  sure += ucDeg * 0.6
-  sure += casingM * 0.1
-  const capM = capMm / 1000
-  sure += Math.PI * Math.pow(capM / 2, 2) * kazikBoyu * (20 / 60)
-  if (kazikBoyu >= 30) sure += 1.5
-  else if (kazikBoyu >= 20) sure += 0.8
-  return Math.round(sure * 10) / 10
-}
-
-function mazotTahmini(tork, kazikBoyu) {
-  let mBasi = tork < 100 ? 8 + tork * 0.04 : tork < 200 ? 12 + (tork - 100) * 0.08 : 20 + (tork - 200) * 0.075
-  mBasi = Math.round(mBasi * 10) / 10
-  return { mBasi, toplam: Math.round(mBasi * kazikBoyu * 10) / 10 }
-}
-
-function kritikKatman(zemin) {
-  if (!zemin.length) return null
-  return zemin.reduce((max, row) => {
-    const skor = (row.spt || 0) * 0.5 + (row.ucs || 0) * 2 + (100 - (row.rqd || 0)) * 0.3
-    const maxSkor = (max.spt || 0) * 0.5 + (max.ucs || 0) * 2 + (100 - (max.rqd || 0)) * 0.3
-    return skor > maxSkor ? row : max
-  }, zemin[0])
-}
-
-function makinaUygunluk(makine, tork, kazikBoyu, kazikCapi, casingGerekli) {
-  if (makine.maxDerinlik < kazikBoyu) return { karar: "Uygun Değil", gerekce: `Derinlik yetersiz (${makine.maxDerinlik}m < ${kazikBoyu}m)`, renk: "#DC2626", bg: "#FEF2F2" }
-  if (makine.maxCap < kazikCapi) return { karar: "Uygun Değil", gerekce: `Çap yetersiz (${makine.maxCap}mm)`, renk: "#DC2626", bg: "#FEF2F2" }
-  if (makine.tork < tork * 0.80) return { karar: "Uygun Değil", gerekce: `Tork yetersiz (${makine.tork} / ${tork} kNm)`, renk: "#DC2626", bg: "#FEF2F2" }
-  if (casingGerekli && makine.casing === "Hayır") return { karar: "Şartlı Uygun", gerekce: "Casing yeteneği yok", renk: "#D97706", bg: "#FFFBEB" }
-  if (makine.tork < tork) return { karar: "Riskli", gerekce: `Tork sınırda (${makine.tork} / ${tork} kNm)`, renk: "#D97706", bg: "#FFFBEB" }
-  return { karar: "Uygun", gerekce: `Yeterli kapasite (${makine.tork} kNm)`, renk: "#16A34A", bg: "#F0FDF4" }
-}
+import {
+  gerekliTork, stabiliteRiski, casingDurum, casingMetreHesapla,
+  kazikSuresi, mazotTahmini, kritikKatman, makinaUygunluk,
+} from "./hesaplamalar"
 
 // ── Kart bileşeni ───────────────────────────────────────
 function MetrikKart({ baslik, deger, renk, alt }) {
@@ -163,6 +63,24 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     try { await downloadSoilLayersCsv(projeId) } finally { setCsvYukleniyor(false) }
   }
 
+  // useMemo: zemin veya proje değişmediğinde hesaplamalar yeniden yapılmaz
+  const analiz = useMemo(() => {
+    if (!zemin.length) return null
+    const tork = gerekliTork(zemin, proje.kazikCapi)
+    const { durum: casingDur, gerekce, zorunlu } = casingDurum(zemin, proje.yeraltiSuyu)
+    const casingM = casingMetreHesapla(zemin, proje.yeraltiSuyu)
+    const sure = kazikSuresi(zemin, proje.kazikCapi, proje.kazikBoyu, casingM)
+    const { mBasi, toplam: topMazot } = mazotTahmini(tork, proje.kazikBoyu)
+    const kritik = kritikKatman(zemin)
+    const gunlukUretim = Math.max(1, Math.round(10 / sure))
+    const toplamGun = Math.round((sure * proje.kazikAdedi) / 10 * 10) / 10
+    const ucOneri = zemin.some(r => ["Kumtaşı", "Kireçtaşı", "Sert Kaya"].includes(r.zemTipi) || r.ucs >= 25)
+      ? "Kaya ucu gerekli" : zemin.some(r => r.zemTipi === "Ayrışmış Kaya" || r.ucs >= 10)
+      ? "Geçiş tipi uç" : "Standart uç yeterli"
+    const makineUygunluklari = makineler.map(m => ({ ...m, ...makinaUygunluk(m, tork, proje.kazikBoyu, proje.kazikCapi, zorunlu) }))
+    return { tork, casingDur, gerekce, zorunlu, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari }
+  }, [zemin, proje, makineler])
+
   if (!zemin.length) {
     return (
       <div style={{display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", textAlign: "center"}}>
@@ -173,22 +91,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     )
   }
 
-  const tork = gerekliTork(zemin, proje.kazikCapi)
-  const { durum: casingDur, gerekce, zorunlu } = casingDurum(zemin, proje.yeraltiSuyu)
-  const casingM = casingMetreHesapla(zemin, proje.yeraltiSuyu)
-  const sure = kazikSuresi(zemin, proje.kazikCapi, proje.kazikBoyu, casingM)
-  const { mBasi, toplam: topMazot } = mazotTahmini(tork, proje.kazikBoyu)
-  const kritik = kritikKatman(zemin)
-  const gunlukUretim = Math.max(1, Math.round(10 / sure))
-  const toplamGun = Math.round((sure * proje.kazikAdedi) / 10 * 10) / 10
-
-  const ucOneri = zemin.some(r => ["Kumtaşı", "Kireçtaşı", "Sert Kaya"].includes(r.zemTipi) || r.ucs >= 25)
-    ? "Kaya ucu gerekli" : zemin.some(r => r.zemTipi === "Ayrışmış Kaya" || r.ucs >= 10)
-    ? "Geçiş tipi uç" : "Standart uç yeterli"
-
-  const makineUygunluklari = (makineler.length > 0 ? makineler : []).map(m => ({
-    ...m, ...makinaUygunluk(m, tork, proje.kazikBoyu, proje.kazikCapi, zorunlu)
-  }))
+  const { tork, casingDur, gerekce, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari } = analiz
 
   return (
     <div>

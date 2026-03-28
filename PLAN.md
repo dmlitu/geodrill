@@ -113,14 +113,15 @@ GeoDrill, kazık sondaj projelerini yönetmek için geliştirilmiş bir geotekni
 
 ---
 
-## 🔲 FAZ 7 — Refactor & Kalite
+## ✅ FAZ 7 — Refactor & Kalite *(Tamamlandı)*
 
-- [ ] **Tailwind CSS** — ~7600 satır inline stili Tailwind class'larıyla değiştir
-- [ ] **useMemo optimizasyonu** — AnalizSonucu her render'da tüm hesapları yeniden yapıyor
-- [ ] **Vitest** — AnalizSonucu hesaplama fonksiyonları için birim testleri
-- [ ] **pytest** — backend API için entegrasyon testleri
-- [ ] **Mobil uyumluluk** — 900–1000px min-width tablolar, kapanmayan sidebar
-- [ ] **Erişilebilirlik** — ARIA label, klavye navigasyonu
+- [x] **`hesaplamalar.js`** — tüm hesaplama fonksiyonları ayrı modüle çıkarıldı; AnalizSonucu ve Gorseller import ediyor
+- [x] **useMemo optimizasyonu** — AnalizSonucu hesapları `useMemo([zemin, proje, makineler])` ile cache'lendi
+- [x] **Vitest** — 33 birim testi; gerekliTork, stabiliteRiski, casingDurum, kazikSuresi, mazotTahmini, kritikKatman, makinaUygunluk
+- [x] **pytest** — 20 entegrasyon testi; auth, projects CRUD, soil layer validasyon; StaticPool ile izole in-memory DB
+- [x] **Mobil sidebar** — CSS `transform` ile slide-in; overlay backdrop; hamburger butonu; kapat (✕) butonu
+- [x] **Erişilebilirlik** — `role="navigation"`, `aria-label`, `aria-current="page"`, `aria-hidden`, `aria-label` (butonlar)
+- [ ] **Tailwind CSS tam dönüşüm** — ~7600 satır inline stil (kapsam çok geniş, ayrı sprint gerektirir)
 
 ---
 
