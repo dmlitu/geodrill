@@ -85,7 +85,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     return (
       <div style={{display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", textAlign: "center"}}>
         <div style={{fontSize: "48px", marginBottom: "16px"}}>⚠️</div>
-        <h2 style={{color: "#1B3A6B", fontSize: "20px", fontWeight: "700", marginBottom: "8px"}}>Zemin verisi eksik</h2>
+        <h2 style={{color: "#0369A1", fontSize: "20px", fontWeight: "700", marginBottom: "8px"}}>Zemin verisi eksik</h2>
         <p style={{color: "#94A3B8", fontSize: "14px"}}>Lütfen önce Zemin Logu sayfasından zemin verilerini girin.</p>
       </div>
     )
@@ -97,7 +97,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     <div>
       <div style={{marginBottom: "24px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "12px"}}>
         <div>
-          <h2 style={{color: "#1B3A6B", fontSize: "22px", fontWeight: "700"}}>Analiz Sonucu</h2>
+          <h2 style={{color: "#0369A1", fontSize: "22px", fontWeight: "700"}}>Analiz Sonucu</h2>
           <p style={{color: "#94A3B8", fontSize: "14px", marginTop: "4px"}}>
             {proje.projeAdi || "Proje"} — {proje.kazikBoyu}m / Ø{proje.kazikCapi}mm / {proje.kazikAdedi} adet
           </p>
@@ -114,7 +114,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
                 {csvYukleniyor ? "..." : "Zemin CSV"}
               </button>
               <button onClick={handlePdf} disabled={pdfYukleniyor}
-                style={{padding: "8px 16px", border: "none", borderRadius: "8px", background: "linear-gradient(135deg, #1B3A6B, #2D5BA3)", color: "white", fontSize: "13px", fontWeight: "600", cursor: pdfYukleniyor ? "wait" : "pointer"}}>
+                style={{padding: "8px 16px", border: "none", borderRadius: "8px", background: "linear-gradient(135deg, #0284C7, #0EA5E9)", color: "white", fontSize: "13px", fontWeight: "600", cursor: pdfYukleniyor ? "wait" : "pointer"}}>
                 {pdfYukleniyor ? "Oluşturuluyor..." : "PDF Rapor"}
               </button>
               <button onClick={() => window.print()}
@@ -128,10 +128,10 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
 
       {/* Metrik kartlar */}
       <div style={{display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "16px", marginBottom: "24px"}}>
-        <MetrikKart baslik="Gerekli Min. Tork" deger={`${tork} kNm`} renk="#1B3A6B" />
-        <MetrikKart baslik="Muhafaza Borusu" deger={casingDur} renk="#7C3AED" alt={`${casingM} m tahmini`} />
-        <MetrikKart baslik="1 Kazık Süresi" deger={`${sure} saat`} renk="#0F766E" alt={`~${gunlukUretim} kazık/gün`} />
-        <MetrikKart baslik="Toplam İş Süresi" deger={`${toplamGun} gün`} renk="#B45309" alt={`${proje.kazikAdedi} kazık`} />
+        <MetrikKart baslik="Gerekli Min. Tork" deger={`${tork} kNm`} renk="#0284C7" />
+        <MetrikKart baslik="Muhafaza Borusu" deger={casingDur} renk="#6366F1" alt={`${casingM} m tahmini`} />
+        <MetrikKart baslik="1 Kazık Süresi" deger={`${sure} saat`} renk="#0891B2" alt={`~${gunlukUretim} kazık/gün`} />
+        <MetrikKart baslik="Toplam İş Süresi" deger={`${toplamGun} gün`} renk="#0EA5E9" alt={`${proje.kazikAdedi} kazık`} />
         <MetrikKart
           baslik="Stabilite Skoru"
           deger={`${Math.round(zemin.reduce((s, r) => s + (stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Yüksek" ? 70 : stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Orta" ? 40 : 15), 0) / zemin.length)}/100`}
@@ -143,7 +143,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
       <div style={{display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "20px", marginBottom: "20px"}}>
         {/* Sol — Proje özeti */}
         <div style={{background: "white", borderRadius: "12px", border: "1px solid #E2E8F0", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)"}}>
-          <h3 style={{color: "#1B3A6B", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #EFF6FF"}}>
+          <h3 style={{color: "#0369A1", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE"}}>
             📋 Proje Özeti
           </h3>
           {[
@@ -162,7 +162,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
             </div>
           ))}
 
-          <h3 style={{color: "#1B3A6B", fontSize: "15px", fontWeight: "700", margin: "20px 0 12px", paddingBottom: "10px", borderBottom: "2px solid #EFF6FF"}}>
+          <h3 style={{color: "#0369A1", fontSize: "15px", fontWeight: "700", margin: "20px 0 12px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE"}}>
             🔧 Teknik Öneriler
           </h3>
           {[
@@ -182,7 +182,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
         <div style={{display: "flex", flexDirection: "column", gap: "16px"}}>
           {kritik && (
             <div style={{background: "white", borderRadius: "12px", border: "1px solid #E2E8F0", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)"}}>
-              <h3 style={{color: "#1B3A6B", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #EFF6FF"}}>
+              <h3 style={{color: "#0369A1", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE"}}>
                 🪨 Kritik Zemin Katmanı
               </h3>
               {[
@@ -202,7 +202,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
           )}
 
           <div style={{background: "white", borderRadius: "12px", border: "1px solid #E2E8F0", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)"}}>
-            <h3 style={{color: "#1B3A6B", fontSize: "15px", fontWeight: "700", marginBottom: "12px", paddingBottom: "10px", borderBottom: "2px solid #EFF6FF"}}>
+            <h3 style={{color: "#0369A1", fontSize: "15px", fontWeight: "700", marginBottom: "12px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE"}}>
               🔩 Casing Değerlendirmesi
             </h3>
             {gerekce.map((g, i) => (
@@ -236,7 +236,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
       {/* Makine uygunluk */}
       {makineUygunluklari.length > 0 && (
         <div style={{background: "white", borderRadius: "12px", border: "1px solid #E2E8F0", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)"}}>
-          <h3 style={{color: "#1B3A6B", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #EFF6FF"}}>
+          <h3 style={{color: "#0369A1", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE"}}>
             ⚙️ Makine Uygunluk Sonuçları
           </h3>
 

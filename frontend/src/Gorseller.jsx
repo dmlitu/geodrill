@@ -15,7 +15,7 @@ const ZEMIN_RENK = {
   "Ayrışmış Kaya": "#6B7280",
   "Kumtaşı":       "#9CA3AF",
   "Kireçtaşı":     "#60A5FA",
-  "Sert Kaya":     "#1E3A5F",
+  "Sert Kaya":     "#0C4A6E",
 }
 
 // ─── 1. Zemin Profili Diyagramı (SVG) ────────────────────────────────────────
@@ -32,7 +32,7 @@ export function ZeminProfilDiyagrami({ zemin, yeraltiSuyu, kazikBoyu }) {
 
   return (
     <div>
-      <h3 style={{ color: "#1B3A6B", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #EFF6FF" }}>
+      <h3 style={{ color: "#0369A1", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE" }}>
         Zemin Profili
       </h3>
       <svg width={W + 60} height={H + 20} style={{ overflow: "visible" }}>
@@ -91,7 +91,7 @@ export function ZeminProfilDiyagrami({ zemin, yeraltiSuyu, kazikBoyu }) {
         )}
 
         {/* Başlık */}
-        <text x={LEFT + CHART_W / 2} y={-8} textAnchor="middle" fontSize={10} fill="#1B3A6B" fontWeight="700">
+        <text x={LEFT + CHART_W / 2} y={-8} textAnchor="middle" fontSize={10} fill="#0369A1" fontWeight="700">
           Derinlik (m)
         </text>
       </svg>
@@ -136,7 +136,7 @@ export function TorkDerinlikGrafigi({ zemin, kazikCapi }) {
 
   return (
     <div>
-      <h3 style={{ color: "#1B3A6B", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #EFF6FF" }}>
+      <h3 style={{ color: "#0369A1", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE" }}>
         Tork — Derinlik Grafiği
       </h3>
       <ResponsiveContainer width="100%" height={280}>
@@ -150,7 +150,7 @@ export function TorkDerinlikGrafigi({ zemin, kazikCapi }) {
           />
           <Bar dataKey="tork" radius={[0, 4, 4, 0]}>
             {data.map((entry, i) => (
-              <Cell key={i} fill={ZEMIN_RENK[entry.tip] || "#2D5BA3"} />
+              <Cell key={i} fill={ZEMIN_RENK[entry.tip] || "#0EA5E9"} />
             ))}
           </Bar>
         </BarChart>
@@ -169,10 +169,10 @@ export function GanttSemasi({ kazikAdedi, sure, toplamGun }) {
   const toplam = mobilize + delmeSure + bekleme + demobilize
 
   const fazlar = [
-    { ad: "Mobilizasyon", sure: mobilize, renk: "#7C3AED" },
-    { ad: "Kazık Delme", sure: delmeSure, renk: "#1B3A6B" },
-    { ad: "Bekleme / Test", sure: bekleme, renk: "#D97706" },
-    { ad: "Demobilizasyon", sure: demobilize, renk: "#6B7280" },
+    { ad: "Mobilizasyon", sure: mobilize, renk: "#6366F1" },
+    { ad: "Kazık Delme", sure: delmeSure, renk: "#0284C7" },
+    { ad: "Bekleme / Test", sure: bekleme, renk: "#0EA5E9" },
+    { ad: "Demobilizasyon", sure: demobilize, renk: "#94A3B8" },
   ]
 
   const W = 420
@@ -184,7 +184,7 @@ export function GanttSemasi({ kazikAdedi, sure, toplamGun }) {
   let baslangicGun = 0
   return (
     <div>
-      <h3 style={{ color: "#1B3A6B", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #EFF6FF" }}>
+      <h3 style={{ color: "#0369A1", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE" }}>
         Proje Zaman Çizelgesi
       </h3>
       <svg width={W + 60} height={H} style={{ overflow: "visible" }}>
@@ -266,7 +266,7 @@ export function SenaryoKarsilastirma({ zemin, kazikCapi, kazikBoyu, kazikAdedi }
 
   return (
     <div>
-      <h3 style={{ color: "#1B3A6B", fontSize: "15px", fontWeight: "700", marginBottom: "8px", paddingBottom: "10px", borderBottom: "2px solid #EFF6FF" }}>
+      <h3 style={{ color: "#0369A1", fontSize: "15px", fontWeight: "700", marginBottom: "8px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE" }}>
         Senaryo Karşılaştırması — Çap Değişimi
       </h3>
       <p style={{ color: "#94A3B8", fontSize: "12px", marginBottom: "16px" }}>
@@ -282,12 +282,12 @@ export function SenaryoKarsilastirma({ zemin, kazikCapi, kazikBoyu, kazikAdedi }
           <Legend wrapperStyle={{ fontSize: "12px" }} />
           <Bar yAxisId="tork" dataKey="Tork (kNm)" radius={[4, 4, 0, 0]}>
             {data.map((entry, i) => (
-              <Cell key={i} fill={entry.isMain ? "#1B3A6B" : "#93C5FD"} />
+              <Cell key={i} fill={entry.isMain ? "#0284C7" : "#7DD3FC"} />
             ))}
           </Bar>
           <Bar yAxisId="sure" dataKey="1 Kazık (saat)" radius={[4, 4, 0, 0]}>
             {data.map((entry, i) => (
-              <Cell key={i} fill={entry.isMain ? "#7C3AED" : "#C4B5FD"} />
+              <Cell key={i} fill={entry.isMain ? "#0891B2" : "#A5F3FC"} />
             ))}
           </Bar>
         </BarChart>

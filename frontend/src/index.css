@@ -1,30 +1,31 @@
 @import "tailwindcss";
 
 :root {
-  --bg-base:        #0A0806;
-  --bg-surface:     #100E0B;
-  --bg-card:        #181410;
-  --bg-card-hover:  #201B16;
-  --border-subtle:  #272018;
-  --border-medium:  #352C22;
-  --amber:          #C98A2C;
-  --amber-bright:   #E4A040;
-  --amber-glow:     rgba(201,138,44,0.15);
-  --teal:           #2B8C82;
-  --teal-bright:    #38A89C;
-  --text-primary:   #EDE8E1;
-  --text-secondary: #8A7E70;
-  --text-muted:     #48433C;
+  --bg-base:        #F0F9FF;
+  --bg-surface:     #FFFFFF;
+  --bg-card:        #FFFFFF;
+  --bg-card-hover:  #E0F2FE;
+  --border-subtle:  #E0F2FE;
+  --border-medium:  #BAE6FD;
+  --accent:         #0EA5E9;
+  --accent-bright:  #38BDF8;
+  --accent-glow:    rgba(14,165,233,0.15);
+  --accent-dark:    #0284C7;
+  --teal:           #14B8A6;
+  --teal-bright:    #2DD4BF;
+  --text-primary:   #0C4A6E;
+  --text-secondary: #64748B;
+  --text-muted:     #94A3B8;
 
-  /* Jeolojik strata renkleri */
-  --strata-1: #2E1A0C;
-  --strata-2: #4A2A12;
-  --strata-3: #6B3D1C;
-  --strata-4: #8A5E30;
-  --strata-5: #6E7870;
-  --strata-6: #4A5450;
-  --strata-7: #2E3432;
-  --strata-8: #1A1E1C;
+  /* Jeolojik strata renkleri — okyanus tonları */
+  --strata-1: #0C4A6E;
+  --strata-2: #075985;
+  --strata-3: #0369A1;
+  --strata-4: #0284C7;
+  --strata-5: #0EA5E9;
+  --strata-6: #38BDF8;
+  --strata-7: #7DD3FC;
+  --strata-8: #BAE6FD;
 }
 
 * {
@@ -50,9 +51,9 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes pulseAmber {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(201,138,44,0.4); }
-  50%       { box-shadow: 0 0 0 8px rgba(201,138,44,0); }
+@keyframes pulseBlue {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(14,165,233,0.4); }
+  50%       { box-shadow: 0 0 0 8px rgba(14,165,233,0); }
 }
 
 @keyframes shimmer {

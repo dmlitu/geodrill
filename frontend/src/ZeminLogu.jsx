@@ -127,7 +127,7 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
     <div>
       <div style={{ marginBottom: "24px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <div>
-          <h2 style={{ color: "#1B3A6B", fontSize: "22px", fontWeight: "700" }}>
+          <h2 style={{ color: "#0369A1", fontSize: "22px", fontWeight: "700" }}>
             Zemin Logu
           </h2>
           <p style={{ color: "#94A3B8", fontSize: "14px", marginTop: "4px" }}>
@@ -146,7 +146,7 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
             disabled={kayitDurumu === "loading"}
             style={{
               padding: "9px 22px",
-              background: kayitDurumu === "loading" ? "#94A3B8" : "linear-gradient(135deg, #1B3A6B 0%, #2D5BA3 100%)",
+              background: kayitDurumu === "loading" ? "#94A3B8" : "linear-gradient(135deg, #0284C7 0%, #0EA5E9 100%)",
               color: "white", border: "none", borderRadius: "8px",
               fontSize: "14px", fontWeight: "600",
               cursor: kayitDurumu === "loading" ? "not-allowed" : "pointer"
@@ -257,8 +257,8 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
                       <span style={{
                         padding: "4px 10px", borderRadius: "20px",
                         fontSize: "12px", fontWeight: "600",
-                        background: "#EFF6FF", color: "#2D5BA3",
-                        border: "1px solid #BFDBFE",
+                        background: "#E0F2FE", color: "#0EA5E9",
+                        border: "1px solid #BAE6FD",
                         whiteSpace: "nowrap"
                       }}>
                         {uc}
@@ -285,8 +285,8 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
         <div style={{ padding: "16px 20px", borderTop: "1px solid #F1F5F9" }}>
           <button onClick={addRow} style={{
             padding: "9px 20px",
-            background: "#EFF6FF", color: "#2D5BA3",
-            border: "1.5px solid #BFDBFE", borderRadius: "8px",
+            background: "#E0F2FE", color: "#0EA5E9",
+            border: "1.5px solid #BAE6FD", borderRadius: "8px",
             fontSize: "13px", fontWeight: "600", cursor: "pointer"
           }}>
             + Katman Ekle

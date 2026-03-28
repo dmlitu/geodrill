@@ -30,7 +30,7 @@ export default function RegisterPage({ onLogin, onGoLogin }) {
   return (
     <div style={{
       minHeight: "100vh", display: "flex",
-      background: "linear-gradient(160deg, #0F2447 0%, #1B3A6B 45%, #2D5BA3 100%)"
+      background: "linear-gradient(160deg, #E0F2FE 0%, #BAE6FD 45%, #7DD3FC 100%)"
     }}>
       {/* Sağ / Orta — form */}
       <div style={{
@@ -39,16 +39,16 @@ export default function RegisterPage({ onLogin, onGoLogin }) {
       }}>
         <div style={{
           background: "white", borderRadius: "20px",
-          boxShadow: "0 24px 72px rgba(0,0,0,0.25)",
+          boxShadow: "0 24px 72px rgba(14,165,233,0.12)",
           padding: "48px 44px", width: "100%", maxWidth: "460px"
         }}>
           {/* Logo */}
           <div style={{ textAlign: "center", marginBottom: "32px" }}>
             <div style={{ marginBottom: "4px" }}>
-              <span style={{ color: "#1B3A6B", fontSize: "30px", fontWeight: "900" }}>Geo</span>
-              <span style={{ color: "#2D5BA3", fontSize: "30px", fontWeight: "900" }}>Drill</span>
+              <span style={{ color: "#0C4A6E", fontSize: "30px", fontWeight: "900" }}>Geo</span>
+              <span style={{ color: "#0EA5E9", fontSize: "30px", fontWeight: "900" }}>Drill</span>
             </div>
-            <div style={{ color: "#1B3A6B", fontSize: "10px", letterSpacing: "5px", fontWeight: "700" }}>
+            <div style={{ color: "#0369A1", fontSize: "10px", letterSpacing: "5px", fontWeight: "700" }}>
               — INSIGHT —
             </div>
             <p style={{ color: "#94A3B8", fontSize: "14px", marginTop: "10px", marginBottom: 0 }}>
@@ -89,7 +89,7 @@ export default function RegisterPage({ onLogin, onGoLogin }) {
           <button onClick={handleSubmit} disabled={loading} style={{
             width: "100%", padding: "13px", marginTop: "20px",
             border: "none", borderRadius: "8px",
-            background: loading ? "#94A3B8" : "linear-gradient(135deg, #1B3A6B 0%, #2D5BA3 100%)",
+            background: loading ? "#BAE6FD" : "linear-gradient(135deg, #0284C7 0%, #0EA5E9 100%)",
             color: "white", fontSize: "15px", fontWeight: "600",
             cursor: loading ? "not-allowed" : "pointer"
           }}>
@@ -99,7 +99,7 @@ export default function RegisterPage({ onLogin, onGoLogin }) {
           <p style={{ textAlign: "center", marginTop: "20px", fontSize: "14px", color: "#64748B" }}>
             Zaten hesabınız var mı?{" "}
             <button onClick={onGoLogin} style={{
-              background: "none", border: "none", color: "#2D5BA3",
+              background: "none", border: "none", color: "#0EA5E9",
               fontWeight: "600", cursor: "pointer", fontSize: "14px", padding: 0
             }}>
               Giriş Yap

@@ -34,9 +34,9 @@ function Card({ title, children }) {
       boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
     }}>
       <h3 style={{
-        color: "#1B3A6B", fontSize: "15px",
+        color: "#0369A1", fontSize: "15px",
         fontWeight: "700", marginBottom: "20px",
-        paddingBottom: "12px", borderBottom: "2px solid #EFF6FF"
+        paddingBottom: "12px", borderBottom: "2px solid #E0F2FE"
       }}>
         {title}
       </h3>
@@ -89,7 +89,7 @@ export default function ProjeForm({ data, onChange, projeId, onProjeIdChange }) 
     <div>
       <div style={{marginBottom: "24px", display: "flex", alignItems: "flex-start", justifyContent: "space-between"}}>
         <div>
-          <h2 style={{color: "#1B3A6B", fontSize: "22px", fontWeight: "700"}}>
+          <h2 style={{color: "#0369A1", fontSize: "22px", fontWeight: "700"}}>
             Proje Bilgileri
           </h2>
           <p style={{color: "#94A3B8", fontSize: "14px", marginTop: "4px"}}>
@@ -108,7 +108,7 @@ export default function ProjeForm({ data, onChange, projeId, onProjeIdChange }) 
             disabled={kayitDurumu === "loading"}
             style={{
               padding: "9px 22px",
-              background: kayitDurumu === "loading" ? "#94A3B8" : "linear-gradient(135deg, #1B3A6B 0%, #2D5BA3 100%)",
+              background: kayitDurumu === "loading" ? "#94A3B8" : "linear-gradient(135deg, #0284C7 0%, #0EA5E9 100%)",
               color: "white", border: "none", borderRadius: "8px",
               fontSize: "14px", fontWeight: "600",
               cursor: kayitDurumu === "loading" ? "not-allowed" : "pointer"
