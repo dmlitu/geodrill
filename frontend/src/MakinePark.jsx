@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { bulkReplaceEquipment, fromSnakeMakine } from "./api"
 
 const MAKINE_TIPLERI = ["Fore Kazık", "Ankraj", "Mini Kazık"]
 const CASING_SECENEKLER = ["Evet", "Hayır", "Şartlı"]
@@ -34,6 +35,9 @@ const DEFAULT_MAKINELER = [
 ]
 
 export default function MakinePark({ data, onChange }) {
+  const [kayitDurumu, setKayitDurumu] = useState(null)
+  const [hata, setHata] = useState("")
+
   const makineler = data.length > 0 ? data : DEFAULT_MAKINELER
 
   const updateRow = (id, field, value) => {
@@ -47,15 +51,52 @@ export default function MakinePark({ data, onChange }) {
     onChange(makineler.filter(m => m.id !== id))
   }
 
+  const kaydet = async () => {
+    setKayitDurumu("loading")
+    setHata("")
+    try {
+      const kaydedilenler = await bulkReplaceEquipment(makineler)
+      onChange(kaydedilenler.map(fromSnakeMakine))
+      setKayitDurumu("ok")
+      setTimeout(() => setKayitDurumu(null), 2000)
+    } catch (e) {
+      setHata(e.message)
+      setKayitDurumu("error")
+    }
+  }
+
   return (
     <div>
-      <div style={{ marginBottom: "24px" }}>
-        <h2 style={{ color: "#1B3A6B", fontSize: "22px", fontWeight: "700" }}>
-          Makine Parkı
-        </h2>
-        <p style={{ color: "#94A3B8", fontSize: "14px", marginTop: "4px" }}>
-          Bu projede kullanılabilecek makineleri düzenleyin
-        </p>
+      <div style={{ marginBottom: "24px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+        <div>
+          <h2 style={{ color: "#1B3A6B", fontSize: "22px", fontWeight: "700" }}>
+            Makine Parkı
+          </h2>
+          <p style={{ color: "#94A3B8", fontSize: "14px", marginTop: "4px" }}>
+            Bu projede kullanılabilecek makineleri düzenleyin
+          </p>
+        </div>
+        <div style={{display: "flex", alignItems: "center", gap: "12px", flexShrink: 0}}>
+          {kayitDurumu === "ok" && (
+            <span style={{color: "#16A34A", fontSize: "13px", fontWeight: "600"}}>✓ Kaydedildi</span>
+          )}
+          {kayitDurumu === "error" && (
+            <span style={{color: "#DC2626", fontSize: "13px"}}>{hata}</span>
+          )}
+          <button
+            onClick={kaydet}
+            disabled={kayitDurumu === "loading"}
+            style={{
+              padding: "9px 22px",
+              background: kayitDurumu === "loading" ? "#94A3B8" : "linear-gradient(135deg, #1B3A6B 0%, #2D5BA3 100%)",
+              color: "white", border: "none", borderRadius: "8px",
+              fontSize: "14px", fontWeight: "600",
+              cursor: kayitDurumu === "loading" ? "not-allowed" : "pointer"
+            }}
+          >
+            {kayitDurumu === "loading" ? "Kaydediliyor..." : "Kaydet"}
+          </button>
+        </div>
       </div>
 
       <div style={{

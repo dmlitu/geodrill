@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { createProject, updateProject } from "./api"
 
 const inputStyle = {
   width: "100%", padding: "10px 14px",
@@ -12,9 +13,7 @@ const labelStyle = {
   fontWeight: "600", display: "block", marginBottom: "6px"
 }
 
-const selectStyle = {
-  ...inputStyle, cursor: "pointer"
-}
+const selectStyle = { ...inputStyle, cursor: "pointer" }
 
 function Field({ label, children }) {
   return (
@@ -47,16 +46,60 @@ function Card({ title, children }) {
   )
 }
 
-export default function ProjeForm({ data, onChange }) {
+export default function ProjeForm({ data, onChange, projeId, onProjeIdChange }) {
+  const [kayitDurumu, setKayitDurumu] = useState(null) // null | "loading" | "ok" | "error"
+  const [hata, setHata] = useState("")
+
+  const kaydet = async () => {
+    setKayitDurumu("loading")
+    setHata("")
+    try {
+      if (projeId) {
+        await updateProject(projeId, data)
+      } else {
+        const yeni = await createProject(data)
+        onProjeIdChange(yeni.id)
+      }
+      setKayitDurumu("ok")
+      setTimeout(() => setKayitDurumu(null), 2000)
+    } catch (e) {
+      setHata(e.message)
+      setKayitDurumu("error")
+    }
+  }
+
   return (
     <div>
-      <div style={{marginBottom: "24px"}}>
-        <h2 style={{color: "#1B3A6B", fontSize: "22px", fontWeight: "700"}}>
-          Proje Bilgileri
-        </h2>
-        <p style={{color: "#94A3B8", fontSize: "14px", marginTop: "4px"}}>
-          Proje, saha ve kazık parametrelerini girin
-        </p>
+      <div style={{marginBottom: "24px", display: "flex", alignItems: "flex-start", justifyContent: "space-between"}}>
+        <div>
+          <h2 style={{color: "#1B3A6B", fontSize: "22px", fontWeight: "700"}}>
+            Proje Bilgileri
+          </h2>
+          <p style={{color: "#94A3B8", fontSize: "14px", marginTop: "4px"}}>
+            Proje, saha ve kazık parametrelerini girin
+          </p>
+        </div>
+        <div style={{display: "flex", alignItems: "center", gap: "12px", flexShrink: 0}}>
+          {kayitDurumu === "ok" && (
+            <span style={{color: "#16A34A", fontSize: "13px", fontWeight: "600"}}>✓ Kaydedildi</span>
+          )}
+          {kayitDurumu === "error" && (
+            <span style={{color: "#DC2626", fontSize: "13px"}}>{hata}</span>
+          )}
+          <button
+            onClick={kaydet}
+            disabled={kayitDurumu === "loading"}
+            style={{
+              padding: "9px 22px",
+              background: kayitDurumu === "loading" ? "#94A3B8" : "linear-gradient(135deg, #1B3A6B 0%, #2D5BA3 100%)",
+              color: "white", border: "none", borderRadius: "8px",
+              fontSize: "14px", fontWeight: "600",
+              cursor: kayitDurumu === "loading" ? "not-allowed" : "pointer"
+            }}
+          >
+            {kayitDurumu === "loading" ? "Kaydediliyor..." : projeId ? "Güncelle" : "Kaydet"}
+          </button>
+        </div>
       </div>
 
       <Card title="📋 Proje Tanımı">

@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { bulkReplaceSoilLayers, fromSnakeLayer } from "./api"
 
 const ZEMIN_TIPLERI = ["Dolgu", "Kil", "Silt", "Kum", "Çakıl", "Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya"]
 const KOHEZYON_TIPLERI = ["Kohezyonlu", "Kohezyonsuz", "Kaya"]
@@ -16,9 +17,7 @@ const thStyle = {
   letterSpacing: "0.5px", whiteSpace: "nowrap"
 }
 
-const tdStyle = {
-  padding: "8px 6px", verticalAlign: "middle"
-}
+const tdStyle = { padding: "8px 6px", verticalAlign: "middle" }
 
 const cellInput = {
   width: "100%", padding: "7px 10px",
@@ -26,9 +25,7 @@ const cellInput = {
   fontSize: "13px", outline: "none", boxSizing: "border-box"
 }
 
-const cellSelect = {
-  ...cellInput, cursor: "pointer", background: "white"
-}
+const cellSelect = { ...cellInput, cursor: "pointer", background: "white" }
 
 function stabiliteRiski(zemTipi, kohezyon, spt, yas) {
   if (["Kum", "Çakıl"].includes(zemTipi) && yas >= 0) return "Yüksek"
@@ -55,7 +52,10 @@ const DEFAULT_ROW = () => ({
   aciklama: ""
 })
 
-export default function ZeminLogu({ data, onChange, yeraltiSuyu }) {
+export default function ZeminLogu({ data, onChange, yeraltiSuyu, projeId }) {
+  const [kayitDurumu, setKayitDurumu] = useState(null)
+  const [hata, setHata] = useState("")
+
   const satirlar = data.length > 0 ? data : [DEFAULT_ROW()]
 
   const updateRow = (id, field, value) => {
@@ -74,15 +74,57 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu }) {
     onChange(satirlar.filter(r => r.id !== id))
   }
 
+  const kaydet = async () => {
+    if (!projeId) {
+      setHata("Önce 'Proje Bilgileri' sekmesinden projeyi kaydedin.")
+      setKayitDurumu("error")
+      return
+    }
+    setKayitDurumu("loading")
+    setHata("")
+    try {
+      const kaydedilenler = await bulkReplaceSoilLayers(projeId, satirlar)
+      onChange(kaydedilenler.map(fromSnakeLayer))
+      setKayitDurumu("ok")
+      setTimeout(() => setKayitDurumu(null), 2000)
+    } catch (e) {
+      setHata(e.message)
+      setKayitDurumu("error")
+    }
+  }
+
   return (
     <div>
-      <div style={{ marginBottom: "24px" }}>
-        <h2 style={{ color: "#1B3A6B", fontSize: "22px", fontWeight: "700" }}>
-          Zemin Logu
-        </h2>
-        <p style={{ color: "#94A3B8", fontSize: "14px", marginTop: "4px" }}>
-          Metre metre zemin katmanlarını girin
-        </p>
+      <div style={{ marginBottom: "24px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+        <div>
+          <h2 style={{ color: "#1B3A6B", fontSize: "22px", fontWeight: "700" }}>
+            Zemin Logu
+          </h2>
+          <p style={{ color: "#94A3B8", fontSize: "14px", marginTop: "4px" }}>
+            Metre metre zemin katmanlarını girin
+          </p>
+        </div>
+        <div style={{display: "flex", alignItems: "center", gap: "12px", flexShrink: 0}}>
+          {kayitDurumu === "ok" && (
+            <span style={{color: "#16A34A", fontSize: "13px", fontWeight: "600"}}>✓ Kaydedildi</span>
+          )}
+          {kayitDurumu === "error" && (
+            <span style={{color: "#DC2626", fontSize: "13px"}}>{hata}</span>
+          )}
+          <button
+            onClick={kaydet}
+            disabled={kayitDurumu === "loading"}
+            style={{
+              padding: "9px 22px",
+              background: kayitDurumu === "loading" ? "#94A3B8" : "linear-gradient(135deg, #1B3A6B 0%, #2D5BA3 100%)",
+              color: "white", border: "none", borderRadius: "8px",
+              fontSize: "14px", fontWeight: "600",
+              cursor: kayitDurumu === "loading" ? "not-allowed" : "pointer"
+            }}
+          >
+            {kayitDurumu === "loading" ? "Kaydediliyor..." : "Kaydet"}
+          </button>
+        </div>
       </div>
 
       <div style={{
@@ -203,7 +245,6 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu }) {
           </table>
         </div>
 
-        {/* Alt buton */}
         <div style={{ padding: "16px 20px", borderTop: "1px solid #F1F5F9" }}>
           <button onClick={addRow} style={{
             padding: "9px 20px",

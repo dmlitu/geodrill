@@ -1,14 +1,14 @@
+import { useState, useEffect } from "react"
 import AnalizSonucu from "./AnalizSonucu"
 import MakinePark from "./MakinePark"
 import ZeminLogu from "./ZeminLogu"
 import ProjeForm from "./ProjeForm"
-import { useState } from "react"
-
-const USERS = {
-  "firma1": "1234",
-  "admin": "admin123",
-  "demo": "demo"
-}
+import {
+  login, logout, getToken,
+  listProjects, getProject,
+  listEquipment,
+  fromSnake, fromSnakeLayer, fromSnakeMakine,
+} from "./api"
 
 const NAV_ITEMS = [
   { id: "proje", label: "Proje Bilgileri", icon: "📋" },
@@ -17,16 +17,32 @@ const NAV_ITEMS = [
   { id: "analiz", label: "Analiz Sonucu", icon: "📊" },
 ]
 
+const BOS_PROJE = {
+  projeAdi: "", projeKodu: "", sahaKodu: "",
+  lokasyon: "İstanbul", isTipi: "Fore Kazık",
+  kazikBoyu: 18, kazikCapi: 800, kazikAdedi: 30,
+  yeraltiSuyu: 4, projeNotu: "", teklifNotu: ""
+}
+
+// ─── LoginPage ────────────────────────────────────────────────────────────────
+
 function LoginPage({ onLogin }) {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  const handleLogin = () => {
-    if (USERS[username] === password) {
+  const handleLogin = async () => {
+    if (!username || !password) { setError("Kullanıcı adı ve şifre gerekli."); return }
+    setLoading(true)
+    setError("")
+    try {
+      await login(username, password)
       onLogin(username)
-    } else {
-      setError("Kullanıcı adı veya şifre hatalı.")
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -84,13 +100,13 @@ function LoginPage({ onLogin }) {
             </div>
           )}
 
-          <button onClick={handleLogin} style={{
+          <button onClick={handleLogin} disabled={loading} style={{
             width: "100%", padding: "13px",
-            background: "linear-gradient(135deg, #1B3A6B 0%, #2D5BA3 100%)",
+            background: loading ? "#94A3B8" : "linear-gradient(135deg, #1B3A6B 0%, #2D5BA3 100%)",
             color: "white", border: "none", borderRadius: "8px",
-            fontSize: "15px", fontWeight: "600", cursor: "pointer", marginTop: "4px"
+            fontSize: "15px", fontWeight: "600", cursor: loading ? "not-allowed" : "pointer", marginTop: "4px"
           }}>
-            Giriş Yap
+            {loading ? "Giriş yapılıyor..." : "Giriş Yap"}
           </button>
         </div>
 
@@ -101,6 +117,8 @@ function LoginPage({ onLogin }) {
     </div>
   )
 }
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 function Sidebar({ active, onNav }) {
   return (
@@ -134,6 +152,8 @@ function Sidebar({ active, onNav }) {
   )
 }
 
+// ─── Header ───────────────────────────────────────────────────────────────────
+
 function Header({ username, onLogout }) {
   return (
     <header style={{
@@ -158,51 +178,92 @@ function Header({ username, onLogout }) {
   )
 }
 
-function PlaceholderPage({ title, desc }) {
-  return (
-    <div style={{display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", textAlign: "center"}}>
-      <div style={{fontSize: "48px", marginBottom: "16px"}}>🚧</div>
-      <h2 style={{color: "#1B3A6B", fontSize: "20px", fontWeight: "700", marginBottom: "8px"}}>{title}</h2>
-      <p style={{color: "#94A3B8", fontSize: "14px"}}>{desc}</p>
-    </div>
-  )
-}
+// ─── Dashboard ────────────────────────────────────────────────────────────────
 
 function Dashboard({ username, onLogout }) {
   const [activePage, setActivePage] = useState("proje")
-
-  const [proje, setProje] = useState({
-    projeAdi: "", projeKodu: "", sahaKodu: "",
-    lokasyon: "İstanbul", isTipi: "Fore Kazık",
-    kazikBoyu: 18, kazikCapi: 800, kazikAdedi: 30,
-    yeraltiSuyu: 4, projeNotu: "", teklifNotu: ""
-  })
-
+  const [projeId, setProjeId] = useState(null)
+  const [proje, setProje] = useState(BOS_PROJE)
   const [zemin, setZemin] = useState([])
   const [makineler, setMakineler] = useState([])
+  const [yukleniyor, setYukleniyor] = useState(true)
+
+  // Giriş sonrası veri yükleme
+  useEffect(() => {
+    async function yukle() {
+      try {
+        const [projeler, ekipmanlar] = await Promise.all([
+          listProjects(),
+          listEquipment(),
+        ])
+
+        if (projeler.length > 0) {
+          // En son güncellenen projeyi yükle (API zaten desc döndürüyor)
+          const sonPraje = await getProject(projeler[0].id)
+          setProjeId(sonPraje.id)
+          setProje(fromSnake(sonPraje))
+          setZemin((sonPraje.soil_layers || []).map(fromSnakeLayer))
+        }
+
+        if (ekipmanlar.length > 0) {
+          setMakineler(ekipmanlar.map(fromSnakeMakine))
+        }
+      } catch {
+        // İlk açılışta hata olursa boş başla
+      } finally {
+        setYukleniyor(false)
+      }
+    }
+    yukle()
+  }, [])
 
   const handleProjeChange = (key, value) => {
     setProje(prev => ({...prev, [key]: value}))
+  }
+
+  const handleLogout = () => {
+    logout()
+    onLogout()
+  }
+
+  if (yukleniyor) {
+    return (
+      <div style={{display: "flex", minHeight: "100vh"}}>
+        <Sidebar active={activePage} onNav={setActivePage} />
+        <div style={{flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "#F8FAFC"}}>
+          <p style={{color: "#94A3B8", fontSize: "15px"}}>Veriler yükleniyor...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div style={{display: "flex", minHeight: "100vh"}}>
       <Sidebar active={activePage} onNav={setActivePage} />
       <div style={{flex: 1, display: "flex", flexDirection: "column"}}>
-        <Header username={username} onLogout={onLogout} />
+        <Header username={username} onLogout={handleLogout} />
         <main style={{flex: 1, padding: "32px 28px", background: "#F8FAFC", overflowY: "auto"}}>
           {activePage === "proje" && (
-            <ProjeForm data={proje} onChange={handleProjeChange} />
+            <ProjeForm
+              data={proje}
+              onChange={handleProjeChange}
+              projeId={projeId}
+              onProjeIdChange={setProjeId}
+            />
           )}
           {activePage === "zemin" && (
             <ZeminLogu
               data={zemin}
               onChange={setZemin}
               yeraltiSuyu={proje.yeraltiSuyu}
+              projeId={projeId}
             />
           )}
           {activePage === "makine" && (
-            <MakinePark data={makineler} onChange={setMakineler} />
+            <MakinePark
+              data={makineler}
+              onChange={setMakineler}
+            />
           )}
           {activePage === "analiz" && (
             <AnalizSonucu
@@ -217,8 +278,25 @@ function Dashboard({ username, onLogout }) {
   )
 }
 
+// ─── App ──────────────────────────────────────────────────────────────────────
+
 export default function App() {
-  const [user, setUser] = useState(null)
-  if (!user) return <LoginPage onLogin={setUser} />
-  return <Dashboard username={user} onLogout={() => setUser(null)} />
+  const [user, setUser] = useState(() => {
+    // Token varsa otomatik oturumu sürdür
+    if (!getToken()) return null
+    return localStorage.getItem("gd_username") || null
+  })
+
+  const handleLogin = (username) => {
+    localStorage.setItem("gd_username", username)
+    setUser(username)
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem("gd_username")
+    setUser(null)
+  }
+
+  if (!user) return <LoginPage onLogin={handleLogin} />
+  return <Dashboard username={user} onLogout={handleLogout} />
 }
