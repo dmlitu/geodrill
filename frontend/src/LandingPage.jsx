@@ -1,307 +1,474 @@
 export default function LandingPage({ onGoLogin, onGoRegister }) {
   return (
-    <div style={{ fontFamily: "'Inter', system-ui, sans-serif", color: "#1E293B" }}>
+    <div style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "var(--bg-base)", color: "var(--text-primary)", overflowX: "hidden" }}>
+      <style>{`
+        .nav-btn-ghost {
+          padding: 8px 20px;
+          border: 1px solid var(--border-medium);
+          border-radius: 6px;
+          background: transparent;
+          color: var(--text-secondary);
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: 'Plus Jakarta Sans', sans-serif;
+          letter-spacing: 0.02em;
+          transition: color 0.2s, border-color 0.2s;
+        }
+        .nav-btn-ghost:hover { color: var(--text-primary); border-color: var(--border-medium); }
+
+        .nav-btn-amber {
+          padding: 8px 20px;
+          border: none;
+          border-radius: 6px;
+          background: var(--amber);
+          color: #0A0806;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          font-family: 'Plus Jakarta Sans', sans-serif;
+          letter-spacing: 0.02em;
+          transition: background 0.2s, transform 0.15s;
+        }
+        .nav-btn-amber:hover { background: var(--amber-bright); transform: translateY(-1px); }
+
+        .strata-track {
+          animation: strataScroll 28s linear infinite;
+        }
+
+        .feature-card {
+          background: var(--bg-card);
+          border: 1px solid var(--border-subtle);
+          border-radius: 10px;
+          padding: 28px 24px;
+          transition: border-color 0.2s, transform 0.2s;
+          position: relative;
+          overflow: hidden;
+        }
+        .feature-card::before {
+          content: '';
+          position: absolute;
+          left: 0; top: 0; bottom: 0;
+          width: 3px;
+        }
+        .feature-card:hover {
+          border-color: var(--border-medium);
+          transform: translateY(-3px);
+        }
+
+        .cta-primary {
+          padding: 14px 36px;
+          border: none;
+          border-radius: 8px;
+          background: var(--amber);
+          color: #0A0806;
+          font-size: 15px;
+          font-weight: 700;
+          cursor: pointer;
+          font-family: 'Plus Jakarta Sans', sans-serif;
+          transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+        }
+        .cta-primary:hover {
+          background: var(--amber-bright);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(201,138,44,0.35);
+        }
+
+        .cta-secondary {
+          padding: 14px 36px;
+          border: 1px solid var(--border-medium);
+          border-radius: 8px;
+          background: transparent;
+          color: var(--text-secondary);
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: 'Plus Jakarta Sans', sans-serif;
+          transition: color 0.2s, border-color 0.2s;
+        }
+        .cta-secondary:hover { color: var(--text-primary); border-color: var(--amber); }
+
+        .step-num {
+          font-family: 'Fraunces', serif;
+          font-size: 72px;
+          font-weight: 900;
+          line-height: 1;
+          color: var(--border-medium);
+          transition: color 0.2s;
+        }
+        .step-item:hover .step-num { color: var(--amber); }
+
+        .stat-val {
+          font-family: 'Fraunces', serif;
+          font-weight: 700;
+          font-size: 40px;
+          color: var(--amber);
+          line-height: 1;
+        }
+      `}</style>
+
       {/* ── Navbar ── */}
       <nav style={{
         position: "sticky", top: 0, zIndex: 100,
-        background: "rgba(255,255,255,0.95)", backdropFilter: "blur(8px)",
-        borderBottom: "1px solid #E2E8F0",
+        background: "rgba(10,8,6,0.9)",
+        backdropFilter: "blur(12px)",
+        borderBottom: "1px solid var(--border-subtle)",
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 48px", height: "64px",
+        padding: "0 48px", height: "60px",
       }}>
-        <div>
-          <span style={{ color: "#1B3A6B", fontSize: "22px", fontWeight: "900" }}>Geo</span>
-          <span style={{ color: "#2D5BA3", fontSize: "22px", fontWeight: "900" }}>Drill</span>
-          <span style={{
-            color: "#64748B", fontSize: "10px", letterSpacing: "4px",
-            fontWeight: "700", marginLeft: "8px", verticalAlign: "middle"
-          }}>INSIGHT</span>
-        </div>
-        <div style={{ display: "flex", gap: "12px" }}>
-          <button onClick={onGoLogin} style={{
-            padding: "8px 20px", border: "1.5px solid #CBD5E1",
-            borderRadius: "8px", background: "white",
-            color: "#1B3A6B", fontSize: "14px", fontWeight: "600", cursor: "pointer"
-          }}>
-            Giriş Yap
-          </button>
-          <button onClick={onGoRegister} style={{
-            padding: "8px 20px", border: "none",
-            borderRadius: "8px",
-            background: "linear-gradient(135deg, #1B3A6B 0%, #2D5BA3 100%)",
-            color: "white", fontSize: "14px", fontWeight: "600", cursor: "pointer"
-          }}>
-            Kayıt Ol
-          </button>
+        <Logo />
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <button className="nav-btn-ghost" onClick={onGoLogin}>Giriş Yap</button>
+          <button className="nav-btn-amber" onClick={onGoRegister}>Kayıt Ol</button>
         </div>
       </nav>
 
       {/* ── Hero ── */}
-      <section style={{
-        background: "linear-gradient(160deg, #0F2447 0%, #1B3A6B 45%, #2D5BA3 100%)",
-        padding: "100px 48px 120px",
-        textAlign: "center",
-        position: "relative", overflow: "hidden",
-      }}>
-        {/* arka plan daireler */}
-        <div style={{
-          position: "absolute", top: "-80px", right: "-80px",
-          width: "400px", height: "400px", borderRadius: "50%",
-          background: "rgba(255,255,255,0.03)", pointerEvents: "none"
-        }} />
-        <div style={{
-          position: "absolute", bottom: "-120px", left: "-60px",
-          width: "500px", height: "500px", borderRadius: "50%",
-          background: "rgba(255,255,255,0.03)", pointerEvents: "none"
-        }} />
+      <section style={{ position: "relative", minHeight: "100vh", display: "flex", alignItems: "center", overflow: "hidden" }}>
 
-        <div style={{ position: "relative", maxWidth: "760px", margin: "0 auto" }}>
-          <span style={{
-            display: "inline-block", background: "rgba(147,197,253,0.15)",
-            border: "1px solid rgba(147,197,253,0.3)",
-            color: "#93C5FD", fontSize: "12px", fontWeight: "700",
-            letterSpacing: "3px", padding: "6px 16px", borderRadius: "100px",
-            marginBottom: "28px"
+        {/* Animasyonlu strata arka planı */}
+        <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+          {/* Strata şeritleri - çift yükseklikte sorunsuz döngü için */}
+          <div className="strata-track" style={{ position: "absolute", left: 0, right: 0, top: 0, height: "200%" }}>
+            {STRATA_BANDS.concat(STRATA_BANDS).map((band, i) => (
+              <div key={i} style={{
+                height: band.h,
+                background: band.color,
+                opacity: band.opacity,
+              }} />
+            ))}
+          </div>
+          {/* Koyu overlay */}
+          <div style={{
+            position: "absolute", inset: 0,
+            background: "linear-gradient(to bottom, rgba(10,8,6,0.88) 0%, rgba(10,8,6,0.78) 50%, rgba(10,8,6,0.92) 100%)",
+          }} />
+          {/* Sol taraf sondaj kolon göstergesi */}
+          <div style={{
+            position: "absolute", right: "10%", top: "10%", bottom: "10%",
+            width: "1px", background: "linear-gradient(to bottom, transparent, var(--border-medium) 20%, var(--border-medium) 80%, transparent)",
+            opacity: 0.5,
+          }} />
+          <div style={{
+            position: "absolute", right: "calc(10% - 5px)", top: "15%",
+            width: "11px", height: "11px", borderRadius: "50%",
+            background: "var(--amber)", opacity: 0.7,
+            animation: "pulseAmber 3s ease-in-out infinite",
+          }} />
+        </div>
+
+        {/* Hero içeriği */}
+        <div style={{ position: "relative", zIndex: 1, maxWidth: "800px", margin: "0 auto", padding: "80px 48px", textAlign: "center" }}>
+          <div style={{
+            display: "inline-block",
+            border: "1px solid var(--border-medium)",
+            borderLeft: "3px solid var(--amber)",
+            color: "var(--text-secondary)",
+            fontSize: "11px", fontWeight: "700",
+            letterSpacing: "4px", padding: "6px 16px",
+            marginBottom: "32px",
+            background: "rgba(201,138,44,0.05)",
           }}>
             GEOTEKNİK KARAR DESTEK SİSTEMİ
-          </span>
+          </div>
 
           <h1 style={{
-            color: "white", fontSize: "clamp(36px, 5vw, 60px)",
-            fontWeight: "900", lineHeight: "1.15", margin: "0 0 24px"
+            fontFamily: "'Fraunces', serif",
+            fontSize: "clamp(44px, 7vw, 80px)",
+            fontWeight: "900",
+            lineHeight: "1.1",
+            margin: "0 0 28px",
+            letterSpacing: "-0.02em",
           }}>
             Sondaj Kararlarını<br />
-            <span style={{ color: "#93C5FD" }}>Veriye Dayalı</span> Alın
+            <em style={{ color: "var(--amber)", fontStyle: "italic" }}>Zemine Dayalı</em> Alın
           </h1>
 
           <p style={{
-            color: "rgba(255,255,255,0.72)", fontSize: "18px",
-            lineHeight: "1.7", margin: "0 auto 44px", maxWidth: "580px"
+            color: "var(--text-secondary)",
+            fontSize: "18px",
+            lineHeight: "1.75",
+            margin: "0 auto 48px",
+            maxWidth: "540px",
+            fontWeight: "400",
           }}>
-            Zemin profili, tork hesabı, kasa ihtiyacı, yakıt tüketimi ve ekipman
-            uygunluğunu tek platformda yönetin.
+            Zemin profili, tork hesabı, kasa ihtiyacı, yakıt tüketimi ve ekipman uygunluğunu tek platformda yönetin.
           </p>
 
           <div style={{ display: "flex", gap: "14px", justifyContent: "center", flexWrap: "wrap" }}>
-            <button onClick={onGoRegister} style={{
-              padding: "15px 36px", border: "none", borderRadius: "10px",
-              background: "white", color: "#1B3A6B",
-              fontSize: "16px", fontWeight: "700", cursor: "pointer",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.2)"
-            }}>
-              Ücretsiz Başla
-            </button>
-            <button onClick={onGoLogin} style={{
-              padding: "15px 36px",
-              border: "1.5px solid rgba(255,255,255,0.35)", borderRadius: "10px",
-              background: "transparent", color: "white",
-              fontSize: "16px", fontWeight: "600", cursor: "pointer"
-            }}>
-              Giriş Yap →
-            </button>
+            <button className="cta-primary" onClick={onGoRegister}>Ücretsiz Başla</button>
+            <button className="cta-secondary" onClick={onGoLogin}>Giriş Yap →</button>
           </div>
+
+          {/* Demo bilgisi */}
+          <p style={{ marginTop: "28px", color: "var(--text-muted)", fontSize: "12px", letterSpacing: "0.03em" }}>
+            Demo hesap: <span style={{ color: "var(--text-secondary)", fontFamily: "'DM Mono', monospace" }}>demo / demo</span>
+          </p>
         </div>
       </section>
 
+      {/* ── İstatistik şeridi ── */}
+      <div style={{
+        background: "var(--bg-card)",
+        borderTop: "1px solid var(--border-subtle)",
+        borderBottom: "1px solid var(--border-subtle)",
+        padding: "40px 48px",
+      }}>
+        <div style={{
+          maxWidth: "900px", margin: "0 auto",
+          display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: "32px", textAlign: "center",
+        }}>
+          {STATS.map(s => (
+            <div key={s.label}>
+              <div className="stat-val">{s.value}</div>
+              <div style={{ marginTop: "6px", color: "var(--text-muted)", fontSize: "12px", fontWeight: "600", letterSpacing: "2px" }}>
+                {s.label}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* ── Özellikler ── */}
-      <section style={{ padding: "96px 48px", background: "#F8FAFC" }}>
+      <section style={{ padding: "100px 48px", background: "var(--bg-surface)" }}>
         <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: "64px" }}>
-            <h2 style={{ fontSize: "36px", fontWeight: "800", margin: "0 0 16px", color: "#0F172A" }}>
-              Her Şey Tek Yerde
-            </h2>
-            <p style={{ color: "#64748B", fontSize: "17px", maxWidth: "520px", margin: "0 auto" }}>
-              Geoteknik mühendisliğinin en kritik hesaplarını dakikalar içinde tamamlayın.
-            </p>
-          </div>
+          <SectionLabel>MODÜLLER</SectionLabel>
+          <h2 style={{
+            fontFamily: "'Fraunces', serif",
+            fontSize: "clamp(28px, 4vw, 44px)",
+            fontWeight: "800",
+            margin: "16px 0 56px",
+            letterSpacing: "-0.02em",
+          }}>
+            Her Şey Tek Yerde
+          </h2>
 
           <div style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: "24px"
+            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+            gap: "16px",
           }}>
-            {FEATURES.map(f => (
-              <FeatureCard key={f.title} {...f} />
+            {FEATURES.map((f, i) => (
+              <div key={f.title} className="feature-card" style={{ borderLeftColor: f.accent }}>
+                <style>{`.feature-card:nth-child(${i + 1})::before { background: ${f.accent}; }`}</style>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px",
+                }}>
+                  <div style={{
+                    width: "8px", height: "8px", borderRadius: "2px",
+                    background: f.accent, flexShrink: 0,
+                  }} />
+                  <h3 style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "0.01em" }}>
+                    {f.title}
+                  </h3>
+                </div>
+                <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: "1.7", margin: 0 }}>
+                  {f.desc}
+                </p>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
       {/* ── Nasıl Çalışır ── */}
-      <section style={{ padding: "96px 48px", background: "white" }}>
+      <section style={{ padding: "100px 48px", background: "var(--bg-base)" }}>
         <div style={{ maxWidth: "900px", margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: "64px" }}>
-            <h2 style={{ fontSize: "36px", fontWeight: "800", margin: "0 0 16px", color: "#0F172A" }}>
-              Nasıl Çalışır?
-            </h2>
-            <p style={{ color: "#64748B", fontSize: "17px" }}>
-              Üç adımda eksiksiz bir geoteknik analiz.
-            </p>
-          </div>
+          <SectionLabel>SÜREÇ</SectionLabel>
+          <h2 style={{
+            fontFamily: "'Fraunces', serif",
+            fontSize: "clamp(28px, 4vw, 44px)",
+            fontWeight: "800",
+            margin: "16px 0 64px",
+            letterSpacing: "-0.02em",
+          }}>
+            Üç Adımda Eksiksiz Analiz
+          </h2>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "0" }}>
             {STEPS.map((step, i) => (
-              <StepRow key={step.title} step={step} index={i} last={i === STEPS.length - 1} />
+              <div key={step.title} className="step-item" style={{
+                padding: "32px",
+                borderLeft: i === 0 ? "none" : "1px solid var(--border-subtle)",
+                position: "relative",
+              }}>
+                <div className="step-num">{String(i + 1).padStart(2, "0")}</div>
+                <h3 style={{
+                  fontFamily: "'Fraunces', serif",
+                  fontSize: "20px", fontWeight: "700",
+                  margin: "16px 0 12px",
+                  color: "var(--text-primary)",
+                }}>
+                  {step.title}
+                </h3>
+                <p style={{ fontSize: "14px", color: "var(--text-secondary)", lineHeight: "1.7", margin: 0 }}>
+                  {step.desc}
+                </p>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── CTA Banner ── */}
+      {/* ── CTA ── */}
       <section style={{
-        background: "linear-gradient(135deg, #1B3A6B 0%, #2D5BA3 100%)",
-        padding: "80px 48px", textAlign: "center"
+        padding: "100px 48px",
+        background: "var(--bg-card)",
+        borderTop: "1px solid var(--border-subtle)",
+        textAlign: "center",
+        position: "relative",
+        overflow: "hidden",
       }}>
-        <h2 style={{ color: "white", fontSize: "32px", fontWeight: "800", margin: "0 0 16px" }}>
-          Hemen Başlayın
-        </h2>
-        <p style={{ color: "rgba(255,255,255,0.75)", fontSize: "17px", margin: "0 0 36px" }}>
-          Ücretsiz hesap oluşturun, ilk projenizi birkaç dakikada analiz edin.
-        </p>
-        <button onClick={onGoRegister} style={{
-          padding: "15px 40px", border: "none", borderRadius: "10px",
-          background: "white", color: "#1B3A6B",
-          fontSize: "16px", fontWeight: "700", cursor: "pointer"
-        }}>
-          Ücretsiz Kayıt Ol
-        </button>
+        <div style={{
+          position: "absolute", top: "-100px", left: "50%", transform: "translateX(-50%)",
+          width: "600px", height: "300px",
+          background: "radial-gradient(ellipse, rgba(201,138,44,0.08) 0%, transparent 70%)",
+          pointerEvents: "none",
+        }} />
+        <div style={{ position: "relative" }}>
+          <SectionLabel>BAŞLANGIÇ</SectionLabel>
+          <h2 style={{
+            fontFamily: "'Fraunces', serif",
+            fontSize: "clamp(28px, 4vw, 44px)",
+            fontWeight: "800",
+            margin: "16px 0 20px",
+            letterSpacing: "-0.02em",
+          }}>
+            İlk Projenizi Bugün Analiz Edin
+          </h2>
+          <p style={{ color: "var(--text-secondary)", fontSize: "16px", margin: "0 0 40px", maxWidth: "480px", marginLeft: "auto", marginRight: "auto" }}>
+            Ücretsiz hesap oluşturun, zemin profilinizi girin ve dakikalar içinde eksiksiz bir sondaj analizi alın.
+          </p>
+          <button className="cta-primary" onClick={onGoRegister}>
+            Ücretsiz Kayıt Ol
+          </button>
+        </div>
       </section>
 
       {/* ── Footer ── */}
       <footer style={{
-        background: "#0F172A", padding: "40px 48px",
+        background: "var(--bg-surface)",
+        borderTop: "1px solid var(--border-subtle)",
+        padding: "32px 48px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        flexWrap: "wrap", gap: "16px"
+        flexWrap: "wrap", gap: "16px",
       }}>
-        <div>
-          <span style={{ color: "white", fontSize: "18px", fontWeight: "900" }}>Geo</span>
-          <span style={{ color: "#93C5FD", fontSize: "18px", fontWeight: "900" }}>Drill</span>
-          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "9px", letterSpacing: "3px", marginLeft: "8px" }}>INSIGHT</span>
-        </div>
-        <p style={{ color: "rgba(255,255,255,0.35)", fontSize: "13px", margin: 0 }}>
-          © {new Date().getFullYear()} GeoDrill. Geoteknik Karar Destek Sistemi.
+        <Logo small />
+        <p style={{ color: "var(--text-muted)", fontSize: "12px", margin: 0, letterSpacing: "0.02em" }}>
+          © {new Date().getFullYear()} GeoDrill Insight. Geoteknik Karar Destek Sistemi.
         </p>
       </footer>
     </div>
   )
 }
 
-// ─── Feature Card ─────────────────────────────────────────────────────────────
+// ─── Logo ─────────────────────────────────────────────────────────────────────
 
-function FeatureCard({ icon, title, desc }) {
+function Logo({ small }) {
+  const size = small ? "16px" : "20px"
+  const dotSize = small ? "6px" : "7px"
   return (
-    <div style={{
-      background: "white", borderRadius: "16px",
-      padding: "32px 28px", border: "1px solid #E2E8F0",
-      boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-      transition: "transform 0.15s, box-shadow 0.15s",
-    }}
-      onMouseEnter={e => {
-        e.currentTarget.style.transform = "translateY(-4px)"
-        e.currentTarget.style.boxShadow = "0 12px 32px rgba(27,58,107,0.12)"
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.transform = "translateY(0)"
-        e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)"
-      }}
-    >
-      <div style={{
-        width: "52px", height: "52px", borderRadius: "12px",
-        background: "linear-gradient(135deg, #EFF6FF, #DBEAFE)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: "24px", marginBottom: "20px"
-      }}>
-        {icon}
+    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+        {["var(--strata-3)", "var(--strata-5)", "var(--strata-7)"].map((c, i) => (
+          <div key={i} style={{ width: dotSize, height: dotSize, borderRadius: "1px", background: c }} />
+        ))}
       </div>
-      <h3 style={{ margin: "0 0 10px", fontSize: "17px", fontWeight: "700", color: "#0F172A" }}>
-        {title}
-      </h3>
-      <p style={{ margin: 0, fontSize: "14px", color: "#64748B", lineHeight: "1.65" }}>
-        {desc}
-      </p>
+      <div>
+        <span style={{ fontFamily: "'Fraunces', serif", fontWeight: "900", fontSize: size, color: "var(--text-primary)" }}>Geo</span>
+        <span style={{ fontFamily: "'Fraunces', serif", fontWeight: "900", fontSize: size, color: "var(--amber)" }}>Drill</span>
+        <span style={{ color: "var(--text-muted)", fontSize: "9px", letterSpacing: "3px", fontWeight: "700", marginLeft: "6px", verticalAlign: "middle" }}>INSIGHT</span>
+      </div>
     </div>
   )
 }
 
-// ─── Step Row ─────────────────────────────────────────────────────────────────
+// ─── SectionLabel ─────────────────────────────────────────────────────────────
 
-function StepRow({ step, index, last }) {
+function SectionLabel({ children }) {
   return (
-    <div style={{ display: "flex", gap: "32px", alignItems: "flex-start" }}>
-      {/* sol: numara + çizgi */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-        <div style={{
-          width: "48px", height: "48px", borderRadius: "50%",
-          background: "linear-gradient(135deg, #1B3A6B, #2D5BA3)",
-          color: "white", fontWeight: "800", fontSize: "18px",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 4px 14px rgba(27,58,107,0.3)"
-        }}>
-          {index + 1}
-        </div>
-        {!last && (
-          <div style={{ width: "2px", height: "60px", background: "#E2E8F0", margin: "8px 0" }} />
-        )}
-      </div>
-      {/* sağ: içerik */}
-      <div style={{ paddingBottom: last ? 0 : "24px" }}>
-        <h3 style={{ margin: "8px 0 8px", fontSize: "19px", fontWeight: "700", color: "#0F172A" }}>
-          {step.title}
-        </h3>
-        <p style={{ margin: 0, fontSize: "15px", color: "#64748B", lineHeight: "1.7" }}>
-          {step.desc}
-        </p>
-      </div>
+    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+      <div style={{ width: "24px", height: "1px", background: "var(--amber)" }} />
+      <span style={{ color: "var(--amber)", fontSize: "11px", fontWeight: "700", letterSpacing: "3px" }}>
+        {children}
+      </span>
     </div>
   )
 }
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
+const STRATA_BANDS = [
+  { h: "18px",  color: "#2A1608", opacity: 1 },
+  { h: "6px",   color: "#3A2010", opacity: 0.9 },
+  { h: "28px",  color: "#4E2E14", opacity: 1 },
+  { h: "4px",   color: "#6A3A18", opacity: 0.8 },
+  { h: "22px",  color: "#5C3420", opacity: 1 },
+  { h: "8px",   color: "#3A2C20", opacity: 0.7 },
+  { h: "40px",  color: "#7A5030", opacity: 1 },
+  { h: "6px",   color: "#9A7050", opacity: 0.6 },
+  { h: "18px",  color: "#6A6060", opacity: 1 },
+  { h: "10px",  color: "#505A58", opacity: 0.8 },
+  { h: "34px",  color: "#3C4442", opacity: 1 },
+  { h: "6px",   color: "#2E3634", opacity: 0.7 },
+  { h: "50px",  color: "#242C2A", opacity: 1 },
+  { h: "8px",   color: "#1C2220", opacity: 0.9 },
+  { h: "26px",  color: "#161A18", opacity: 1 },
+  { h: "12px",  color: "#100E0C", opacity: 0.8 },
+]
+
+const STATS = [
+  { value: "6+",   label: "HESAP MODÜLÜ" },
+  { value: "∞",    label: "PROJE SAYISI" },
+  { value: "100%", label: "WEB TABANLI" },
+  { value: "PDF",  label: "RAPOR ÇIKTI" },
+]
+
 const FEATURES = [
   {
-    icon: "🪨",
     title: "Zemin Logu Girişi",
-    desc: "SPT, UCS ve RQD değerleriyle zemin katmanlarını tanımlayın; stabilite riski otomatik hesaplanır.",
+    desc: "SPT, UCS ve RQD değerleriyle zemin katmanlarını tanımlayın. Stabilite riski ve uç tipi önerisi anında hesaplanır.",
+    accent: "var(--strata-4)",
   },
   {
-    icon: "⚙️",
     title: "Tork Hesabı",
-    desc: "Her zemin katmanı için gereken tork değerini zemin tipine göre otomatik olarak hesaplayın.",
+    desc: "Her zemin katmanı için gereken tork değerini zemin tipine ve formasyon özelliklerine göre otomatik hesaplayın.",
+    accent: "var(--amber)",
   },
   {
-    icon: "🏗️",
     title: "Kasa İhtiyacı",
-    desc: "Yeraltı suyu seviyesi ve stabilite riskine göre gereken kasa uzunluğunu belirleyin.",
+    desc: "Yeraltı suyu seviyesi ve stabilite riskine göre gereken casing uzunluğunu otomatik belirleyin.",
+    accent: "var(--strata-5)",
   },
   {
-    icon: "⛽",
-    title: "Yakıt & Süre",
-    desc: "Toplam delme süresi ve yakıt tüketimini proje başlamadan önce tahmin edin.",
+    title: "Yakıt & Süre Tahmini",
+    desc: "Toplam kazık süresi ve yakıt tüketimini proje başlamadan önce sahaya göre öngörün.",
+    accent: "var(--teal)",
   },
   {
-    icon: "📊",
-    title: "Ekipman Analizi",
-    desc: "Makine parkınızdaki ekipmanların proje için uygunluğunu karşılaştırmalı matrisde görün.",
+    title: "Ekipman Uygunluk Matrisi",
+    desc: "Makine parkınızdaki ekipmanların bu proje için uygunluğunu karşılaştırmalı tabloda görün.",
+    accent: "var(--strata-3)",
   },
   {
-    icon: "📋",
-    title: "Proje Yönetimi",
-    desc: "Tüm projelerinizi kaydedin, geçmiş analizlere dilediğiniz zaman geri dönün.",
+    title: "PDF Rapor",
+    desc: "Tüm hesap sonuçlarını tek tıkla profesyonel PDF raporuna dönüştürün, müşteriye doğrudan iletin.",
+    accent: "var(--amber-bright)",
   },
 ]
 
 const STEPS = [
   {
     title: "Zemin Profilini Girin",
-    desc: "Saha verilerini (SPT, UCS, RQD, formasyon) katman katman sisteme işleyin. Stabilite riski ve uç tipi önerisi anında gösterilir.",
+    desc: "Saha verilerini katman katman sisteme işleyin. Stabilite riski ve uç tipi önerisi anında gösterilir.",
   },
   {
-    title: "Ekipman Parkını Tanımlayın",
-    desc: "Kullandığınız sondaj makinelerini (tork, max derinlik, çap kapasitesi) bir kez kaydedin, tüm projelerde kullanın.",
+    title: "Makine Parkınızı Tanımlayın",
+    desc: "Sondaj makinelerinizi bir kez kaydedin — tork kapasitesi, derinlik ve çap limitleriyle birlikte.",
   },
   {
     title: "Analizi Çalıştırın",
-    desc: "Tork, kasa, yakıt ve süre hesapları otomatik yapılır. Hangi makinenin proje için uygun olduğunu tek bakışta görün.",
+    desc: "Tork, kasa, yakıt ve süre hesapları otomatik yapılır. Hangi makinenin uygun olduğunu tek bakışta görün.",
   },
 ]

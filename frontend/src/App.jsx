@@ -72,91 +72,131 @@ function LoginPage({ onLogin, onGoRegister, onGoLanding }) {
     }
   }
 
+  const inp = {
+    width: "100%", padding: "11px 14px",
+    border: "1px solid var(--border-medium)",
+    borderRadius: "6px", fontSize: "14px", outline: "none",
+    boxSizing: "border-box",
+    background: "var(--bg-surface)",
+    color: "var(--text-primary)",
+    fontFamily: "'Plus Jakarta Sans', sans-serif",
+  }
+
   return (
     <div style={{
       minHeight: "100vh", display: "flex",
       alignItems: "center", justifyContent: "center",
-      background: "linear-gradient(160deg, #0F2447 0%, #1B3A6B 45%, #2D5BA3 100%)"
+      background: "var(--bg-base)",
+      position: "relative", overflow: "hidden",
     }}>
+      {/* Hafif arka plan tonu */}
       <div style={{
-        background: "white", borderRadius: "20px",
-        boxShadow: "0 24px 72px rgba(0,0,0,0.25)",
-        padding: "48px 44px", width: "100%", maxWidth: "420px"
+        position: "absolute", top: "50%", left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: "600px", height: "600px",
+        background: "radial-gradient(ellipse, rgba(201,138,44,0.06) 0%, transparent 70%)",
+        pointerEvents: "none",
+      }} />
+
+      <div style={{
+        background: "var(--bg-card)",
+        border: "1px solid var(--border-subtle)",
+        borderRadius: "12px",
+        padding: "48px 44px", width: "100%", maxWidth: "400px",
+        position: "relative",
       }}>
-        <div style={{textAlign: "center", marginBottom: "36px"}}>
-          {onGoLanding && (
-            <button onClick={onGoLanding} style={{
-              background: "none", border: "none", cursor: "pointer",
-              color: "#94A3B8", fontSize: "13px", marginBottom: "16px",
-              display: "flex", alignItems: "center", gap: "4px", margin: "0 auto 16px"
-            }}>
-              ← Ana Sayfa
-            </button>
-          )}
-          <div style={{marginBottom: "4px"}}>
-            <span style={{color: "#1B3A6B", fontSize: "32px", fontWeight: "900"}}>Geo</span>
-            <span style={{color: "#2D5BA3", fontSize: "32px", fontWeight: "900"}}>Drill</span>
+        {onGoLanding && (
+          <button onClick={onGoLanding} style={{
+            background: "none", border: "none", cursor: "pointer",
+            color: "var(--text-muted)", fontSize: "12px",
+            display: "flex", alignItems: "center", gap: "4px",
+            marginBottom: "28px", fontFamily: "'Plus Jakarta Sans', sans-serif",
+            letterSpacing: "0.02em",
+          }}>
+            ← Ana Sayfa
+          </button>
+        )}
+
+        <div style={{ textAlign: "center", marginBottom: "36px" }}>
+          <div style={{ marginBottom: "8px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              {["#6B3D1C","#6A7870","#242C2A"].map((c, i) => (
+                <div key={i} style={{ width: "6px", height: "6px", borderRadius: "1px", background: c }} />
+              ))}
+            </div>
+            <div>
+              <span style={{ fontFamily: "'Fraunces', serif", fontWeight: "900", fontSize: "26px", color: "var(--text-primary)" }}>Geo</span>
+              <span style={{ fontFamily: "'Fraunces', serif", fontWeight: "900", fontSize: "26px", color: "var(--amber)" }}>Drill</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "9px", letterSpacing: "3px", marginLeft: "6px", verticalAlign: "middle" }}>INSIGHT</span>
+            </div>
           </div>
-          <div style={{color: "#1B3A6B", fontSize: "11px", letterSpacing: "5px", fontWeight: "700"}}>
-            — INSIGHT —
-          </div>
-          <p style={{color: "#94A3B8", fontSize: "13px", marginTop: "10px", marginBottom: 0}}>
+          <p style={{ color: "var(--text-muted)", fontSize: "12px", letterSpacing: "0.03em" }}>
             Geoteknik Karar Destek Sistemi
           </p>
         </div>
 
-        <div style={{display: "flex", flexDirection: "column", gap: "16px"}}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           <div>
-            <label style={{color: "#374151", fontSize: "13px", fontWeight: "600", display: "block", marginBottom: "6px"}}>
-              Kullanıcı Adı
+            <label style={{ color: "var(--text-secondary)", fontSize: "12px", fontWeight: "600", display: "block", marginBottom: "6px", letterSpacing: "0.04em" }}>
+              KULLANICI ADI
             </label>
             <input type="text" value={username}
               onChange={e => setUsername(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleLogin()}
               placeholder="kullanici_adi"
-              style={{width: "100%", padding: "11px 14px", border: "1.5px solid #E2E8F0", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box"}}
+              style={inp}
             />
           </div>
           <div>
-            <label style={{color: "#374151", fontSize: "13px", fontWeight: "600", display: "block", marginBottom: "6px"}}>
-              Şifre
+            <label style={{ color: "var(--text-secondary)", fontSize: "12px", fontWeight: "600", display: "block", marginBottom: "6px", letterSpacing: "0.04em" }}>
+              ŞİFRE
             </label>
             <input type="password" value={password}
               onChange={e => setPassword(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleLogin()}
               placeholder="••••••••"
-              style={{width: "100%", padding: "11px 14px", border: "1.5px solid #E2E8F0", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box"}}
+              style={inp}
             />
           </div>
 
           {error && (
-            <div style={{background: "#FEF2F2", border: "1px solid #FECACA", color: "#DC2626", padding: "10px 14px", borderRadius: "8px", fontSize: "13px"}}>
+            <div style={{
+              background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.3)",
+              color: "#F87171", padding: "10px 14px", borderRadius: "6px", fontSize: "13px",
+            }}>
               {error}
             </div>
           )}
 
           <button onClick={handleLogin} disabled={loading} style={{
             width: "100%", padding: "13px",
-            background: loading ? "#94A3B8" : "linear-gradient(135deg, #1B3A6B 0%, #2D5BA3 100%)",
-            color: "white", border: "none", borderRadius: "8px",
-            fontSize: "15px", fontWeight: "600", cursor: loading ? "not-allowed" : "pointer", marginTop: "4px"
+            background: loading ? "var(--border-medium)" : "var(--amber)",
+            color: loading ? "var(--text-muted)" : "#0A0806",
+            border: "none", borderRadius: "6px",
+            fontSize: "14px", fontWeight: "700",
+            cursor: loading ? "not-allowed" : "pointer",
+            marginTop: "4px",
+            fontFamily: "'Plus Jakarta Sans', sans-serif",
+            letterSpacing: "0.02em",
+            transition: "background 0.2s",
           }}>
             {loading ? "Giriş yapılıyor..." : "Giriş Yap"}
           </button>
         </div>
 
-        <p style={{textAlign: "center", marginTop: "20px", fontSize: "14px", color: "#64748B"}}>
+        <p style={{ textAlign: "center", marginTop: "20px", fontSize: "13px", color: "var(--text-muted)" }}>
           Hesabınız yok mu?{" "}
           <button onClick={onGoRegister} style={{
-            background: "none", border: "none", color: "#2D5BA3",
-            fontWeight: "600", cursor: "pointer", fontSize: "14px", padding: 0
+            background: "none", border: "none", color: "var(--amber)",
+            fontWeight: "600", cursor: "pointer", fontSize: "13px", padding: 0,
+            fontFamily: "'Plus Jakarta Sans', sans-serif",
           }}>
             Kayıt Ol
           </button>
         </p>
 
-        <p style={{color: "#CBD5E1", fontSize: "12px", textAlign: "center", marginTop: "12px"}}>
-          Demo: <strong>demo</strong> / <strong>demo</strong>
+        <p style={{ color: "var(--text-muted)", fontSize: "11px", textAlign: "center", marginTop: "16px", fontFamily: "'DM Mono', monospace" }}>
+          demo / demo
         </p>
       </div>
     </div>
@@ -168,16 +208,11 @@ function LoginPage({ onLogin, onGoRegister, onGoLanding }) {
 function Sidebar({ active, onNav, open, onClose }) {
   return (
     <>
-      {/* Mobil overlay */}
       {open && (
         <div
           onClick={onClose}
           aria-hidden="true"
-          style={{
-            position: "fixed", inset: 0, zIndex: 40,
-            background: "rgba(0,0,0,0.45)",
-            display: "none"
-          }}
+          style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.6)", display: "none" }}
           className="sidebar-overlay"
         />
       )}
@@ -185,32 +220,42 @@ function Sidebar({ active, onNav, open, onClose }) {
         role="navigation"
         aria-label="Ana menü"
         style={{
-          width: "240px", minHeight: "100vh",
-          background: "#1B3A6B", display: "flex",
-          flexDirection: "column", flexShrink: 0,
-          position: "relative", zIndex: 50
+          width: "220px", minHeight: "100vh",
+          background: "var(--bg-surface)",
+          borderRight: "1px solid var(--border-subtle)",
+          display: "flex", flexDirection: "column", flexShrink: 0,
+          position: "relative", zIndex: 50,
         }}
         className={`sidebar${open ? " sidebar-open" : ""}`}
       >
-        <div style={{padding: "24px 20px", borderBottom: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "space-between"}}>
-          <div>
-            <span style={{color: "white", fontSize: "20px", fontWeight: "900"}}>Geo</span>
-            <span style={{color: "#93C5FD", fontSize: "20px", fontWeight: "900"}}>Drill</span>
-            <div style={{color: "rgba(255,255,255,0.5)", fontSize: "9px", letterSpacing: "4px", fontWeight: "600"}}>INSIGHT</div>
+        {/* Logo */}
+        <div style={{
+          padding: "20px 18px",
+          borderBottom: "1px solid var(--border-subtle)",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              {["#6B3D1C","#6A7870","#242C2A"].map((c, i) => (
+                <div key={i} style={{ width: "5px", height: "5px", borderRadius: "1px", background: c }} />
+              ))}
+            </div>
+            <div>
+              <span style={{ fontFamily: "'Fraunces', serif", fontWeight: "900", fontSize: "17px", color: "var(--text-primary)" }}>Geo</span>
+              <span style={{ fontFamily: "'Fraunces', serif", fontWeight: "900", fontSize: "17px", color: "var(--amber)" }}>Drill</span>
+              <div style={{ color: "var(--text-muted)", fontSize: "8px", letterSpacing: "3px", fontWeight: "600", marginTop: "1px" }}>INSIGHT</div>
+            </div>
           </div>
-          {/* Mobil kapat butonu */}
           <button
             onClick={onClose}
             aria-label="Menüyü kapat"
-            style={{
-              background: "none", border: "none", color: "rgba(255,255,255,0.6)",
-              fontSize: "20px", cursor: "pointer", lineHeight: 1,
-              display: "none"
-            }}
+            style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: "18px", cursor: "pointer", display: "none" }}
             className="sidebar-close-btn"
           >✕</button>
         </div>
-        <nav style={{padding: "16px 12px", flex: 1}}>
+
+        {/* Nav */}
+        <nav style={{ padding: "12px 10px", flex: 1 }}>
           {NAV_ITEMS.map(item => (
             <button
               key={item.id}
@@ -218,15 +263,19 @@ function Sidebar({ active, onNav, open, onClose }) {
               aria-current={active === item.id ? "page" : undefined}
               style={{
                 width: "100%", display: "flex", alignItems: "center",
-                gap: "10px", padding: "11px 14px",
-                background: active === item.id ? "rgba(255,255,255,0.15)" : "transparent",
-                border: "none", borderRadius: "8px",
-                color: active === item.id ? "white" : "rgba(255,255,255,0.65)",
-                fontSize: "14px", fontWeight: active === item.id ? "600" : "400",
-                cursor: "pointer", marginBottom: "4px", textAlign: "left"
+                gap: "10px", padding: "10px 12px",
+                background: active === item.id ? "var(--bg-card)" : "transparent",
+                border: active === item.id ? "1px solid var(--border-subtle)" : "1px solid transparent",
+                borderLeft: active === item.id ? "3px solid var(--amber)" : "3px solid transparent",
+                borderRadius: "6px",
+                color: active === item.id ? "var(--text-primary)" : "var(--text-secondary)",
+                fontSize: "13px", fontWeight: active === item.id ? "600" : "400",
+                cursor: "pointer", marginBottom: "4px", textAlign: "left",
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                transition: "color 0.15s, background 0.15s",
               }}
             >
-              <span aria-hidden="true">{item.icon}</span>
+              <span aria-hidden="true" style={{ fontSize: "14px" }}>{item.icon}</span>
               <span>{item.label}</span>
             </button>
           ))}
@@ -241,38 +290,42 @@ function Sidebar({ active, onNav, open, onClose }) {
 function Header({ username, onLogout, onMenuOpen }) {
   return (
     <header style={{
-      height: "60px", background: "white",
-      borderBottom: "1px solid #E2E8F0",
+      height: "54px",
+      background: "var(--bg-surface)",
+      borderBottom: "1px solid var(--border-subtle)",
       display: "flex", alignItems: "center",
       justifyContent: "space-between",
-      padding: "0 28px", gap: "16px",
-      boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
+      padding: "0 24px", gap: "16px",
     }}>
-      {/* Mobil hamburger */}
       <button
         onClick={onMenuOpen}
         aria-label="Menüyü aç"
-        aria-expanded="false"
         style={{
           background: "none", border: "none", cursor: "pointer",
-          color: "#1B3A6B", fontSize: "22px", lineHeight: 1,
-          padding: "4px", display: "none"
+          color: "var(--text-secondary)", fontSize: "20px", lineHeight: 1,
+          padding: "4px", display: "none",
         }}
         className="hamburger-btn"
       >
         ☰
       </button>
 
-      <span style={{color: "#64748B", fontSize: "14px", marginLeft: "auto"}}>
-        Hoş geldin, <strong style={{color: "#1B3A6B"}}>{username}</strong>
+      <span style={{ color: "var(--text-muted)", fontSize: "13px", marginLeft: "auto" }}>
+        <span style={{ color: "var(--text-secondary)" }}>{username}</span>
       </span>
       <button
         onClick={onLogout}
         aria-label="Oturumu kapat"
         style={{
-          padding: "7px 16px", border: "1.5px solid #E2E8F0",
-          borderRadius: "8px", background: "white",
-          color: "#64748B", fontSize: "13px", cursor: "pointer"
+          padding: "6px 14px",
+          border: "1px solid var(--border-medium)",
+          borderRadius: "6px",
+          background: "transparent",
+          color: "var(--text-secondary)",
+          fontSize: "12px", cursor: "pointer",
+          fontFamily: "'Plus Jakarta Sans', sans-serif",
+          fontWeight: "600", letterSpacing: "0.02em",
+          transition: "color 0.15s, border-color 0.15s",
         }}
       >
         Çıkış
@@ -334,8 +387,8 @@ function Dashboard({ username, onLogout }) {
     return (
       <div style={{display: "flex", minHeight: "100vh"}}>
         <Sidebar active={activePage} onNav={setActivePage} open={false} onClose={() => {}} />
-        <div style={{flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "#F8FAFC"}}>
-          <p style={{color: "#94A3B8", fontSize: "15px"}}>Veriler yükleniyor...</p>
+        <div style={{flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-base)"}}>
+          <p style={{color: "var(--text-muted)", fontSize: "14px", fontFamily: "'DM Mono', monospace", letterSpacing: "0.04em"}}>yükleniyor...</p>
         </div>
       </div>
     )
@@ -346,7 +399,7 @@ function Dashboard({ username, onLogout }) {
       <Sidebar active={activePage} onNav={setActivePage} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div style={{flex: 1, display: "flex", flexDirection: "column", minWidth: 0}}>
         <Header username={username} onLogout={handleLogout} onMenuOpen={() => setSidebarOpen(true)} />
-        <main style={{flex: 1, padding: "32px 28px", background: "#F8FAFC", overflowY: "auto"}}>
+        <main style={{flex: 1, padding: "32px 28px", background: "var(--bg-base)", overflowY: "auto"}}>
           {activePage === "proje" && (
             <ProjeForm
               data={proje}

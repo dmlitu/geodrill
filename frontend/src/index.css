@@ -1,5 +1,32 @@
 @import "tailwindcss";
 
+:root {
+  --bg-base:        #0A0806;
+  --bg-surface:     #100E0B;
+  --bg-card:        #181410;
+  --bg-card-hover:  #201B16;
+  --border-subtle:  #272018;
+  --border-medium:  #352C22;
+  --amber:          #C98A2C;
+  --amber-bright:   #E4A040;
+  --amber-glow:     rgba(201,138,44,0.15);
+  --teal:           #2B8C82;
+  --teal-bright:    #38A89C;
+  --text-primary:   #EDE8E1;
+  --text-secondary: #8A7E70;
+  --text-muted:     #48433C;
+
+  /* Jeolojik strata renkleri */
+  --strata-1: #2E1A0C;
+  --strata-2: #4A2A12;
+  --strata-3: #6B3D1C;
+  --strata-4: #8A5E30;
+  --strata-5: #6E7870;
+  --strata-6: #4A5450;
+  --strata-7: #2E3432;
+  --strata-8: #1A1E1C;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -7,12 +34,37 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background-color: #F8FAFC;
-  color: #1E293B;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
 }
 
-/* ── Mobil uyumluluk ── */
+/* ── Animasyonlar ── */
+@keyframes strataScroll {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseAmber {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201,138,44,0.4); }
+  50%       { box-shadow: 0 0 0 8px rgba(201,138,44,0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.6s ease forwards;
+}
+
+/* ── Mobil sidebar ── */
 @media (max-width: 768px) {
   .sidebar {
     position: fixed !important;
@@ -23,36 +75,20 @@ body {
     transition: transform 0.25s ease;
     z-index: 50;
   }
-
   .sidebar.sidebar-open {
     transform: translateX(0);
   }
-
-  .sidebar-overlay {
-    display: block !important;
-  }
-
-  .sidebar-close-btn {
-    display: block !important;
-  }
-
-  .hamburger-btn {
-    display: block !important;
-  }
+  .sidebar-overlay    { display: block !important; }
+  .sidebar-close-btn  { display: block !important; }
+  .hamburger-btn      { display: block !important; }
 }
 
+/* ── Yazdırma ── */
 @media print {
   .no-print { display: none !important; }
-
-  /* Sidebar ve header gizle */
   nav, header { display: none !important; }
-
-  body { background: white !important; }
-
-  /* Kart gölgeleri baskıda gereksiz */
+  body { background: white !important; color: black !important; }
   * { box-shadow: none !important; }
-
-  /* Sayfa sonu kontrolü */
   table { page-break-inside: avoid; }
   h2, h3 { page-break-after: avoid; }
 }
