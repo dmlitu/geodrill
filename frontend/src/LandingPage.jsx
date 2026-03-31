@@ -200,11 +200,6 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
             <button className="cta-primary" onClick={onGoRegister}>Ücretsiz Başla</button>
             <button className="cta-secondary" onClick={onGoLogin}>Giriş Yap →</button>
           </div>
-
-          {/* Demo bilgisi */}
-          <p style={{ marginTop: "28px", color: "#94A3B8", fontSize: "12px", letterSpacing: "0.03em" }}>
-            Demo hesap: <span style={{ color: "#64748B", fontFamily: "'DM Mono', monospace" }}>demo / demo</span>
-          </p>
         </div>
       </section>
 
