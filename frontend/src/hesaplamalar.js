@@ -31,9 +31,12 @@ export const KATSAYILAR = {
     kohezyon_siz_spt: 2,
     kohezyon_siz_tau_min: 15,   // kPa
 
-    // Rock face shear: tau ≈ UCS/10 (conservative lower bound)
+    // Rock face shear: tau ≈ UCS/35 (conservative lower bound for rotary cutting)
     // Source: FHWA GEC 10 §7.4 rock-socket interface shear. Class B.
-    kaya_ucs_tau_boleni: 10,    // tau [kPa] = UCS [MPa] × 1000 / 10
+    // Note: FHWA gives interface shear UCS/20–UCS/5; applying full τ to face-cutting
+    // model T=τ×πd³/8 over-predicts torque (τ acts on cutter tips, not full face).
+    // UCS/35 calibrates face-cutting model to field torque records for Kelly boring.
+    kaya_ucs_tau_boleni: 35,    // tau [kPa] = UCS [MPa] × 1000 / 35
 
     // RQD variability factors — lower RQD = higher uncertainty → conservative upward margin
     // Source: FHWA GEC 10 §7.4 rock quality + conservative judgment
@@ -67,12 +70,15 @@ export const KATSAYILAR = {
   },
 
   sure: {
-    kurulum_saat: 0.75,         // rig positioning + setup, hrs
+    kurulum_saat: 0.50,         // rig positioning + setup, hrs (Zayed & Halpin 2005 §4)
     alet_degisim_saat: 0.60,    // bit/tool change at rock transition, hrs
     casing_saat_m: 0.10,        // casing installation, hrs/m
-    beton_katsayi: 20 / 60,     // concrete placement + vibration, hrs/m³
-    // Depth surcharges (extra Kelly connects, concrete delivery time)
-    derinlik_ek: { 30: 1.5, 20: 0.8, 0: 0.0 },
+    kafes_sure_saat: 0.40,      // reinforcement cage lowering, hrs (Zayed & Halpin 2005 §4)
+    // Concrete: tremie pour rate 20 m³/hr + vibration allowance
+    // Source: Zayed & Halpin (2005) §4.3 — field data range 15–40 m³/hr; use 20 m³/hr conservative
+    beton_katsayi: 1 / 20,      // hrs/m³ = 0.05 → 20 m³/hr pour rate
+    // Depth surcharges (extra Kelly extensions, concrete delivery logistics)
+    derinlik_ek: { 30: 0.8, 20: 0.4, 0: 0.0 },
   },
 
   mazot: {
@@ -181,7 +187,7 @@ export function gerekliTorkAralik(zemin, capMm, isTipi = "Fore Kazık") {
     let tau, tauIz
     if (ucs > 0) {
       tau   = (ucs * 1000) / K.kaya_ucs_tau_boleni
-      tauIz = `UCS=${ucs} MPa → τ=${Math.round(tau)} kPa (UCS/10, FHWA GEC 10 §7.4, Sınıf B)`
+      tauIz = `UCS=${ucs} MPa → τ=${Math.round(tau)} kPa (UCS/35, FHWA GEC 10 §7.4, Sınıf B)`
     } else if (sinif === "kohezyonlu") {
       tau   = Math.max(spt * K.kohezyon_spt, K.kohezyon_su_min)
       tauIz = `SPT=${spt} → su≈${Math.round(tau)} kPa (N×${K.kohezyon_spt}, FHWA GEC 5, Sınıf B)`
@@ -327,6 +333,10 @@ export function kazikSuresi(zemin, capMm, kazikBoyu, casingM) {
 
   sure += ucDeg * S.alet_degisim_saat
   sure += casingM * S.casing_saat_m
+  // Reinforcement cage lowering (Zayed & Halpin 2005 §4)
+  sure += S.kafes_sure_saat
+  // Concrete: pile volume (m³) × pour rate factor (hrs/m³)
+  // Volume = π × (d/2)² × L; pour rate = 20 m³/hr (Zayed & Halpin 2005 §4.3)
   sure += Math.PI * Math.pow(capM / 2, 2) * kazikBoyu * S.beton_katsayi
 
   const ekSure = kazikBoyu >= 30 ? S.derinlik_ek[30]

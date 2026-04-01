@@ -244,7 +244,8 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     const { mBasi, toplam: topMazot } = mazotTahmini(tork, proje.kazikBoyu)
     const kritik = kritikKatman(zemin)
     const gunlukUretim = Math.max(1, Math.round(10 / sure))
-    const toplamGun = Math.round(sure * proje.kazikAdedi * 10) / 10
+    // Total working days = (hrs/pile × pile count) / 10 hrs per workday
+    const toplamGun = Math.round((sure * proje.kazikAdedi / 10) * 10) / 10
     const ucOneri = zemin.some(r => ["Kumtaşı", "Kireçtaşı", "Sert Kaya"].includes(r.zemTipi) || r.ucs >= 25)
       ? "Kaya ucu gerekli" : zemin.some(r => r.zemTipi === "Ayrışmış Kaya" || r.ucs >= 10)
       ? "Geçiş tipi uç" : "Standart uç yeterli"

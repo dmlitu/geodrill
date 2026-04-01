@@ -33,9 +33,11 @@ class TorkCoefficients:
     kohezyon_siz_spt: float = 2.0
     kohezyon_siz_tau_min: float = 15.0  # kPa
 
-    # Rock face shear: tau ≈ UCS/10 (conservative lower bound)
+    # Rock face shear: tau ≈ UCS/35 for rotary face-cutting model
     # Source: FHWA GEC 10 §7.4 rock-socket interface shear. Class B.
-    kaya_ucs_tau_boleni: float = 10.0  # tau [kPa] = UCS [MPa] × 1000 / 10
+    # Note: τ=UCS/10 over-predicts torque when applied to full face area πd³/8.
+    # UCS/35 calibrates to field torque records for Kelly boring in weak–medium rock.
+    kaya_ucs_tau_boleni: float = 35.0  # tau [kPa] = UCS [MPa] × 1000 / 35
 
     # RQD variability factors (lower RQD → higher uncertainty → conservative upward margin)
     # Source: FHWA GEC 10 §7.4 rock quality + conservative judgment
@@ -72,13 +74,15 @@ class RopCoefficients:
 
 @dataclass(frozen=True)
 class SureCoefficients:
-    kurulum_saat: float = 0.75          # rig positioning + setup
+    kurulum_saat: float = 0.50          # rig positioning + setup (Zayed & Halpin 2005 §4)
     alet_degisim_saat: float = 0.60     # bit/tool change at rock transition
     casing_saat_m: float = 0.10         # casing installation, hrs/m
-    beton_katsayi: float = 20 / 60      # concrete placement + vibration, hrs/m³
-    # Depth surcharges
+    kafes_sure_saat: float = 0.40       # reinforcement cage lowering (Zayed & Halpin 2005 §4)
+    # Concrete: tremie pour rate 20 m³/hr (Zayed & Halpin 2005 §4.3)
+    beton_katsayi: float = 1 / 20       # hrs/m³ = 0.05 → 20 m³/hr pour rate
+    # Depth surcharges (extra Kelly extensions, concrete delivery logistics)
     derinlik_ek: Dict[int, float] = field(default_factory=lambda: {
-        30: 1.5, 20: 0.8, 0: 0.0
+        30: 0.8, 20: 0.4, 0: 0.0
     })
 
 

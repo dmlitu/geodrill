@@ -153,7 +153,7 @@ def gerekli_tork_aralik(layers: list, cap_mm: float, is_tipi: str = "Fore Kazık
 
         if ucs > 0:
             tau = (ucs * 1000) / K.kaya_ucs_tau_boleni
-            tau_iz = f"UCS={ucs} MPa → τ={round(tau)} kPa (UCS/10, FHWA GEC 10 §7.4, Sınıf B)"
+            tau_iz = f"UCS={ucs} MPa → τ={round(tau)} kPa (UCS/35, FHWA GEC 10 §7.4, Sınıf B)"
         elif sinif == "kohezyonlu":
             tau = max(spt * K.kohezyon_spt, K.kohezyon_su_min)
             tau_iz = f"SPT={spt} → su≈{round(tau)} kPa (N×{K.kohezyon_spt}, FHWA GEC 5, Sınıf B)"
@@ -218,6 +218,9 @@ def kazik_suresi(layers: list, cap_mm: float, kazik_boyu: float, casing_m: float
 
     sure += uc_deg * S.alet_degisim_saat
     sure += casing_m * S.casing_saat_m
+    # Reinforcement cage lowering (Zayed & Halpin 2005 §4)
+    sure += S.kafes_sure_saat
+    # Concrete: pile volume × pour rate factor (Zayed & Halpin 2005 §4.3)
     sure += math.pi * (cap_m / 2) ** 2 * kazik_boyu * S.beton_katsayi
 
     ek_sure = (S.derinlik_ek[30] if kazik_boyu >= 30
