@@ -153,6 +153,56 @@ export async function downloadSoilLayersCsv(projectId) {
   URL.revokeObjectURL(url)
 }
 
+// Excel (xlsx) client-side export — zemin, analiz ve fiyat verileri
+export async function downloadExcelReport(proje, zemin, analizSonuclari, projeKodu) {
+  const XLSX = await import("xlsx")
+  const wb = XLSX.utils.book_new()
+
+  // Sheet 1: Zemin Logu
+  const zeminRows = [
+    ["Başlangıç (m)", "Bitiş (m)", "Formasyon", "Zemin Tipi", "Kohezyon", "SPT", "UCS (MPa)", "RQD (%)"],
+    ...zemin.map(r => [r.baslangic, r.bitis, r.formasyon, r.zemTipi, r.kohezyon, r.spt, r.ucs, r.rqd]),
+  ]
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(zeminRows), "Zemin Logu")
+
+  // Sheet 2: Proje & Analiz
+  const projeRows = [
+    ["Alan", "Değer"],
+    ["Proje Adı", proje.projeAdi || ""],
+    ["Proje Kodu", proje.projeKodu || ""],
+    ["Lokasyon", proje.lokasyon || ""],
+    ["İş Tipi", proje.isTipi || ""],
+    ["Kazık Boyu (m)", proje.kazikBoyu],
+    ["Kazık Çapı (mm)", proje.kazikCapi],
+    ["Kazık Adedi", proje.kazikAdedi],
+    ["Yeraltı Suyu (m)", proje.yeraltiSuyu],
+    [],
+    ["Metrik", "Değer"],
+    ...(analizSonuclari ? [
+      ["Gerekli Tork (kNm)", analizSonuclari.tork],
+      ["Casing Durumu", analizSonuclari.casingDur],
+      ["Tahmini Casing (m)", analizSonuclari.casingM],
+      ["1 Kazık Süresi (saat)", analizSonuclari.sure],
+      ["Toplam İş Süresi (gün)", analizSonuclari.toplamGun],
+      ["Metre Başı Mazot (L/m)", analizSonuclari.mBasi],
+      ["Toplam Mazot (L)", Math.round((analizSonuclari.topMazot || 0) * proje.kazikAdedi)],
+    ] : []),
+  ]
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(projeRows), "Proje ve Analiz")
+
+  // Sheet 3: Tork Derinlik (katman bazlı)
+  if (analizSonuclari?.katmanCiktilar) {
+    const torkRows = [
+      ["Derinlik Başlangıç (m)", "Derinlik Bitiş (m)", "Zemin Tipi", "SPT", "UCS (MPa)", "Beklenen Tork (kNm)", "Önerilen Uç"],
+      ...analizSonuclari.katmanCiktilar.map(r => [r.baslangic, r.bitis, r.zemTipi, r.spt, r.ucs, r.katmanTork, r.uc]),
+    ]
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(torkRows), "Tork ve Uç Analizi")
+  }
+
+  const dosyaAdi = `geodrill_${projeKodu || "rapor"}.xlsx`
+  XLSX.writeFile(wb, dosyaAdi)
+}
+
 // ─── Field name mapping (camelCase ↔ snake_case) ──────────────────────────────
 
 function toSnake(proje) {

@@ -8,6 +8,9 @@ import RegisterPage from "./RegisterPage"
 import { ToastProvider } from "./Toast"
 import { DEMO_PROJE, DEMO_ZEMIN, DEMO_MAKINELER } from "./DemoProje"
 import FiyatAnalizi from "./FiyatAnalizi"
+import OncekiAnalizler from "./OncekiAnalizler"
+import Ayarlar from "./Ayarlar"
+import { downloadExcelReport } from "./api"
 import {
   login, logout, getToken,
   listProjects, getProject,
@@ -77,12 +80,44 @@ function SkeletonLoader() {
   )
 }
 
-const NAV_ITEMS = [
-  { id: "proje", label: "Proje Bilgileri", icon: "📋" },
-  { id: "zemin", label: "Zemin Logu", icon: "🪨" },
-  { id: "makine", label: "Makine Parkı", icon: "⚙️" },
-  { id: "analiz", label: "Analiz Sonucu", icon: "📊" },
-  { id: "fiyat", label: "Fiyat Analizi", icon: "💰" },
+// Sidebar grupları
+const SIDEBAR_GROUPS = [
+  {
+    group: null,
+    items: [
+      { id: "dashboard", label: "Ana Ekran", icon: "🏠" },
+      { id: "yeniAnaliz", label: "Yeni Analiz Başlat", icon: "⚡", accent: true },
+    ]
+  },
+  {
+    group: "PROJE",
+    items: [
+      { id: "guncel", label: "Güncel Proje", icon: "📂" },
+      { id: "onceki", label: "Önceki Analizler", icon: "🕒" },
+    ]
+  },
+  {
+    group: "ÇIKTILAR",
+    items: [
+      { id: "raporlar", label: "Raporlar", icon: "📄" },
+      { id: "fiyat", label: "Fiyat Analizi", icon: "💰" },
+    ]
+  },
+  {
+    group: "HESAP",
+    items: [
+      { id: "ayarlar", label: "Ayarlar", icon: "⚙️" },
+    ]
+  },
+]
+
+// Proje wizard alt sekmeleri (Güncel Proje içinde)
+const WIZARD_TABS = [
+  { id: "proje", label: "Proje", icon: "📋" },
+  { id: "zemin", label: "Zemin", icon: "🪨" },
+  { id: "makine", label: "Makine", icon: "⚙️" },
+  { id: "analiz", label: "Analiz", icon: "📊" },
+  { id: "wizardFiyat", label: "Fiyat", icon: "💰" },
 ]
 
 const BOS_PROJE = {
@@ -249,35 +284,20 @@ function LoginPage({ onLogin, onGoRegister, onGoLanding }) {
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
-function Sidebar({ active, onNav, open, onClose }) {
+function Sidebar({ active, onNav, open, onClose, projeAdi }) {
   return (
     <>
       {open && (
-        <div
-          onClick={onClose}
-          aria-hidden="true"
+        <div onClick={onClose} aria-hidden="true"
           style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.3)", display: "none" }}
-          className="sidebar-overlay"
-        />
+          className="sidebar-overlay" />
       )}
-      <div
-        role="navigation"
-        aria-label="Ana menü"
-        style={{
-          width: "220px", minHeight: "100vh",
-          background: "var(--bg-surface)",
-          borderRight: "1px solid var(--border-subtle)",
-          display: "flex", flexDirection: "column", flexShrink: 0,
-          position: "relative", zIndex: 50,
-        }}
+      <div role="navigation" aria-label="Ana menü"
+        style={{ width: "230px", minHeight: "100vh", background: "var(--bg-surface)", borderRight: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", flexShrink: 0, position: "relative", zIndex: 50 }}
         className={`sidebar${open ? " sidebar-open" : ""}`}
       >
         {/* Logo */}
-        <div style={{
-          padding: "20px 18px",
-          borderBottom: "1px solid var(--border-subtle)",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-        }}>
+        <div style={{ padding: "20px 18px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
               {["#0369A1","#0EA5E9","#7DD3FC"].map((c, i) => (
@@ -290,38 +310,53 @@ function Sidebar({ active, onNav, open, onClose }) {
               <div style={{ color: "var(--text-muted)", fontSize: "8px", letterSpacing: "3px", fontWeight: "600", marginTop: "1px" }}>INSIGHT</div>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Menüyü kapat"
+          <button onClick={onClose} aria-label="Menüyü kapat"
             style={{ background: "none", border: "none", color: "#94A3B8", fontSize: "18px", cursor: "pointer", display: "none" }}
-            className="sidebar-close-btn"
-          >✕</button>
+            className="sidebar-close-btn">✕</button>
         </div>
 
-        {/* Nav */}
-        <nav style={{ padding: "12px 10px", flex: 1 }}>
-          {NAV_ITEMS.map(item => (
-            <button
-              key={item.id}
-              onClick={() => { onNav(item.id); onClose() }}
-              aria-current={active === item.id ? "page" : undefined}
-              style={{
-                width: "100%", display: "flex", alignItems: "center",
-                gap: "10px", padding: "10px 12px",
-                background: active === item.id ? "var(--bg-card-hover)" : "transparent",
-                border: active === item.id ? "1px solid var(--border-medium)" : "1px solid transparent",
-                borderLeft: active === item.id ? "3px solid var(--accent)" : "3px solid transparent",
-                borderRadius: "6px",
-                color: active === item.id ? "var(--text-primary)" : "var(--text-secondary)",
-                fontSize: "13px", fontWeight: active === item.id ? "600" : "400",
-                cursor: "pointer", marginBottom: "4px", textAlign: "left",
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
-                transition: "color 0.15s, background 0.15s",
-              }}
-            >
-              <span aria-hidden="true" style={{ fontSize: "14px" }}>{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
+        {/* Nav grupları */}
+        <nav style={{ padding: "12px 10px", flex: 1, overflowY: "auto" }}>
+          {SIDEBAR_GROUPS.map((grp, gi) => (
+            <div key={gi} style={{ marginBottom: grp.group ? "4px" : "2px" }}>
+              {grp.group && (
+                <div style={{ fontSize: "9px", fontWeight: "700", color: "var(--text-muted)", letterSpacing: "3px", padding: "10px 12px 4px", textTransform: "uppercase" }}>
+                  {grp.group}
+                </div>
+              )}
+              {grp.items.map(item => {
+                const isActive = active === item.id || (item.id === "guncel" && ["proje","zemin","makine","analiz","wizardFiyat"].includes(active))
+                return (
+                  <button key={item.id} onClick={() => { onNav(item.id); onClose() }}
+                    aria-current={isActive ? "page" : undefined}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center",
+                      gap: "10px", padding: item.accent ? "9px 12px" : "9px 12px",
+                      background: item.accent
+                        ? "linear-gradient(135deg, #0284C7 0%, #0EA5E9 100%)"
+                        : isActive ? "var(--bg-card-hover)" : "transparent",
+                      border: item.accent ? "none"
+                        : isActive ? "1px solid var(--border-medium)" : "1px solid transparent",
+                      borderLeft: item.accent ? "none"
+                        : isActive ? "3px solid var(--accent)" : "3px solid transparent",
+                      borderRadius: "8px",
+                      color: item.accent ? "white" : isActive ? "var(--text-primary)" : "var(--text-secondary)",
+                      fontSize: "13px", fontWeight: item.accent ? "700" : isActive ? "600" : "400",
+                      cursor: "pointer", marginBottom: item.accent ? "10px" : "2px", textAlign: "left",
+                      fontFamily: "'Plus Jakarta Sans', sans-serif",
+                      transition: "all 0.15s",
+                      boxShadow: item.accent ? "0 2px 8px rgba(14,165,233,0.3)" : "none",
+                    }}
+                  >
+                    <span aria-hidden="true" style={{ fontSize: "14px" }}>{item.icon}</span>
+                    <span style={{ flex: 1 }}>{item.label}</span>
+                    {item.id === "guncel" && projeAdi && (
+                      <span style={{ fontSize: "9px", color: item.accent ? "rgba(255,255,255,0.7)" : "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70px" }}>{projeAdi}</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           ))}
         </nav>
       </div>
@@ -440,8 +475,79 @@ function WelcomeModal({ onDemoYukle, onKapat }) {
   )
 }
 
+// ─── Ana Ekran (home dashboard) ──────────────────────────────────────────────
+function HomeDashboard({ onYeniAnaliz, onOnceki, onRaporlar, proje, projeId, zemin, onGuncel, username }) {
+  const kaydedildi = projeId && proje.projeAdi
+  return (
+    <div style={{ animation: "fadeUp 0.3s ease" }}>
+      {/* Karşılama */}
+      <div style={{ marginBottom: "32px" }}>
+        <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: "26px", fontWeight: "800", color: "var(--heading)", marginBottom: "6px" }}>
+          Merhaba, {username} 👋
+        </h2>
+        <p style={{ color: "var(--text-muted)", fontSize: "14px" }}>GeoDrill Insight — Geoteknik Proje Yönetim Platformu</p>
+      </div>
+
+      {/* 3 Büyük Aksiyon */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "32px" }}>
+        {[
+          { icon: "⚡", label: "Yeni Analiz Başlat", desc: "Sıfırdan yeni proje oluştur", onClick: onYeniAnaliz, bg: "linear-gradient(135deg, #0284C7 0%, #0EA5E9 100%)", color: "white", accent: true },
+          { icon: "🕒", label: "Önceki Analizler", desc: "Geçmiş projeleri görüntüle ve düzenle", onClick: onOnceki, bg: "var(--bg-card)", color: "var(--text-primary)" },
+          { icon: "📄", label: "Raporlar", desc: "PDF ve Excel çıktılarını indir", onClick: onRaporlar, bg: "var(--bg-card)", color: "var(--text-primary)" },
+        ].map(b => (
+          <button key={b.label} onClick={b.onClick} style={{
+            padding: "24px 20px", borderRadius: "12px", border: `1px solid ${b.accent ? "transparent" : "var(--input-border)"}`,
+            background: b.bg, color: b.color, cursor: "pointer", textAlign: "left",
+            boxShadow: b.accent ? "0 4px 16px rgba(14,165,233,0.3)" : "0 1px 3px rgba(0,0,0,0.04)",
+            transition: "transform 0.15s, box-shadow 0.2s",
+            fontFamily: "'Plus Jakarta Sans', sans-serif",
+          }}
+            onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = b.accent ? "0 8px 24px rgba(14,165,233,0.4)" : "0 4px 16px rgba(0,0,0,0.08)" }}
+            onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = b.accent ? "0 4px 16px rgba(14,165,233,0.3)" : "0 1px 3px rgba(0,0,0,0.04)" }}
+          >
+            <div style={{ fontSize: "28px", marginBottom: "12px" }}>{b.icon}</div>
+            <div style={{ fontSize: "15px", fontWeight: "700", marginBottom: "4px" }}>{b.label}</div>
+            <div style={{ fontSize: "12px", opacity: b.accent ? 0.85 : undefined, color: b.accent ? "rgba(255,255,255,0.85)" : "var(--text-muted)" }}>{b.desc}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Güncel Proje Banner */}
+      {kaydedildi && (
+        <div style={{ background: "var(--bg-card)", borderRadius: "12px", border: "1.5px solid var(--accent)", padding: "20px 24px", marginBottom: "24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: "700", color: "var(--accent)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "4px" }}>Güncel Proje</div>
+            <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--heading)" }}>{proje.projeAdi}</div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{proje.isTipi} · {proje.kazikBoyu}m / Ø{proje.kazikCapi}mm · {proje.kazikAdedi} kazık · {zemin.length} katman</div>
+          </div>
+          <button onClick={onGuncel} style={{ padding: "10px 22px", border: "none", borderRadius: "8px", background: "var(--accent)", color: "white", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
+            Devam Et →
+          </button>
+        </div>
+      )}
+
+      {/* İpuçları */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+        {[
+          { icon: "🪨", title: "Zemin Verisi Girin", desc: "SPT, UCS, RQD değerleri ile katman katman zemin profili oluşturun." },
+          { icon: "⚙️", title: "Makine Parkı", desc: "Firmaya ait sondaj makinelerini tanımlayın, katalogdan ekleyin." },
+          { icon: "📊", title: "Sistem Kararı", desc: "Hangi makinenin uygun olduğunu tork hesabıyla otomatik öğrenin." },
+          { icon: "💰", title: "Fiyat Analizi", desc: "Mazot, amortisman ve işçilik maliyetlerini hesaplayın." },
+        ].map(k => (
+          <div key={k.title} style={{ background: "var(--bg-card)", borderRadius: "10px", border: "1px solid var(--input-border)", padding: "16px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+            <div style={{ fontSize: "20px", marginBottom: "8px" }}>{k.icon}</div>
+            <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--heading)", marginBottom: "4px" }}>{k.title}</div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.5" }}>{k.desc}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function Dashboard({ username, onLogout }) {
-  const [activePage, setActivePage] = useState("proje")
+  const [activePage, setActivePage] = useState("dashboard")
+  const [wizardTab, setWizardTab] = useState("proje")
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [projeId, setProjeId] = useState(null)
   const [proje, setProje] = useState(BOS_PROJE)
@@ -522,10 +628,39 @@ function Dashboard({ username, onLogout }) {
     onLogout()
   }
 
+  const handleYeniAnaliz = () => {
+    setProje(BOS_PROJE)
+    setZemin([])
+    setProjeId(null)
+    setWizardTab("proje")
+    setActivePage("guncel")
+  }
+
+  const handleDuzenle = async (id) => {
+    try {
+      const p = await getProject(id)
+      setProjeId(p.id)
+      setProje(fromSnake(p))
+      setZemin((p.soil_layers || []).map(fromSnakeLayer))
+      setWizardTab("proje")
+      setActivePage("guncel")
+    } catch (e) {
+      console.error("Proje yüklenemedi:", e)
+    }
+  }
+
+  const handleNav = (id) => {
+    if (id === "yeniAnaliz") {
+      handleYeniAnaliz()
+    } else {
+      setActivePage(id)
+    }
+  }
+
   if (yukleniyor) {
     return (
       <div style={{display: "flex", minHeight: "100vh"}}>
-        <Sidebar active={activePage} onNav={setActivePage} open={false} onClose={() => {}} />
+        <Sidebar active={activePage} onNav={handleNav} open={false} onClose={() => {}} projeAdi={proje.projeAdi} />
         <div style={{flex: 1, display: "flex", flexDirection: "column", minWidth: 0}}>
           <Header username={username} onLogout={handleLogout} onMenuOpen={() => {}} dark={dark} onToggleDark={toggleDark} />
           <main style={{flex: 1, padding: "32px 28px", background: "var(--bg-base)"}}>
@@ -539,48 +674,75 @@ function Dashboard({ username, onLogout }) {
   return (
     <div style={{display: "flex", minHeight: "100vh"}}>
       {welcomeModal && <WelcomeModal onDemoYukle={handleDemoYukle} onKapat={handleWelcomeKapat} />}
-      <Sidebar active={activePage} onNav={setActivePage} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar active={activePage} onNav={handleNav} open={sidebarOpen} onClose={() => setSidebarOpen(false)} projeAdi={proje.projeAdi} />
       <div style={{flex: 1, display: "flex", flexDirection: "column", minWidth: 0}}>
         <Header username={username} onLogout={handleLogout} onMenuOpen={() => setSidebarOpen(true)} dark={dark} onToggleDark={toggleDark} />
         <main style={{flex: 1, padding: "32px 28px", background: "var(--bg-base)", overflowY: "auto"}}>
           <div key={activePage} style={{ animation: "fadeUp 0.3s ease" }}>
-            {activePage === "proje" && (
-              <ProjeForm
-                data={proje}
-                onChange={handleProjeChange}
+            {activePage === "dashboard" && (
+              <HomeDashboard
+                username={username}
+                proje={proje}
                 projeId={projeId}
-                onProjeIdChange={setProjeId}
+                zemin={zemin}
+                onYeniAnaliz={handleYeniAnaliz}
+                onOnceki={() => setActivePage("onceki")}
+                onRaporlar={() => setActivePage("raporlar")}
+                onGuncel={() => setActivePage("guncel")}
               />
             )}
-            {activePage === "zemin" && (
-              <ZeminLogu
-                data={zemin}
-                onChange={setZemin}
-                yeraltiSuyu={proje.yeraltiSuyu}
-                kazikBoyu={proje.kazikBoyu}
-                projeId={projeId}
-              />
+            {activePage === "guncel" && (
+              <>
+                <div style={{ display: "flex", gap: "4px", marginBottom: "24px", background: "var(--bg-card)", borderRadius: "10px", padding: "4px", border: "1px solid var(--input-border)" }}>
+                  {WIZARD_TABS.map(tab => (
+                    <button key={tab.id} onClick={() => setWizardTab(tab.id)}
+                      style={{
+                        flex: 1, padding: "8px 4px", border: "none", borderRadius: "7px",
+                        background: wizardTab === tab.id ? "var(--accent)" : "transparent",
+                        color: wizardTab === tab.id ? "white" : "var(--text-secondary)",
+                        fontSize: "12px", fontWeight: wizardTab === tab.id ? "700" : "500",
+                        cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif",
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      <span style={{ marginRight: "4px" }}>{tab.icon}</span>{tab.label}
+                    </button>
+                  ))}
+                </div>
+                {wizardTab === "proje" && (
+                  <ProjeForm data={proje} onChange={handleProjeChange} projeId={projeId} onProjeIdChange={setProjeId} />
+                )}
+                {wizardTab === "zemin" && (
+                  <ZeminLogu data={zemin} onChange={setZemin} yeraltiSuyu={proje.yeraltiSuyu} kazikBoyu={proje.kazikBoyu} projeId={projeId} />
+                )}
+                {wizardTab === "makine" && (
+                  <MakinePark data={makineler} onChange={setMakineler} />
+                )}
+                {wizardTab === "analiz" && (
+                  <ErrorBoundary>
+                    <AnalizSonucu proje={proje} zemin={zemin} makineler={makineler} projeId={projeId} />
+                  </ErrorBoundary>
+                )}
+                {wizardTab === "wizardFiyat" && (
+                  <ErrorBoundary>
+                    <FiyatAnalizi proje={proje} zemin={zemin} />
+                  </ErrorBoundary>
+                )}
+              </>
             )}
-            {activePage === "makine" && (
-              <MakinePark
-                data={makineler}
-                onChange={setMakineler}
-              />
+            {activePage === "onceki" && (
+              <OncekiAnalizler onDuzenle={handleDuzenle} />
             )}
-            {activePage === "analiz" && (
-              <ErrorBoundary>
-                <AnalizSonucu
-                  proje={proje}
-                  zemin={zemin}
-                  makineler={makineler}
-                  projeId={projeId}
-                />
-              </ErrorBoundary>
+            {activePage === "raporlar" && (
+              <OncekiAnalizler onDuzenle={handleDuzenle} />
             )}
             {activePage === "fiyat" && (
               <ErrorBoundary>
                 <FiyatAnalizi proje={proje} zemin={zemin} />
               </ErrorBoundary>
+            )}
+            {activePage === "ayarlar" && (
+              <Ayarlar username={username} dark={dark} onToggleDark={toggleDark} />
             )}
           </div>
         </main>
