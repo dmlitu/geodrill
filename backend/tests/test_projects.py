@@ -68,8 +68,8 @@ def test_projects_isolated_per_user(client, auth_headers):
     client.post("/projects", json=PROJE_PAYLOAD, headers=auth_headers)
 
     # İkinci kullanıcı
-    client.post("/auth/register", json={"username": "diger", "password": "pass", "email": "d@d.com"})
-    login = client.post("/auth/login", data={"username": "diger", "password": "pass"})
+    client.post("/auth/register", json={"username": "diger", "password": "pass12345678", "email": "d@d.com"})
+    login = client.post("/auth/login", data={"username": "diger", "password": "pass12345678"})
     headers2 = {"Authorization": f"Bearer {login.json()['access_token']}"}
 
     res = client.get("/projects", headers=headers2)

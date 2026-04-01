@@ -6,6 +6,7 @@ from sqlalchemy.pool import StaticPool
 
 from database import Base, get_db
 from main import app
+from routers.auth import limiter
 
 # StaticPool: tüm bağlantılar aynı bellekte DB'yi paylaşır
 engine = create_engine(
@@ -30,12 +31,14 @@ def client():
             pass
 
     app.dependency_overrides[get_db] = override_get_db
+    limiter.enabled = False
 
     # lifespan'i atlatmak için raise_server_exceptions=True yeterli; seed çalışmaz
     with TestClient(app, raise_server_exceptions=True) as c:
         yield c
 
     app.dependency_overrides.clear()
+    limiter.enabled = True
     session.close()
     Base.metadata.drop_all(bind=engine)
 
@@ -44,8 +47,8 @@ def client():
 def auth_headers(client):
     """Demo kullanıcı kayıt + login, JWT header döner."""
     client.post("/auth/register", json={
-        "username": "testuser", "password": "testpass", "email": "t@t.com"
+        "username": "testuser", "password": "testpass1234", "email": "t@t.com"
     })
-    res = client.post("/auth/login", data={"username": "testuser", "password": "testpass"})
+    res = client.post("/auth/login", data={"username": "testuser", "password": "testpass1234"})
     token = res.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}

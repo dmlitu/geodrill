@@ -12,7 +12,7 @@ export default function RegisterPage({ onLogin, onGoLogin }) {
     const { fullName, username, email, password, password2 } = form
     if (!username || !email || !password) { setError("Tüm zorunlu alanları doldurun."); return }
     if (password !== password2) { setError("Şifreler eşleşmiyor."); return }
-    if (password.length < 6) { setError("Şifre en az 6 karakter olmalı."); return }
+    if (password.length < 8) { setError("Şifre en az 8 karakter olmalı."); return }
 
     setLoading(true)
     setError("")

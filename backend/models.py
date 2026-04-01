@@ -25,7 +25,7 @@ class Project(Base):
     __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True, index=True)
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
     # Proje tanımı
     proje_adi = Column(String(200), nullable=False)
@@ -55,7 +55,7 @@ class SoilLayer(Base):
     __tablename__ = "soil_layers"
 
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
 
     baslangic = Column(Float, nullable=False)   # başlangıç derinliği (m)
     bitis = Column(Float, nullable=False)        # bitiş derinliği (m)
@@ -74,7 +74,7 @@ class Equipment(Base):
     __tablename__ = "equipment"
 
     id = Column(Integer, primary_key=True, index=True)
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
     ad = Column(String(100), nullable=False)
     tip = Column(String(50), default="Fore Kazık")

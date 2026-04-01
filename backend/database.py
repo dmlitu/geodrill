@@ -9,9 +9,19 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./geodrill.db")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+is_sqlite = DATABASE_URL.startswith("sqlite")
+connect_args = {"check_same_thread": False} if is_sqlite else {}
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+pool_kwargs = {}
+if not is_sqlite:
+    pool_kwargs = {
+        "pool_size": 20,
+        "max_overflow": 40,
+        "pool_pre_ping": True,
+        "pool_recycle": 3600,
+    }
+
+engine = create_engine(DATABASE_URL, connect_args=connect_args, **pool_kwargs)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

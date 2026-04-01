@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models
 
-SECRET_KEY = os.getenv("SECRET_KEY", "geodrill-secret-key-change-in-production-2024")
+SECRET_KEY = os.getenv("SECRET_KEY", "geodrill-2025-xK9mPqR7vW3nJ5tL8yB2dF4hS6")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8  # 8 saat
 

@@ -1,4 +1,5 @@
 import io
+import logging
 import math
 from datetime import datetime
 
@@ -10,6 +11,7 @@ from auth import get_current_user
 from database import get_db
 import models
 
+logger = logging.getLogger("geodrill.reports")
 router = APIRouter(tags=["reports"])
 
 
@@ -158,30 +160,34 @@ def export_soil_layers_csv(
 ):
     import pandas as pd
     project = _get_project(project_id, current_user.id, db)
-    layers = (
-        db.query(models.SoilLayer)
-        .filter(models.SoilLayer.project_id == project_id)
-        .order_by(models.SoilLayer.baslangic)
-        .all()
-    )
-    rows = [{
-        "Baslangic (m)": l.baslangic, "Bitis (m)": l.bitis,
-        "Formasyon": l.formasyon, "Zemin Tipi": l.zem_tipi,
-        "Kohezyon": l.kohezyon, "SPT": l.spt,
-        "UCS (MPa)": l.ucs, "RQD (%)": l.rqd,
-        "Aciklama": l.aciklama,
-        "Stabilite Riski": stabilite_riski(l.zem_tipi, l.kohezyon, l.spt, project.yeralti_suyu),
-    } for l in layers]
-    df = pd.DataFrame(rows)
-    buf = io.StringIO()
-    df.to_csv(buf, index=False, encoding="utf-8-sig")
-    buf.seek(0)
-    filename = f"zemin_logu_{project.proje_kodu or project_id}.csv"
-    return StreamingResponse(
-        iter([buf.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    try:
+        layers = (
+            db.query(models.SoilLayer)
+            .filter(models.SoilLayer.project_id == project_id)
+            .order_by(models.SoilLayer.baslangic)
+            .all()
+        )
+        rows = [{
+            "Baslangic (m)": l.baslangic, "Bitis (m)": l.bitis,
+            "Formasyon": l.formasyon, "Zemin Tipi": l.zem_tipi,
+            "Kohezyon": l.kohezyon, "SPT": l.spt,
+            "UCS (MPa)": l.ucs, "RQD (%)": l.rqd,
+            "Aciklama": l.aciklama,
+            "Stabilite Riski": stabilite_riski(l.zem_tipi, l.kohezyon, l.spt, project.yeralti_suyu),
+        } for l in layers]
+        df = pd.DataFrame(rows)
+        buf = io.StringIO()
+        df.to_csv(buf, index=False, encoding="utf-8-sig")
+        buf.seek(0)
+        filename = f"zemin_logu_{project.proje_kodu or project_id}.csv"
+        return StreamingResponse(
+            iter([buf.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        logger.error(f"CSV export failed for project {project_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="CSV dışa aktarma sırasında hata oluştu")
 
 
 # ─── PDF Report ───────────────────────────────────────────────────────────────
@@ -192,6 +198,15 @@ def generate_pdf_report(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    project = _get_project(project_id, current_user.id, db)
+    try:
+        return _build_pdf_report(project, current_user, db)
+    except Exception as e:
+        logger.error(f"PDF generation failed for project {project_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="PDF rapor oluşturulurken hata oluştu")
+
+
+def _build_pdf_report(project, current_user, db):
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -200,7 +215,6 @@ def generate_pdf_report(
         SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
     )
 
-    project = _get_project(project_id, current_user.id, db)
     layers = (
         db.query(models.SoilLayer)
         .filter(models.SoilLayer.project_id == project_id)

@@ -1,6 +1,6 @@
 def test_register_success(client):
     res = client.post("/auth/register", json={
-        "username": "yeni", "password": "sifre123", "email": "yeni@test.com"
+        "username": "yeni", "password": "sifre12345", "email": "yeni@test.com"
     })
     assert res.status_code == 201
     data = res.json()
@@ -9,7 +9,7 @@ def test_register_success(client):
 
 
 def test_register_duplicate_username(client):
-    payload = {"username": "tekrar", "password": "sifre", "email": "a@a.com"}
+    payload = {"username": "tekrar", "password": "sifre12345", "email": "a@a.com"}
     client.post("/auth/register", json=payload)
     res = client.post("/auth/register", json=payload)
     assert res.status_code == 400
@@ -17,15 +17,15 @@ def test_register_duplicate_username(client):
 
 
 def test_login_success(client):
-    client.post("/auth/register", json={"username": "giris", "password": "sifre", "email": "g@g.com"})
-    res = client.post("/auth/login", data={"username": "giris", "password": "sifre"})
+    client.post("/auth/register", json={"username": "giris", "password": "sifre12345", "email": "g@g.com"})
+    res = client.post("/auth/login", data={"username": "giris", "password": "sifre12345"})
     assert res.status_code == 200
     assert "access_token" in res.json()
 
 
 def test_login_wrong_password(client):
-    client.post("/auth/register", json={"username": "u1", "password": "dogru", "email": "u@u.com"})
-    res = client.post("/auth/login", data={"username": "u1", "password": "yanlis"})
+    client.post("/auth/register", json={"username": "u1", "password": "dogru12345", "email": "u@u.com"})
+    res = client.post("/auth/login", data={"username": "u1", "password": "yanlis12345"})
     assert res.status_code == 401
 
 
