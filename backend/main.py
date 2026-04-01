@@ -22,6 +22,7 @@ from routers import projects as projects_router
 from routers import soil as soil_router
 from routers import equipment as equipment_router
 from routers import reports as reports_router
+from routers.soil_import import router as soil_import_router
 
 
 def seed_default_users():
@@ -101,6 +102,7 @@ app.include_router(projects_router.router)
 app.include_router(soil_router.router)
 app.include_router(equipment_router.router)
 app.include_router(reports_router.router)
+app.include_router(soil_import_router, tags=["soil-import"])
 
 
 @app.get("/")

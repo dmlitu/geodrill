@@ -1,10 +1,22 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { bulkReplaceSoilLayers, fromSnakeLayer } from "./api"
 import ConfirmDialog from "./ConfirmDialog"
 import { useToast } from "./Toast"
 
 const ZEMIN_TIPLERI = ["Dolgu", "Kil", "Silt", "Kum", "Çakıl", "Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya"]
 const KOHEZYON_TIPLERI = ["Kohezyonlu", "Kohezyonsuz", "Kaya"]
+
+const ZEMIN_KOHEZYON_MAP = {
+  "Kil": "Kohezyonlu",
+  "Silt": "Kohezyonlu",
+  "Kum": "Kohezyonsuz",
+  "Çakıl": "Kohezyonsuz",
+  "Dolgu": "Kohezyonsuz",
+  "Ayrışmış Kaya": "Kaya",
+  "Kumtaşı": "Kaya",
+  "Kireçtaşı": "Kaya",
+  "Sert Kaya": "Kaya",
+}
 
 const RISK_RENK = {
   "Yüksek": { bg: "#FEF2F2", color: "#DC2626", border: "#FECACA" },
@@ -66,16 +78,49 @@ function satirHatasi(row) {
   return h
 }
 
+function derinlikUyarilari(satirlar) {
+  const uyarilar = []
+  for (let i = 0; i < satirlar.length - 1; i++) {
+    const curr = satirlar[i]
+    const next = satirlar[i + 1]
+    if (curr.bitis < next.baslangic) {
+      uyarilar.push(`${curr.bitis}–${next.baslangic} m`)
+    } else if (curr.bitis > next.baslangic) {
+      uyarilar.push(`${next.baslangic}–${curr.bitis} m`)
+    }
+  }
+  return uyarilar
+}
+
 export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, projeId }) {
   const [kayitDurumu, setKayitDurumu] = useState(null)
   const [showHatalar, setShowHatalar] = useState(false)
   const [silmeOnay, setSilmeOnay] = useState(null)
+  const [pdfYukleniyor, setPdfYukleniyor] = useState(false)
+  const [pdfOnizleme, setPdfOnizleme] = useState(null)
+  const fileInputRef = useRef(null)
   const toast = useToast()
 
   const satirlar = data.length > 0 ? data : [DEFAULT_ROW()]
 
   const updateRow = (id, field, value) => {
-    const yeni = satirlar.map(r => r.id === id ? { ...r, [field]: value } : r)
+    const idx = satirlar.findIndex(r => r.id === id)
+    let yeni = satirlar.map(r => r.id === id ? { ...r, [field]: value } : r)
+
+    // Auto-set kohezyon when zemTipi changes
+    if (field === "zemTipi") {
+      const autoKohezyon = ZEMIN_KOHEZYON_MAP[value]
+      if (autoKohezyon) {
+        yeni = yeni.map(r => r.id === id ? { ...r, kohezyon: autoKohezyon } : r)
+      }
+    }
+
+    // Auto-link next row's baslangic when bitis changes
+    if (field === "bitis" && idx >= 0 && idx < satirlar.length - 1) {
+      const nextRow = satirlar[idx + 1]
+      yeni = yeni.map(r => r.id === nextRow.id ? { ...r, baslangic: value } : r)
+    }
+
     onChange(yeni)
   }
 
@@ -128,6 +173,33 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
     }
   }
 
+  const handlePdfUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    if (!projeId) { toast.error("Önce projeyi kaydedin."); return }
+    setPdfYukleniyor(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const token = localStorage.getItem("gd_token")
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/projects/${projeId}/soil-layers/import-pdf`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      })
+      if (!res.ok) { const err = await res.json(); throw new Error(err.detail || "Hata") }
+      const data = await res.json()
+      setPdfOnizleme(data.katmanlar)
+    } catch (e) {
+      toast.error("PDF import hatası: " + e.message)
+    } finally {
+      setPdfYukleniyor(false)
+      e.target.value = ""
+    }
+  }
+
+  const uyarilar = derinlikUyarilari(satirlar)
+
   return (
     <div>
       <ConfirmDialog
@@ -137,6 +209,43 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
         onConfirm={confirmRemove}
         onCancel={() => setSilmeOnay(null)}
       />
+
+      {pdfOnizleme && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"24px"}}>
+          <div style={{background:"white",borderRadius:"16px",padding:"28px",width:"100%",maxWidth:"800px",maxHeight:"80vh",overflow:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
+            <h3 style={{marginBottom:"16px",fontSize:"18px",fontWeight:"700",color:"#0F172A"}}>PDF'den Çıkarılan Katmanlar</h3>
+            <p style={{color:"#64748B",fontSize:"13px",marginBottom:"16px"}}>{pdfOnizleme.length} katman bulundu. "Uygula"ya basarak mevcut zemin logunu değiştirin.</p>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:"13px",marginBottom:"20px"}}>
+              <thead>
+                <tr style={{background:"#F8FAFC",borderBottom:"2px solid #E2E8F0"}}>
+                  {["Başlangıç","Bitiş","Formasyon","Zemin Tipi","Kohezyon","SPT","UCS","RQD"].map(h=>(
+                    <th key={h} style={{padding:"8px 10px",textAlign:"left",fontWeight:"600",color:"#64748B",fontSize:"11px",textTransform:"uppercase"}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {pdfOnizleme.map((r,i)=>(
+                  <tr key={i} style={{borderBottom:"1px solid #F1F5F9",background:i%2===0?"white":"#F8FAFC"}}>
+                    <td style={{padding:"7px 10px"}}>{r.baslangic}</td>
+                    <td style={{padding:"7px 10px"}}>{r.bitis}</td>
+                    <td style={{padding:"7px 10px"}}>{r.formasyon}</td>
+                    <td style={{padding:"7px 10px"}}>{r.zemTipi}</td>
+                    <td style={{padding:"7px 10px"}}>{r.kohezyon}</td>
+                    <td style={{padding:"7px 10px"}}>{r.spt}</td>
+                    <td style={{padding:"7px 10px"}}>{r.ucs}</td>
+                    <td style={{padding:"7px 10px"}}>{r.rqd}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{display:"flex",gap:"12px",justifyContent:"flex-end"}}>
+              <button onClick={()=>setPdfOnizleme(null)} style={{padding:"9px 20px",background:"white",border:"1.5px solid #E2E8F0",borderRadius:"8px",fontSize:"14px",fontWeight:"600",cursor:"pointer",color:"#64748B"}}>İptal</button>
+              <button onClick={()=>{ onChange(pdfOnizleme.map(r=>({...r,id:Date.now()+Math.random()}))); setPdfOnizleme(null); toast.success("Zemin logu güncellendi. Kaydetmeyi unutmayın.") }} style={{padding:"9px 20px",background:"linear-gradient(135deg,#0284C7,#0EA5E9)",color:"white",border:"none",borderRadius:"8px",fontSize:"14px",fontWeight:"600",cursor:"pointer"}}>Uygula</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ marginBottom: "24px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <div>
           <h2 style={{ color: "var(--heading)", fontSize: "22px", fontWeight: "700" }}>
@@ -147,6 +256,22 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
           </p>
         </div>
         <div style={{display: "flex", alignItems: "center", gap: "12px", flexShrink: 0}}>
+          <input ref={fileInputRef} type="file" accept=".pdf" style={{display:"none"}} onChange={handlePdfUpload} />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={pdfYukleniyor}
+            style={{
+              padding: "9px 18px",
+              background: pdfYukleniyor ? "#94A3B8" : "white",
+              color: pdfYukleniyor ? "white" : "#0284C7",
+              border: "1.5px solid #BAE6FD",
+              borderRadius: "8px",
+              fontSize: "14px", fontWeight: "600",
+              cursor: pdfYukleniyor ? "not-allowed" : "pointer"
+            }}
+          >
+            {pdfYukleniyor ? "Okunuyor..." : "PDF Yükle"}
+          </button>
           <button
             onClick={kaydet}
             disabled={kayitDurumu === "loading"}
@@ -162,6 +287,21 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
           </button>
         </div>
       </div>
+
+      {uyarilar.length > 0 && (
+        <div style={{
+          marginBottom: "16px",
+          padding: "12px 16px",
+          background: "#FFFBEB",
+          border: "1.5px solid #FDE68A",
+          borderRadius: "8px",
+          color: "#92400E",
+          fontSize: "13px",
+          fontWeight: "500",
+        }}>
+          Derinlik boşluğu/çakışması var: {uyarilar.join(", ")} m
+        </div>
+      )}
 
       <div style={{
         background: "var(--bg-card)", borderRadius: "12px",
@@ -217,11 +357,13 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
                         placeholder="Formasyon adı" />
                     </td>
                     <td style={tdStyle}>
-                      <select style={{ ...cellSelect, width: "130px" }}
+                      <input
+                        list="zemin-tipi-list"
+                        style={{ ...cellInput, width: "130px" }}
                         value={row.zemTipi}
-                        onChange={e => updateRow(row.id, "zemTipi", e.target.value)}>
-                        {ZEMIN_TIPLERI.map(t => <option key={t}>{t}</option>)}
-                      </select>
+                        onChange={e => updateRow(row.id, "zemTipi", e.target.value)}
+                        placeholder="Zemin tipi seçin veya yazın"
+                      />
                     </td>
                     <td style={tdStyle}>
                       <select style={{ ...cellSelect, width: "120px" }}
@@ -287,6 +429,11 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
             </tbody>
           </table>
         </div>
+
+        {/* datalist for zemTipi combobox */}
+        <datalist id="zemin-tipi-list">
+          {ZEMIN_TIPLERI.map(t => <option key={t} value={t} />)}
+        </datalist>
 
         <div style={{ padding: "16px 20px", borderTop: "1px solid #F1F5F9" }}>
           <button onClick={addRow} style={{
