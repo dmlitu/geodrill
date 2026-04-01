@@ -1,6 +1,7 @@
 import io
 import logging
-import math
+import sys
+import os
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,6 +11,15 @@ from sqlalchemy.orm import Session
 from auth import get_current_user
 from database import get_db
 import models
+
+# Allow importing from project root and configs/modules
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from modules.calculations.engine import (
+    gerekli_tork_aralik, gerekli_tork, stabilite_riski,
+    casing_durum as _casing_durum_full, casing_metre,
+    kazik_suresi, mazot_tahmini as _mazot_tahmini, makine_uygunluk,
+)
 
 logger = logging.getLogger("geodrill.reports")
 router = APIRouter(tags=["reports"])
@@ -27,128 +37,24 @@ def _get_project(project_id: int, user_id: int, db: Session) -> models.Project:
     return project
 
 
-# ─── Hesaplama (AnalizSonucu.jsx ile aynı mantık) ─────────────────────────────
-
-def gerekli_tork(zemin, cap_mm):
-    cap_m = cap_mm / 1000
-    max_tork = 0
-    for row in zemin:
-        spt = float(row.spt or 0)
-        ucs = float(row.ucs or 0)
-        rqd = float(row.rqd or 0)
-        if ucs > 0:
-            tau = (ucs * 1000) / 10
-        elif row.kohezyon == "Kohezyonlu":
-            tau = max(spt * 4, 20)
-        else:
-            tau = max(spt * 2, 15)
-        if rqd > 0:
-            if rqd < 25:
-                tau *= 1.35
-            elif rqd < 50:
-                tau *= 1.20
-            elif rqd < 75:
-                tau *= 1.10
-        t = tau * math.pi * (cap_m ** 3) / 8 * 1.25
-        if t > max_tork:
-            max_tork = t
-    return round(max_tork * 10) / 10
+def _layer_to_dict(l) -> dict:
+    """Convert ORM SoilLayer to plain dict for engine functions."""
+    return {
+        "baslangic": l.baslangic, "bitis": l.bitis,
+        "zem_tipi": l.zem_tipi, "kohezyon": l.kohezyon,
+        "spt": l.spt, "ucs": l.ucs, "rqd": l.rqd,
+        "formasyon": l.formasyon, "aciklama": l.aciklama,
+    }
 
 
-def stabilite_riski(tip, kohezyon, spt, yas, baslangic=0):
-    # Kum/Çakıl: yeraltı suyu altındaysa yüksek risk, değilse orta
-    if tip in ("Kum", "Çakıl"):
-        return "Yüksek" if (yas > 0 and baslangic >= yas) else "Orta"
-    if kohezyon == "Kohezyonsuz" and spt <= 10:
-        return "Yüksek"
-    if kohezyon == "Kohezyonsuz" and spt <= 30:
-        return "Orta"
-    if tip == "Dolgu":
-        return "Orta"
-    return "Düşük"
-
-
-def casing_metre(zemin, yas):
-    toplam = 0
-    for row in zemin:
-        kalinlik = row.bitis - row.baslangic
-        risk = stabilite_riski(row.zem_tipi, row.kohezyon, row.spt, yas, row.baslangic)
-        if risk == "Yüksek":
-            toplam += kalinlik
-        elif risk == "Orta":
-            toplam += kalinlik * 0.5
-    return round(toplam * 10) / 10
-
-
-def casing_durum(zemin, yas):
-    zorunlu = False
-    for row in zemin:
-        spt = float(row.spt or 0)
-        if row.zem_tipi in ("Kum", "Çakıl") and (row.bitis - row.baslangic) > 0.5:
-            zorunlu = True
-        if row.kohezyon == "Kohezyonsuz" and yas > 0 and row.baslangic >= yas:
-            zorunlu = True
-        if spt < 10 and row.kohezyon == "Kohezyonsuz":
-            zorunlu = True
-    return "Gerekli" if zorunlu else "Gerekmeyebilir"
-
-
-def rop_hesapla(tip, ucs, cap_mm):
-    cap_m = cap_mm / 1000
-    baz = {"Dolgu": 8, "Kil": 6, "Silt": 6.5, "Kum": 5, "Çakıl": 3.5,
-           "Ayrışmış Kaya": 2, "Kumtaşı": 1.2, "Kireçtaşı": 0.9, "Sert Kaya": 0.5}.get(tip, 3)
-    if ucs > 0:
-        baz *= max(0.25, 1 - (ucs / 100) * 0.75)
-    baz *= max(0.45, 1 - (cap_m - 0.8) * 0.5)
-    return max(baz, 0.25)
-
-
-def kazik_suresi(zemin, cap_mm, kazik_boyu, casing_m):
-    sure = 0.75
-    uc_deg = 0
-    onceki_tip = None
-    KAYA_TIPLER = ("Kumtaşı", "Kireçtaşı", "Sert Kaya", "Ayrışmış Kaya")
-    for row in zemin:
-        kalinlik = row.bitis - row.baslangic
-        rop = rop_hesapla(row.zem_tipi, row.ucs, cap_mm)
-        sure += kalinlik / rop
-        if row.zem_tipi in KAYA_TIPLER and row.zem_tipi != onceki_tip:
-            uc_deg += 1
-        onceki_tip = row.zem_tipi
-    sure += uc_deg * 0.6
-    sure += casing_m * 0.1
-    cap_m = cap_mm / 1000
-    sure += math.pi * ((cap_m / 2) ** 2) * kazik_boyu * (20 / 60)
-    if kazik_boyu >= 30:
-        sure += 1.5
-    elif kazik_boyu >= 20:
-        sure += 0.8
-    return round(sure * 10) / 10
+def casing_durum(zemin_orm, yas):
+    """Backward-compatible wrapper: accepts ORM objects."""
+    return _casing_durum_full([_layer_to_dict(l) for l in zemin_orm], yas)["durum"]
 
 
 def mazot_tahmini(tork, kazik_boyu):
-    if tork < 100:
-        m_basi = 8 + tork * 0.04
-    elif tork < 200:
-        m_basi = 12 + (tork - 100) * 0.08
-    else:
-        m_basi = 20 + (tork - 200) * 0.075
-    m_basi = round(m_basi * 10) / 10
-    return m_basi, round(m_basi * kazik_boyu * 10) / 10
-
-
-def makine_uygunluk(makine, tork, kazik_boyu, kazik_capi, casing_zorunlu):
-    if makine.max_derinlik < kazik_boyu:
-        return "Uygun Değil"
-    if makine.max_cap < kazik_capi:
-        return "Uygun Değil"
-    if makine.tork < tork * 0.80:
-        return "Uygun Değil"
-    if casing_zorunlu and makine.casing == "Hayır":
-        return "Şartlı Uygun"
-    if makine.tork < tork:
-        return "Riskli"
-    return "Uygun"
+    result = _mazot_tahmini(tork, kazik_boyu)
+    return result["m_basi"], result["toplam"]
 
 
 # ─── CSV Export ───────────────────────────────────────────────────────────────
@@ -174,7 +80,7 @@ def export_soil_layers_csv(
             "Kohezyon": l.kohezyon, "SPT": l.spt,
             "UCS (MPa)": l.ucs, "RQD (%)": l.rqd,
             "Aciklama": l.aciklama,
-            "Stabilite Riski": stabilite_riski(l.zem_tipi, l.kohezyon, l.spt, project.yeralti_suyu, l.baslangic),
+            "Stabilite Riski": stabilite_riski(l.zem_tipi, l.kohezyon, float(l.spt or 0), project.yeralti_suyu, l.baslangic),
         } for l in layers]
         df = pd.DataFrame(rows)
         buf = io.StringIO()
@@ -228,16 +134,20 @@ def _build_pdf_report(project, current_user, db):
         .all()
     )
 
-    # Hesaplamalar
-    tork = gerekli_tork(layers, project.kazik_capi)
-    c_m = casing_metre(layers, project.yeralti_suyu)
-    c_dur = casing_durum(layers, project.yeralti_suyu)
-    sure = kazik_suresi(layers, project.kazik_capi, project.kazik_boyu, c_m)
+    # Hesaplamalar — engine v2.0 (reference-driven, confidence-scored)
+    layer_dicts = [_layer_to_dict(l) for l in layers]
+    tork_aralik = gerekli_tork_aralik(layer_dicts, project.kazik_capi, project.is_tipi)
+    tork = tork_aralik["nominal"]
+    tork_min = tork_aralik["min"]
+    tork_max = tork_aralik["max"]
+    tork_guven = tork_aralik["guven"]
+    casing_full = _casing_durum_full(layer_dicts, project.yeralti_suyu)
+    c_dur = casing_full["durum"]
+    c_m = casing_metre(layer_dicts, project.yeralti_suyu)
+    sure = kazik_suresi(layer_dicts, project.kazik_capi, project.kazik_boyu, c_m)
     m_basi, tek_mazot = mazot_tahmini(tork, project.kazik_boyu)
     toplam_gun = round(sure * project.kazik_adedi * 10) / 10
-
-    # Casing zorunlu mu?
-    c_zorunlu = c_dur == "Gerekli"
+    c_zorunlu = casing_full["zorunlu"]
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(

@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from "react"
 import { downloadPdfReport, downloadSoilLayersCsv } from "./api"
 import { ZeminProfilDiyagrami, TorkDerinlikGrafigi, GanttSemasi, SenaryoKarsilastirma } from "./Gorseller"
 import {
-  gerekliTork, stabiliteRiski, casingDurum, casingMetreHesapla,
+  gerekliTork, gerekliTorkAralik, stabiliteRiski, casingDurum, casingMetreHesapla,
   kazikSuresi, mazotTahmini, kritikKatman, makinaUygunluk,
   katmanTeknikCikti, operasyonOnerisi,
 } from "./hesaplamalar"
@@ -236,7 +236,8 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
   // useMemo: zemin veya proje değişmediğinde hesaplamalar yeniden yapılmaz
   const analiz = useMemo(() => {
     if (!zemin.length) return null
-    const tork = gerekliTork(zemin, proje.kazikCapi)
+    const torkAralik = gerekliTorkAralik(zemin, proje.kazikCapi, proje.isTipi)
+    const tork = torkAralik.nominal
     const { durum: casingDur, gerekce, zorunlu } = casingDurum(zemin, proje.yeraltiSuyu)
     const casingM = casingMetreHesapla(zemin, proje.yeraltiSuyu)
     const sure = kazikSuresi(zemin, proje.kazikCapi, proje.kazikBoyu, casingM)
@@ -247,7 +248,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     const ucOneri = zemin.some(r => ["Kumtaşı", "Kireçtaşı", "Sert Kaya"].includes(r.zemTipi) || r.ucs >= 25)
       ? "Kaya ucu gerekli" : zemin.some(r => r.zemTipi === "Ayrışmış Kaya" || r.ucs >= 10)
       ? "Geçiş tipi uç" : "Standart uç yeterli"
-    const makineUygunluklari = makineler.map(m => ({ ...m, ...makinaUygunluk(m, tork, proje.kazikBoyu, proje.kazikCapi, zorunlu) }))
+    const makineUygunluklari = makineler.map(m => ({ ...m, ...makinaUygunluk(m, tork, proje.kazikBoyu, proje.kazikCapi, zorunlu, proje.isTipi) }))
     // Stabilite skoru — bir kez hesapla
     const stabiliteSkor = zemin.length > 0
       ? Math.round(zemin.reduce((s, r) => {
@@ -265,7 +266,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
       : { makine: null, durum: "Uygun makine yok", renk: "#DC2626", bg: "#FEF2F2" }
     const katmanCiktilar = katmanTeknikCikti(zemin, proje.kazikCapi)
     const opOneri = operasyonOnerisi(zemin, proje.yeraltiSuyu)
-    return { tork, casingDur, gerekce, zorunlu, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri }
+    return { tork, torkAralik, casingDur, gerekce, zorunlu, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri }
   }, [zemin, proje, makineler])
 
   if (!zemin.length) {
@@ -289,7 +290,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     )
   }
 
-  const { tork, casingDur, gerekce, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri } = analiz
+  const { tork, torkAralik, casingDur, gerekce, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri } = analiz
 
   return (
     <div>
@@ -361,7 +362,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
                 )}
                 <div style={{ fontSize: "13px", color: "#475569", marginTop: "2px" }}>
                   {sistemKarari.makine
-                    ? `Gerekli tork: ${tork} kNm · Makine torku: ${sistemKarari.makine.tork} kNm · ${sistemKarari.makine.gerekce}`
+                    ? `Gerekli tork: ${tork} kNm (bant: ${torkAralik?.min}–${torkAralik?.max} kNm, Sınıf ${torkAralik?.guven}) · Makine: ${sistemKarari.makine.tork} kNm · ${sistemKarari.makine.gerekce}`
                     : "Makine parkına uygun rig ekleyin"}
                 </div>
               </div>
