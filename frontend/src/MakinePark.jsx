@@ -2,6 +2,7 @@ import { useState } from "react"
 import { bulkReplaceEquipment, fromSnakeMakine } from "./api"
 import ConfirmDialog from "./ConfirmDialog"
 import { useToast } from "./Toast"
+import { MAKINE_KATALOGU } from "./MakineKatalogu"
 
 const MAKINE_TIPLERI = ["Fore Kazık", "Ankraj", "Mini Kazık"]
 const CASING_SECENEKLER = ["Evet", "Hayır", "Şartlı"]
@@ -46,10 +47,59 @@ function makineHatasi(m) {
   return h
 }
 
+function KatalogModal({ onClose, onEkle, mevcutAdlar }) {
+  const [secili, setSecili] = useState(new Set())
+  const toggle = (i) => setSecili(prev => { const s = new Set(prev); s.has(i) ? s.delete(i) : s.add(i); return s })
+  const ekleSecilenleri = () => { onEkle(MAKINE_KATALOGU.filter((_, i) => secili.has(i))); onClose() }
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "var(--bg-surface)", borderRadius: "16px", width: "100%", maxWidth: "640px", maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,0.2)" }}>
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)" }}>Makine Kataloğu</h3>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>Eklemek istediğiniz makineleri seçin</p>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: "20px" }}>×</button>
+        </div>
+        <div style={{ overflowY: "auto", flex: 1, padding: "12px 16px" }}>
+          {MAKINE_KATALOGU.map((m, i) => {
+            const zatenVar = mevcutAdlar.includes(m.ad)
+            const aktif = secili.has(i)
+            return (
+              <div key={i} onClick={() => !zatenVar && toggle(i)} style={{
+                display: "flex", alignItems: "center", gap: "14px", padding: "12px 14px",
+                borderRadius: "10px", marginBottom: "6px", cursor: zatenVar ? "default" : "pointer",
+                border: `1.5px solid ${aktif ? "#0EA5E9" : "var(--input-border)"}`,
+                background: zatenVar ? "var(--row-alt)" : aktif ? "#F0F9FF" : "var(--bg-card)",
+                opacity: zatenVar ? 0.5 : 1, transition: "all 0.15s"
+              }}>
+                <div style={{ width: "18px", height: "18px", borderRadius: "4px", border: `2px solid ${aktif ? "#0EA5E9" : "#CBD5E1"}`, background: aktif ? "#0EA5E9" : "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  {aktif && <span style={{ color: "white", fontSize: "11px", fontWeight: "700" }}>✓</span>}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)" }}>{m.ad} {zatenVar && <span style={{ fontSize: "11px", color: "#94A3B8" }}>(zaten var)</span>}</div>
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{m.tip} — {m.tork} kNm — Maks {m.maxDerinlik}m / Ø{m.maxCap}mm — {m.not}</div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border-subtle)", display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+          <button onClick={onClose} style={{ padding: "9px 20px", border: "1px solid var(--input-border)", borderRadius: "8px", background: "var(--bg-surface)", color: "var(--text-secondary)", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>İptal</button>
+          <button onClick={ekleSecilenleri} disabled={secili.size === 0} style={{ padding: "9px 22px", border: "none", borderRadius: "8px", background: secili.size === 0 ? "#94A3B8" : "linear-gradient(135deg, #0284C7, #0EA5E9)", color: "white", fontSize: "13px", fontWeight: "600", cursor: secili.size === 0 ? "not-allowed" : "pointer" }}>
+            Ekle ({secili.size})
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function MakinePark({ data, onChange }) {
   const [kayitDurumu, setKayitDurumu] = useState(null)
   const [showHatalar, setShowHatalar] = useState(false)
   const [silmeOnay, setSilmeOnay] = useState(null)
+  const [katalogAcik, setKatalogAcik] = useState(false)
   const toast = useToast()
 
   const makineler = data.length > 0 ? data : DEFAULT_MAKINELER
@@ -91,8 +141,20 @@ export default function MakinePark({ data, onChange }) {
     }
   }
 
+  const ekleKatalogdan = (yeniMakineler) => {
+    const eklenecekler = yeniMakineler.map(m => ({ ...m, id: Date.now() + Math.random() }))
+    onChange([...makineler, ...eklenecekler])
+  }
+
   return (
     <div>
+      {katalogAcik && (
+        <KatalogModal
+          onClose={() => setKatalogAcik(false)}
+          onEkle={ekleKatalogdan}
+          mevcutAdlar={makineler.map(m => m.ad)}
+        />
+      )}
       <ConfirmDialog
         open={silmeOnay !== null}
         title="Makine Silinsin mi?"
@@ -110,6 +172,17 @@ export default function MakinePark({ data, onChange }) {
           </p>
         </div>
         <div style={{display: "flex", alignItems: "center", gap: "12px", flexShrink: 0}}>
+          <button
+            onClick={() => setKatalogAcik(true)}
+            style={{
+              padding: "9px 18px",
+              background: "#F0F9FF", color: "#0284C7",
+              border: "1.5px solid #BAE6FD", borderRadius: "8px",
+              fontSize: "14px", fontWeight: "600", cursor: "pointer"
+            }}
+          >
+            Katalogdan Ekle
+          </button>
           <button
             onClick={kaydet}
             disabled={kayitDurumu === "loading"}

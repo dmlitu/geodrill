@@ -267,6 +267,33 @@ def _build_pdf_report(project, current_user, db):
     ))
     content.append(HRFlowable(width="100%", thickness=2, color=BLUE, spaceAfter=12))
 
+    # Yönetici Özeti
+    uygun_makine_sayisi = sum(
+        1 for m in equipment
+        if makine_uygunluk(m, tork, project.kazik_boyu, project.kazik_capi, c_zorunlu) == "Uygun"
+    ) if equipment else 0
+    risk_durumu = "yüksek riskli zemin katmanları içermektedir" if any(
+        stabilite_riski(l.zem_tipi, l.kohezyon, l.spt, project.yeralti_suyu, l.baslangic) == "Yüksek" for l in layers
+    ) else "genel olarak stabil zemin koşulları sunmaktadır"
+    ozet_metin = (
+        f"{project.proje_adi or 'Bu proje'} kapsamında {project.kazik_adedi} adet, "
+        f"{project.kazik_boyu} m derinliğinde ve {project.kazik_capi} mm çapında fore kazık planlanmaktadır. "
+        f"Zemin profili {len(layers)} katmandan oluşmakta olup {risk_durumu}. "
+        f"Hesaplanan minimum sondaj torku {tork} kNm olup muhafaza borusu durumu '{c_dur}' olarak değerlendirilmiştir. "
+        f"Tek kazık delme süresi yaklaşık {sure} saat, toplam iş süresi {toplam_gun} gün olarak öngörülmektedir. "
+        f"Toplam yakıt tüketimi {round(tek_mazot * project.kazik_adedi)} litre olarak tahmin edilmiştir."
+    )
+    if equipment:
+        ozet_metin += f" Makine parkındaki {len(equipment)} makinenin {uygun_makine_sayisi} tanesi bu proje için uygun kapasiteye sahiptir."
+    content.append(Paragraph("Yönetici Özeti", h2))
+    content.append(Paragraph(
+        ozet_metin,
+        ParagraphStyle("ozet", fontSize=10, leading=16, textColor=colors.HexColor("#374151"),
+                       backColor=colors.HexColor("#F0F9FF"),
+                       borderPad=10, borderWidth=1, borderColor=colors.HexColor("#BAE6FD"),
+                       spaceAfter=14, leftIndent=4, rightIndent=4)
+    ))
+
     # Proje Bilgileri
     content.append(Paragraph("Proje Bilgileri", h2))
     prj_data = [

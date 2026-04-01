@@ -242,12 +242,27 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     const { mBasi, toplam: topMazot } = mazotTahmini(tork, proje.kazikBoyu)
     const kritik = kritikKatman(zemin)
     const gunlukUretim = Math.max(1, Math.round(10 / sure))
-    const toplamGun = Math.round((sure * proje.kazikAdedi) / 10 * 10) / 10
+    const toplamGun = Math.round(sure * proje.kazikAdedi * 10) / 10
     const ucOneri = zemin.some(r => ["Kumtaşı", "Kireçtaşı", "Sert Kaya"].includes(r.zemTipi) || r.ucs >= 25)
       ? "Kaya ucu gerekli" : zemin.some(r => r.zemTipi === "Ayrışmış Kaya" || r.ucs >= 10)
       ? "Geçiş tipi uç" : "Standart uç yeterli"
     const makineUygunluklari = makineler.map(m => ({ ...m, ...makinaUygunluk(m, tork, proje.kazikBoyu, proje.kazikCapi, zorunlu) }))
-    return { tork, casingDur, gerekce, zorunlu, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari }
+    // Stabilite skoru — bir kez hesapla
+    const stabiliteSkor = zemin.length > 0
+      ? Math.round(zemin.reduce((s, r) => {
+          const risk = stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu, r.baslangic)
+          return s + (risk === "Yüksek" ? 70 : risk === "Orta" ? 40 : 15)
+        }, 0) / zemin.length)
+      : 0
+    // Sistem Kararı — en uygun makineyi belirle
+    const uygunMakineler = makineUygunluklari.filter(m => m.karar === "Uygun")
+    const riskliMakineler = makineUygunluklari.filter(m => m.karar === "Riskli" || m.karar === "Şartlı Uygun")
+    const sistemKarari = uygunMakineler.length > 0
+      ? { makine: uygunMakineler.reduce((best, m) => m.tork < best.tork ? m : best, uygunMakineler[0]), durum: "Uygun", renk: "#16A34A", bg: "#F0FDF4" }
+      : riskliMakineler.length > 0
+      ? { makine: riskliMakineler[0], durum: riskliMakineler[0].karar, renk: "#D97706", bg: "#FFFBEB" }
+      : { makine: null, durum: "Uygun makine yok", renk: "#DC2626", bg: "#FEF2F2" }
+    return { tork, casingDur, gerekce, zorunlu, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari }
   }, [zemin, proje, makineler])
 
   if (!zemin.length) {
@@ -271,7 +286,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     )
   }
 
-  const { tork, casingDur, gerekce, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari } = analiz
+  const { tork, casingDur, gerekce, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari } = analiz
 
   return (
     <div>
@@ -316,6 +331,45 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
         </div>
       </div>
 
+      {/* Sistem Kararı kutusu */}
+      <div style={{
+        background: sistemKarari.bg,
+        border: `1.5px solid ${sistemKarari.renk}40`,
+        borderLeft: `5px solid ${sistemKarari.renk}`,
+        borderRadius: "12px", padding: "18px 24px",
+        marginBottom: "20px",
+        display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px"
+      }}>
+        <div>
+          <div style={{ fontSize: "11px", fontWeight: "700", color: sistemKarari.renk, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>
+            Sistem Kararı
+          </div>
+          {sistemKarari.makine ? (
+            <div style={{ fontSize: "18px", fontWeight: "800", color: "#0C4A6E" }}>
+              {sistemKarari.makine.ad}
+              {sistemKarari.makine.marka ? ` — ${sistemKarari.makine.marka}` : ""}
+            </div>
+          ) : (
+            <div style={{ fontSize: "18px", fontWeight: "800", color: "#DC2626" }}>Tanımlı makine yok</div>
+          )}
+          <div style={{ fontSize: "13px", color: "#475569", marginTop: "4px" }}>
+            {sistemKarari.makine
+              ? `Gerekli tork: ${tork} kNm — Makine torku: ${sistemKarari.makine.tork} kNm — ${sistemKarari.makine.gerekce}`
+              : "Makine parkına uygun bir rig ekleyin (Makine Parkı sekmesi)"}
+          </div>
+        </div>
+        <span style={{
+          padding: "8px 20px", borderRadius: "20px",
+          fontSize: "14px", fontWeight: "700",
+          color: sistemKarari.renk,
+          background: "white",
+          border: `1.5px solid ${sistemKarari.renk}60`,
+          whiteSpace: "nowrap"
+        }}>
+          {sistemKarari.durum}
+        </span>
+      </div>
+
       {/* Metrik kartlar */}
       <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "16px", marginBottom: "24px"}}>
         <MetrikKart baslik="Gerekli Min. Tork" deger={`${tork} kNm`} renk="#0284C7"
@@ -329,10 +383,10 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
           oran={Math.min(100, (toplamGun / 60) * 100)} />
         <MetrikKart
           baslik="Stabilite Skoru"
-          deger={(() => { const skor = Math.round(zemin.reduce((s, r) => s + (stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Yüksek" ? 70 : stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Orta" ? 40 : 15), 0) / zemin.length); return `${skor}/100` })()}
-          renk={(() => { const skor = Math.round(zemin.reduce((s, r) => s + (stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Yüksek" ? 70 : stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Orta" ? 40 : 15), 0) / zemin.length); return skor > 50 ? "#DC2626" : skor > 30 ? "#D97706" : "#16A34A" })()}
-          alt={(() => { const skor = Math.round(zemin.reduce((s, r) => s + (stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Yüksek" ? 70 : stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Orta" ? 40 : 15), 0) / zemin.length); return skor > 50 ? "Yuksek risk" : skor > 30 ? "Orta risk" : "Dusuk risk" })()}
-          oran={Math.round(zemin.reduce((s, r) => s + (stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Yüksek" ? 70 : stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Orta" ? 40 : 15), 0) / zemin.length)}
+          deger={`${stabiliteSkor}/100`}
+          renk={stabiliteSkor > 50 ? "#DC2626" : stabiliteSkor > 30 ? "#D97706" : "#16A34A"}
+          alt={stabiliteSkor > 50 ? "Yüksek risk" : stabiliteSkor > 30 ? "Orta risk" : "Düşük risk"}
+          oran={stabiliteSkor}
         />
       </div>
 

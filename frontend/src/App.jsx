@@ -6,6 +6,7 @@ import ProjeForm from "./ProjeForm"
 import LandingPage from "./LandingPage"
 import RegisterPage from "./RegisterPage"
 import { ToastProvider } from "./Toast"
+import { DEMO_PROJE, DEMO_ZEMIN, DEMO_MAKINELER } from "./DemoProje"
 import {
   login, logout, getToken,
   listProjects, getProject,
@@ -406,6 +407,37 @@ function Header({ username, onLogout, onMenuOpen, dark, onToggleDark }) {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
+function WelcomeModal({ onDemoYukle, onKapat }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}>
+      <div style={{ background: "white", borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "40px 40px 32px", boxShadow: "0 32px 80px rgba(14,165,233,0.18)", animation: "fadeUp 0.3s ease" }}>
+        <div style={{ textAlign: "center", marginBottom: "28px" }}>
+          <div style={{ marginBottom: "6px" }}>
+            <span style={{ fontFamily: "'Fraunces', serif", fontWeight: "900", fontSize: "28px", color: "#0C4A6E" }}>Geo</span>
+            <span style={{ fontFamily: "'Fraunces', serif", fontWeight: "900", fontSize: "28px", color: "#0EA5E9" }}>Drill</span>
+          </div>
+          <div style={{ color: "#0369A1", fontSize: "9px", letterSpacing: "5px", fontWeight: "700", marginBottom: "16px" }}>— INSIGHT —</div>
+          <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#0C4A6E", marginBottom: "10px" }}>Hoş geldiniz!</h2>
+          <p style={{ fontSize: "14px", color: "#64748B", lineHeight: "1.7" }}>
+            Hızlı başlamak için gerçek bir saha verisini temel alan demo projeyi yükleyebilirsiniz. İstediğiniz zaman düzenleyebilirsiniz.
+          </p>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <button onClick={onDemoYukle} style={{ padding: "13px", border: "none", borderRadius: "10px", background: "linear-gradient(135deg, #0284C7, #0EA5E9)", color: "white", fontSize: "15px", fontWeight: "700", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            Demo Proje Yükle
+          </button>
+          <button onClick={onKapat} style={{ padding: "12px", border: "1.5px solid #E2E8F0", borderRadius: "10px", background: "white", color: "#475569", fontSize: "14px", fontWeight: "600", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            Boş Başla
+          </button>
+        </div>
+        <p style={{ textAlign: "center", fontSize: "12px", color: "#94A3B8", marginTop: "16px" }}>
+          Demo proje İstanbul / Kadıköy Metro temel kazıkları verisini kullanır
+        </p>
+      </div>
+    </div>
+  )
+}
+
 function Dashboard({ username, onLogout }) {
   const [activePage, setActivePage] = useState("proje")
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -414,6 +446,7 @@ function Dashboard({ username, onLogout }) {
   const [zemin, setZemin] = useState([])
   const [makineler, setMakineler] = useState([])
   const [yukleniyor, setYukleniyor] = useState(true)
+  const [welcomeModal, setWelcomeModal] = useState(false)
   const [dark, setDark] = useState(() => localStorage.getItem("gd_theme") === "dark")
 
   const toggleDark = useCallback(() => {
@@ -444,6 +477,10 @@ function Dashboard({ username, onLogout }) {
           setProjeId(sonPraje.id)
           setProje(fromSnake(sonPraje))
           setZemin((sonPraje.soil_layers || []).map(fromSnakeLayer))
+        } else {
+          // İlk kez giriş — welcome modal göster
+          const daha_once = localStorage.getItem("gd_welcomed")
+          if (!daha_once) setWelcomeModal(true)
         }
 
         if (ekipmanlar.length > 0) {
@@ -451,6 +488,8 @@ function Dashboard({ username, onLogout }) {
         }
       } catch {
         // İlk açılışta hata olursa boş başla
+        const daha_once = localStorage.getItem("gd_welcomed")
+        if (!daha_once) setWelcomeModal(true)
       } finally {
         setYukleniyor(false)
       }
@@ -460,6 +499,20 @@ function Dashboard({ username, onLogout }) {
 
   const handleProjeChange = (key, value) => {
     setProje(prev => ({...prev, [key]: value}))
+  }
+
+  const handleDemoYukle = () => {
+    setProje(DEMO_PROJE)
+    setZemin(DEMO_ZEMIN)
+    setMakineler(DEMO_MAKINELER)
+    setProjeId(null)
+    localStorage.setItem("gd_welcomed", "1")
+    setWelcomeModal(false)
+  }
+
+  const handleWelcomeKapat = () => {
+    localStorage.setItem("gd_welcomed", "1")
+    setWelcomeModal(false)
   }
 
   const handleLogout = () => {
@@ -483,6 +536,7 @@ function Dashboard({ username, onLogout }) {
 
   return (
     <div style={{display: "flex", minHeight: "100vh"}}>
+      {welcomeModal && <WelcomeModal onDemoYukle={handleDemoYukle} onKapat={handleWelcomeKapat} />}
       <Sidebar active={activePage} onNav={setActivePage} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div style={{flex: 1, display: "flex", flexDirection: "column", minWidth: 0}}>
         <Header username={username} onLogout={handleLogout} onMenuOpen={() => setSidebarOpen(true)} dark={dark} onToggleDark={toggleDark} />
