@@ -105,3 +105,63 @@ export function makinaUygunluk(makine, tork, kazikBoyu, kazikCapi, casingGerekli
   if (makine.tork < tork) return { karar: "Riskli", gerekce: `Tork sınırda (${makine.tork} / ${tork} kNm)`, renk: "#D97706", bg: "#FFFBEB" }
   return { karar: "Uygun", gerekce: `Yeterli kapasite (${makine.tork} kNm)`, renk: "#16A34A", bg: "#F0FDF4" }
 }
+
+// Katman bazlı teknik çıktı — her layer için tork ve uç önerisi
+export function katmanTeknikCikti(zemin, capMm) {
+  const capM = capMm / 1000
+  return zemin.map(row => {
+    const spt = parseFloat(row.spt) || 0
+    const ucs = parseFloat(row.ucs) || 0
+    const rqd = parseFloat(row.rqd) || 0
+    let tau = ucs > 0 ? (ucs * 1000) / 10 : row.kohezyon === "Kohezyonlu" ? Math.max(spt * 4, 20) : Math.max(spt * 2, 15)
+    if (rqd > 0) tau *= rqd < 25 ? 1.35 : rqd < 50 ? 1.20 : rqd < 75 ? 1.10 : 1.0
+    const katmanTork = Math.round(tau * Math.PI * Math.pow(capM, 3) / 8 * 1.25 * 10) / 10
+    const uc = ["Kumtaşı", "Kireçtaşı", "Sert Kaya"].includes(row.zemTipi) || ucs >= 25
+      ? "Kaya ucu" : row.zemTipi === "Ayrışmış Kaya" || (ucs >= 10 && ucs < 25)
+      ? "Geçiş ucu" : "Standart uç"
+    return { ...row, katmanTork, uc }
+  })
+}
+
+// Operasyon önerisi — uç değişim noktaları, kritik derinlikler, riskli zonlar
+export function operasyonOnerisi(zemin, yas) {
+  const ucDegisimler = []
+  const kritikDerinlikler = []
+  const riskliZonlar = []
+  let oncekiUc = null
+  for (const row of zemin) {
+    const spt = parseFloat(row.spt) || 0
+    const ucs = parseFloat(row.ucs) || 0
+    const uc = ["Kumtaşı", "Kireçtaşı", "Sert Kaya"].includes(row.zemTipi) || ucs >= 25
+      ? "Kaya ucu" : row.zemTipi === "Ayrışmış Kaya" || (ucs >= 10 && ucs < 25)
+      ? "Geçiş ucu" : "Standart uç"
+    if (oncekiUc && uc !== oncekiUc) {
+      ucDegisimler.push({ derinlik: row.baslangic, eskiUc: oncekiUc, yeniUc: uc, zemin: row.zemTipi })
+    }
+    if (spt >= 50 || ucs >= 20) {
+      kritikDerinlikler.push({ baslangic: row.baslangic, bitis: row.bitis, neden: ucs >= 20 ? `UCS: ${ucs} MPa` : `SPT: ${spt}`, zemin: row.zemTipi })
+    }
+    if (["Kum", "Çakıl"].includes(row.zemTipi) || (row.kohezyon === "Kohezyonsuz" && spt <= 10)) {
+      const altinda = yas > 0 && row.baslangic >= yas
+      riskliZonlar.push({ baslangic: row.baslangic, bitis: row.bitis, risk: altinda ? "Yüksek" : "Orta", zemin: row.zemTipi, neden: altinda ? "YAS altı, gevşek zemin" : "Gevşek zemin" })
+    }
+    oncekiUc = uc
+  }
+  return { ucDegisimler, kritikDerinlikler, riskliZonlar }
+}
+
+// Fiyat analizi — mazot, amortisman, işçilik, sarf malzeme, kar payı
+export function fiyatAnalizi({ mazotFiyati, makineKirasi, iscilikSaat, sarfMalzeme, karPayiYuzde }, proje, mBasi, topMazot, sure) {
+  const kazikAdedi = proje.kazikAdedi || 1
+  const kazikBoyu = proje.kazikBoyu || 1
+  const mazotMaliyeti = Math.round(mBasi * kazikBoyu * kazikAdedi * mazotFiyati)
+  const amortismanMaliyeti = Math.round(sure * kazikAdedi * makineKirasi)
+  const iscilikMaliyeti = Math.round(sure * kazikAdedi * iscilikSaat)
+  const sarfMalzemeMaliyeti = Math.round(kazikBoyu * kazikAdedi * sarfMalzeme)
+  const altToplam = mazotMaliyeti + amortismanMaliyeti + iscilikMaliyeti + sarfMalzemeMaliyeti
+  const karPayi = Math.round(altToplam * (karPayiYuzde / 100))
+  const toplam = altToplam + karPayi
+  const kazikBasi = Math.round(toplam / kazikAdedi)
+  const metreBasi = Math.round(toplam / (kazikAdedi * kazikBoyu))
+  return { mazotMaliyeti, amortismanMaliyeti, iscilikMaliyeti, sarfMalzemeMaliyeti, altToplam, karPayi, toplam, kazikBasi, metreBasi }
+}

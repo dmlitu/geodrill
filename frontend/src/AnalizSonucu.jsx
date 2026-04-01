@@ -4,6 +4,7 @@ import { ZeminProfilDiyagrami, TorkDerinlikGrafigi, GanttSemasi, SenaryoKarsilas
 import {
   gerekliTork, stabiliteRiski, casingDurum, casingMetreHesapla,
   kazikSuresi, mazotTahmini, kritikKatman, makinaUygunluk,
+  katmanTeknikCikti, operasyonOnerisi,
 } from "./hesaplamalar"
 
 // ── Kart bileşeni ───────────────────────────────────────
@@ -262,7 +263,9 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
       : riskliMakineler.length > 0
       ? { makine: riskliMakineler[0], durum: riskliMakineler[0].karar, renk: "#D97706", bg: "#FFFBEB" }
       : { makine: null, durum: "Uygun makine yok", renk: "#DC2626", bg: "#FEF2F2" }
-    return { tork, casingDur, gerekce, zorunlu, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari }
+    const katmanCiktilar = katmanTeknikCikti(zemin, proje.kazikCapi)
+    const opOneri = operasyonOnerisi(zemin, proje.yeraltiSuyu)
+    return { tork, casingDur, gerekce, zorunlu, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri }
   }, [zemin, proje, makineler])
 
   if (!zemin.length) {
@@ -286,7 +289,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     )
   }
 
-  const { tork, casingDur, gerekce, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari } = analiz
+  const { tork, casingDur, gerekce, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri } = analiz
 
   return (
     <div>
@@ -331,43 +334,78 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
         </div>
       </div>
 
-      {/* Sistem Kararı kutusu */}
+      {/* Makine Kararı kutusu — tam ✔/❌ kararı */}
       <div style={{
         background: sistemKarari.bg,
         border: `1.5px solid ${sistemKarari.renk}40`,
         borderLeft: `5px solid ${sistemKarari.renk}`,
-        borderRadius: "12px", padding: "18px 24px",
+        borderRadius: "12px", padding: "20px 24px",
         marginBottom: "20px",
-        display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px"
       }}>
-        <div>
-          <div style={{ fontSize: "11px", fontWeight: "700", color: sistemKarari.renk, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>
-            Sistem Kararı
-          </div>
-          {sistemKarari.makine ? (
-            <div style={{ fontSize: "18px", fontWeight: "800", color: "#0C4A6E" }}>
-              {sistemKarari.makine.ad}
-              {sistemKarari.makine.marka ? ` — ${sistemKarari.makine.marka}` : ""}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: "11px", fontWeight: "700", color: sistemKarari.renk, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "6px" }}>
+              Makine Kararı
             </div>
-          ) : (
-            <div style={{ fontSize: "18px", fontWeight: "800", color: "#DC2626" }}>Tanımlı makine yok</div>
-          )}
-          <div style={{ fontSize: "13px", color: "#475569", marginTop: "4px" }}>
-            {sistemKarari.makine
-              ? `Gerekli tork: ${tork} kNm — Makine torku: ${sistemKarari.makine.tork} kNm — ${sistemKarari.makine.gerekce}`
-              : "Makine parkına uygun bir rig ekleyin (Makine Parkı sekmesi)"}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
+              <span style={{ fontSize: "28px", lineHeight: 1 }}>
+                {sistemKarari.durum === "Uygun" ? "✔" : sistemKarari.durum === "Uygun makine yok" ? "❌" : "⚠️"}
+              </span>
+              <div>
+                {sistemKarari.makine ? (
+                  <div style={{ fontSize: "20px", fontWeight: "800", color: "#0C4A6E" }}>
+                    {sistemKarari.makine.ad}{sistemKarari.makine.marka ? ` — ${sistemKarari.makine.marka}` : ""}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: "18px", fontWeight: "800", color: "#DC2626" }}>Uygun Makine Bulunamadı</div>
+                )}
+                <div style={{ fontSize: "13px", color: "#475569", marginTop: "2px" }}>
+                  {sistemKarari.makine
+                    ? `Gerekli tork: ${tork} kNm · Makine torku: ${sistemKarari.makine.tork} kNm · ${sistemKarari.makine.gerekce}`
+                    : "Makine parkına uygun rig ekleyin"}
+                </div>
+              </div>
+            </div>
           </div>
+          <span style={{
+            padding: "10px 22px", borderRadius: "20px", fontSize: "14px", fontWeight: "700",
+            color: sistemKarari.renk, background: "white",
+            border: `1.5px solid ${sistemKarari.renk}60`, whiteSpace: "nowrap", alignSelf: "flex-start"
+          }}>
+            {sistemKarari.durum}
+          </span>
         </div>
-        <span style={{
-          padding: "8px 20px", borderRadius: "20px",
-          fontSize: "14px", fontWeight: "700",
-          color: sistemKarari.renk,
-          background: "white",
-          border: `1.5px solid ${sistemKarari.renk}60`,
-          whiteSpace: "nowrap"
-        }}>
-          {sistemKarari.durum}
-        </span>
+
+        {/* Uygun değilse gerekli özellikler */}
+        {(!sistemKarari.makine || sistemKarari.durum === "Uygun Değil") && (
+          <div style={{ marginTop: "14px", paddingTop: "14px", borderTop: `1px solid ${sistemKarari.renk}30` }}>
+            <div style={{ fontSize: "12px", fontWeight: "700", color: "#DC2626", marginBottom: "10px" }}>
+              Bu proje için şu özelliklerde bir makine gereklidir:
+            </div>
+            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+              {[
+                { k: "Minimum Tork", v: `${tork} kNm` },
+                { k: "Max Derinlik", v: `≥ ${proje.kazikBoyu} m` },
+                { k: "Max Çap", v: `≥ ${proje.kazikCapi} mm` },
+                { k: "Casing Sistemi", v: analiz.zorunlu ? "Zorunlu" : "Opsiyonel" },
+              ].map(({ k, v }) => (
+                <div key={k} style={{ background: "white", border: "1px solid #FECACA", borderRadius: "8px", padding: "8px 14px" }}>
+                  <div style={{ fontSize: "10px", color: "#94A3B8", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.04em" }}>{k}</div>
+                  <div style={{ fontSize: "14px", fontWeight: "700", color: "#DC2626" }}>{v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* AI yorum */}
+        <div style={{ marginTop: "12px", fontSize: "12px", color: "#64748B", paddingTop: "12px", borderTop: `1px solid ${sistemKarari.renk}20`, fontStyle: "italic" }}>
+          {zemin.some(r => ["Kumtaşı", "Kireçtaşı", "Sert Kaya"].includes(r.zemTipi))
+            ? "Benzer projelerde kaya formasyonu içeren bu zemin profilinde genellikle yüksek torklu, kelly bar sistemli makineler tercih edilmektedir."
+            : zemin.some(r => ["Kum", "Çakıl"].includes(r.zemTipi))
+            ? "Benzer projelerde kum/çakıl içeren bu zemin profilinde casing sistemi olan makineler tercih edilmektedir."
+            : "Bu analiz saha zemin verileri ile uyumludur. Yerinde inceleme sonuçları değerlendirmede dikkate alınmalıdır."}
+        </div>
       </div>
 
       {/* Metrik kartlar */}
@@ -462,6 +500,88 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Teknik Çıktılar — katman bazlı tork ve uç */}
+      <div style={{ background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--input-border)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", marginBottom: "20px" }}>
+        <h3 style={{ color: "var(--heading)", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid var(--border-subtle)" }}>
+          ⚡ Teknik Çıktılar — Katman Bazlı Analiz
+        </h3>
+        <div style={{ overflowX: "auto" }}>
+          <table className="data-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "var(--badge-muted-bg)", borderBottom: "2px solid var(--input-border)" }}>
+                {["Derinlik (m)", "Zemin Tipi", "SPT", "UCS (MPa)", "Beklenen Tork (kNm)", "Önerilen Uç"].map(h => (
+                  <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", fontWeight: "700", color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {katmanCiktilar.map((row, i) => (
+                <tr key={row.id || i} style={{ borderBottom: "1px solid var(--border-subtle)", background: i % 2 === 0 ? "var(--bg-card)" : "var(--row-alt)" }}>
+                  <td style={{ padding: "9px 14px", fontSize: "13px", fontWeight: "600", color: "var(--text-primary)" }}>{row.baslangic}–{row.bitis} m</td>
+                  <td style={{ padding: "9px 14px", fontSize: "13px", color: "var(--text-secondary)" }}>{row.zemTipi}</td>
+                  <td style={{ padding: "9px 14px", fontSize: "13px", color: "var(--text-secondary)" }}>{row.spt}</td>
+                  <td style={{ padding: "9px 14px", fontSize: "13px", color: "var(--text-secondary)" }}>{row.ucs}</td>
+                  <td style={{ padding: "9px 14px" }}>
+                    <span style={{ fontSize: "13px", fontWeight: "700", color: row.katmanTork > tork * 0.8 ? "#DC2626" : row.katmanTork > tork * 0.5 ? "#D97706" : "#0369A1" }}>
+                      {row.katmanTork} kNm
+                    </span>
+                  </td>
+                  <td style={{ padding: "9px 14px" }}>
+                    <span style={{ padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "600",
+                      background: row.uc === "Kaya ucu" ? "#FEF2F2" : row.uc === "Geçiş ucu" ? "#FFFBEB" : "#F0FDF4",
+                      color: row.uc === "Kaya ucu" ? "#DC2626" : row.uc === "Geçiş ucu" ? "#D97706" : "#16A34A" }}>
+                      {row.uc}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Operasyon Önerisi */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px", marginBottom: "20px" }}>
+        {/* Uç Değişim Noktaları */}
+        <div style={{ background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--input-border)", padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+          <h3 style={{ fontSize: "14px", fontWeight: "700", color: "var(--heading)", marginBottom: "12px" }}>🔄 Uç Değişim Noktaları</h3>
+          {opOneri.ucDegisimler.length === 0
+            ? <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>Bu projede uç değişimi öngörülmemektedir.</p>
+            : opOneri.ucDegisimler.map((u, i) => (
+              <div key={i} style={{ padding: "8px 12px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: "8px", marginBottom: "8px" }}>
+                <div style={{ fontSize: "13px", fontWeight: "700", color: "#92400E" }}>{u.derinlik} m derinliğinde</div>
+                <div style={{ fontSize: "12px", color: "#78350F" }}>{u.eskiUc} → {u.yeniUc} · {u.zemin}</div>
+              </div>
+            ))}
+        </div>
+
+        {/* Kritik Derinlikler */}
+        <div style={{ background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--input-border)", padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+          <h3 style={{ fontSize: "14px", fontWeight: "700", color: "var(--heading)", marginBottom: "12px" }}>⚠️ Kritik Derinlikler</h3>
+          {opOneri.kritikDerinlikler.length === 0
+            ? <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>Tanımlanmış kritik derinlik bulunmuyor.</p>
+            : opOneri.kritikDerinlikler.map((k, i) => (
+              <div key={i} style={{ padding: "8px 12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: "8px", marginBottom: "8px" }}>
+                <div style={{ fontSize: "13px", fontWeight: "700", color: "#991B1B" }}>{k.baslangic}–{k.bitis} m · {k.zemin}</div>
+                <div style={{ fontSize: "12px", color: "#7F1D1D" }}>{k.neden}</div>
+              </div>
+            ))}
+        </div>
+
+        {/* Riskli Zonlar */}
+        <div style={{ background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--input-border)", padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+          <h3 style={{ fontSize: "14px", fontWeight: "700", color: "var(--heading)", marginBottom: "12px" }}>🔴 Riskli Zonlar</h3>
+          {opOneri.riskliZonlar.length === 0
+            ? <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>Yüksek riskli zon tespit edilmedi.</p>
+            : opOneri.riskliZonlar.map((r, i) => (
+              <div key={i} style={{ padding: "8px 12px", background: r.risk === "Yüksek" ? "#FEF2F2" : "#FFFBEB", border: `1px solid ${r.risk === "Yüksek" ? "#FECACA" : "#FDE68A"}`, borderRadius: "8px", marginBottom: "8px" }}>
+                <div style={{ fontSize: "13px", fontWeight: "700", color: r.risk === "Yüksek" ? "#991B1B" : "#92400E" }}>{r.baslangic}–{r.bitis} m · {r.zemin}</div>
+                <div style={{ fontSize: "12px", color: r.risk === "Yüksek" ? "#7F1D1D" : "#78350F" }}>{r.neden} · Risk: {r.risk}</div>
+              </div>
+            ))}
         </div>
       </div>
 

@@ -7,6 +7,7 @@ import LandingPage from "./LandingPage"
 import RegisterPage from "./RegisterPage"
 import { ToastProvider } from "./Toast"
 import { DEMO_PROJE, DEMO_ZEMIN, DEMO_MAKINELER } from "./DemoProje"
+import FiyatAnalizi from "./FiyatAnalizi"
 import {
   login, logout, getToken,
   listProjects, getProject,
@@ -81,6 +82,7 @@ const NAV_ITEMS = [
   { id: "zemin", label: "Zemin Logu", icon: "🪨" },
   { id: "makine", label: "Makine Parkı", icon: "⚙️" },
   { id: "analiz", label: "Analiz Sonucu", icon: "📊" },
+  { id: "fiyat", label: "Fiyat Analizi", icon: "💰" },
 ]
 
 const BOS_PROJE = {
@@ -573,6 +575,11 @@ function Dashboard({ username, onLogout }) {
                   makineler={makineler}
                   projeId={projeId}
                 />
+              </ErrorBoundary>
+            )}
+            {activePage === "fiyat" && (
+              <ErrorBoundary>
+                <FiyatAnalizi proje={proje} zemin={zemin} />
               </ErrorBoundary>
             )}
           </div>

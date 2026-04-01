@@ -323,7 +323,7 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
             background: "rgba(14,165,233,0.05)",
             borderRadius: "4px",
           }}>
-            SONDAJ PROJE YÖNETİM SİSTEMİ
+            GEOTEKNİK PROJE YÖNETİM SİSTEMİ
           </div>
 
           <h1 style={{
@@ -335,38 +335,38 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
             letterSpacing: "-0.02em",
             color: "#0C4A6E",
           }}>
-            Sahaya Gitmeden Önce<br />
-            <em style={{ color: "#0EA5E9", fontStyle: "italic" }}>Makineyi Seçin</em>
+            Gücünüzü<br />
+            <em style={{ color: "#0EA5E9", fontStyle: "italic" }}>Doğru Yönetin</em>
           </h1>
 
           <p style={{
-            color: "#64748B",
-            fontSize: "18px",
-            lineHeight: "1.75",
+            color: "#0C4A6E",
+            fontSize: "19px",
+            lineHeight: "1.7",
             margin: "0 auto 16px",
-            maxWidth: "580px",
-            fontWeight: "400",
+            maxWidth: "600px",
+            fontWeight: "600",
           }}>
-            Zemin profili, tork hesabı, casing ihtiyacı ve ekipman uygunluğu —
-            geoteknik mühendisleri ve sondaj şirketleri için.
+            Hangi makinenin bu projeye uygun olduğunu dakikalar içinde öğrenin ve maliyet analizi yapın.
           </p>
 
           <p style={{
-            color: "#94A3B8",
-            fontSize: "14px",
+            color: "#64748B",
+            fontSize: "15px",
+            lineHeight: "1.75",
             margin: "0 auto 44px",
-            maxWidth: "480px",
+            maxWidth: "560px",
           }}>
-            SPT, UCS ve RQD değerlerinizi girin. Hangi makinenin bu projeye uygun olduğunu dakikalar içinde öğrenin.
+            Geoteknik şirketleri için geliştirilmiş veri tabanlı karar destek platformu. Zemin verisine göre doğru makineyi seçin, riskleri önceden görün ve operasyon maliyetlerini optimize edin.
           </p>
 
           <div style={{ display: "flex", gap: "14px", justifyContent: "center", flexWrap: "wrap" }}>
             <button className="cta-primary" onClick={() => setDemoAcik(true)}>Demo Talep Et</button>
-            <button className="cta-secondary" onClick={onGoLogin}>Giriş Yap →</button>
+            <button className="cta-secondary" onClick={() => setDemoAcik(true)}>İletişime Geç</button>
           </div>
 
           <p style={{ marginTop: "28px", color: "#CBD5E1", fontSize: "12px", letterSpacing: "0.03em" }}>
-            Erişim kurumsal başvuru ile sağlanır · Kişiselleştirilmiş demo
+            Geoteknik şirketleri · Hesaplamalar SPT, RQD ve UCS verilerine dayalıdır
           </p>
         </div>
       </section>
@@ -513,7 +513,7 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
                 fontWeight: "800", margin: "0",
                 letterSpacing: "-0.02em", color: "#0C4A6E",
               }}>
-                Dört Adımda Eksiksiz Analiz
+                5 Adımda Eksiksiz Analiz
               </h2>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "0" }}>
@@ -575,16 +575,19 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
               >
                 Demo Talep Et
               </button>
-              <button onClick={onGoLogin} style={{
+              <button onClick={() => setDemoAcik(true)} style={{
                 padding: "15px 36px",
                 border: "1.5px solid rgba(255,255,255,0.4)", borderRadius: "8px",
                 background: "transparent", color: "rgba(255,255,255,0.9)",
                 fontSize: "15px", fontWeight: "600", cursor: "pointer",
                 fontFamily: "'Plus Jakarta Sans', sans-serif",
               }}>
-                Giriş Yap →
+                İletişime Geç
               </button>
             </div>
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "12px", marginTop: "24px", letterSpacing: "0.03em" }}>
+              Hesaplamalar SPT, RQD ve UCS verilerine dayalıdır · Geoteknik şirketleri için
+            </p>
           </div>
         </section>
       </RevealSection>
@@ -675,8 +678,9 @@ const FEATURES = [
 ]
 
 const STEPS = [
-  { title: "Zemin Profilini Girin", desc: "Saha verilerini (SPT, UCS, RQD) katman katman işleyin. Stabilite riski anında görülür." },
-  { title: "Makine Parkını Tanımlayın", desc: "Sahada kullandığınız sondaj makinelerini tork, derinlik ve çap kapasiteleriyle kaydedin." },
-  { title: "Hesabı Çalıştırın", desc: "Tork, casing, yakıt ve süre otomatik hesaplanır. Sistem en uygun makineyi önerir." },
-  { title: "Raporu İndirin", desc: "Yönetici özeti ve teknik detaylarla birlikte kurumsal PDF raporu tek tıkla oluşturun." },
+  { title: "Zemin Verisi", desc: "SPT, UCS, RQD değerlerini katman katman girin. Stabilite riski ve casing ihtiyacı anında hesaplanır." },
+  { title: "Makine Seçimi", desc: "Sahada kullandığınız sondaj makinelerini tork, derinlik ve çap kapasiteleriyle kaydedin." },
+  { title: "Hesaplama", desc: "Tork, casing, yakıt ve süre otomatik hesaplanır. Sistem en uygun makineyi önerir." },
+  { title: "Sonuç", desc: "Makine kararı, teknik çıktılar ve operasyon önerileri tek ekranda görüntülenir." },
+  { title: "Fiyat Analizi", desc: "Mazot, amortisman, işçilik ve sarf malzeme maliyetleri hesaplanır. Kar payı dahil toplam fiyat." },
 ]

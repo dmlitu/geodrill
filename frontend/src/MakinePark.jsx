@@ -29,18 +29,18 @@ const DEFAULT_MAKINE = () => ({
   id: Date.now() + Math.random(),
   ad: "", tip: "Fore Kazık", marka: "",
   maxDerinlik: 24, maxCap: 1000, tork: 180,
-  casing: "Evet", darAlan: "Hayır", yakitSinifi: "Orta", not: ""
+  casing: "Evet", not: ""
 })
 
 const DEFAULT_MAKINELER = [
-  { id: 1, ad: "Rig A", tip: "Fore Kazık", marka: "Bauer BG", maxDerinlik: 24, maxCap: 1000, tork: 180, casing: "Evet", darAlan: "Hayır", yakitSinifi: "Orta", not: "Standart saha makinesi" },
-  { id: 2, ad: "Rig B", tip: "Fore Kazık", marka: "Soilmec SR", maxDerinlik: 36, maxCap: 1500, tork: 260, casing: "Evet", darAlan: "Hayır", yakitSinifi: "Yüksek", not: "Yüksek kapasiteli" },
-  { id: 3, ad: "Rig C", tip: "Fore Kazık", marka: "Klemm KR", maxDerinlik: 20, maxCap: 800, tork: 130, casing: "Hayır", darAlan: "Evet", yakitSinifi: "Düşük", not: "Dar alan için uygun" },
+  { id: 1, ad: "Rig A", tip: "Fore Kazık", marka: "Bauer BG", maxDerinlik: 24, maxCap: 1000, tork: 180, casing: "Evet", not: "Standart saha makinesi" },
+  { id: 2, ad: "Rig B", tip: "Fore Kazık", marka: "Soilmec SR", maxDerinlik: 36, maxCap: 1500, tork: 260, casing: "Evet", not: "Yüksek kapasiteli" },
+  { id: 3, ad: "Rig C", tip: "Fore Kazık", marka: "Klemm KR", maxDerinlik: 20, maxCap: 800, tork: 130, casing: "Hayır", not: "Kompakt, şehir içi" },
 ]
 
 function makineHatasi(m) {
   const h = {}
-  if (!m.ad || !m.ad.trim()) h.ad = "Makine adı zorunlu"
+  if (!m.ad || !m.ad.trim()) h.ad = "Firma adı zorunlu"
   if (!(Number(m.tork) > 0)) h.tork = "> 0 olmalı"
   if (!(Number(m.maxDerinlik) > 0)) h.maxDerinlik = "> 0 olmalı"
   if (!(Number(m.maxCap) > 0)) h.maxCap = "> 0 olmalı"
@@ -209,15 +209,13 @@ export default function MakinePark({ data, onChange }) {
           <table className="data-table" style={{ width: "100%", borderCollapse: "collapse", minWidth: "1000px" }}>
             <thead>
               <tr style={{ background: "var(--badge-muted-bg)", borderBottom: "2px solid var(--input-border)" }}>
-                <th style={thStyle}>Makine Adı</th>
+                <th style={thStyle}>Firma Adı</th>
                 <th style={thStyle}>Tip</th>
                 <th style={thStyle}>Marka/Model</th>
                 <th style={thStyle}>Max Derinlik (m)</th>
                 <th style={thStyle}>Max Çap (mm)</th>
                 <th style={thStyle}>Tork (kNm)</th>
                 <th style={thStyle}>Casing</th>
-                <th style={thStyle}>Dar Alan</th>
-                <th style={thStyle}>Yakıt</th>
                 <th style={thStyle}>Not</th>
                 <th style={thStyle}></th>
               </tr>
@@ -233,7 +231,7 @@ export default function MakinePark({ data, onChange }) {
                 }}>
                   <td style={tdStyle}>
                     <input style={{ ...cellInput, width: "110px", ...errStyle("ad") }}
-                      value={m.ad} placeholder="Rig A"
+                      value={m.ad} placeholder="Firma Adı"
                       title={mh.ad || ""}
                       onChange={e => updateRow(m.id, "ad", e.target.value)} />
                   </td>
@@ -269,19 +267,7 @@ export default function MakinePark({ data, onChange }) {
                       {CASING_SECENEKLER.map(t => <option key={t}>{t}</option>)}
                     </select>
                   </td>
-                  <td style={tdStyle}>
-                    <select style={{ ...cellInput, width: "80px", cursor: "pointer", background: "var(--input-bg)" }}
-                      value={m.darAlan} onChange={e => updateRow(m.id, "darAlan", e.target.value)}>
-                      {DAR_ALAN.map(t => <option key={t}>{t}</option>)}
-                    </select>
-                  </td>
-                  <td style={tdStyle}>
-                    <select style={{ ...cellInput, width: "90px", cursor: "pointer", background: "var(--input-bg)" }}
-                      value={m.yakitSinifi} onChange={e => updateRow(m.id, "yakitSinifi", e.target.value)}>
-                      {YAKIT_SINIFI.map(t => <option key={t}>{t}</option>)}
-                    </select>
-                  </td>
-                  <td style={tdStyle}>
+                  <td style={tdStyle}
                     <input style={{ ...cellInput, width: "140px" }}
                       value={m.not} placeholder="Notlar..."
                       onChange={e => updateRow(m.id, "not", e.target.value)} />
