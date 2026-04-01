@@ -1,3 +1,38 @@
+import { useEffect, useRef, useState } from "react"
+
+function useScrollReveal(threshold = 0.15) {
+  const ref = useRef(null)
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect() } },
+      { threshold }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [threshold])
+  return [ref, visible]
+}
+
+function RevealSection({ children, style, delay = 0 }) {
+  const [ref, visible] = useScrollReveal()
+  return (
+    <div
+      ref={ref}
+      style={{
+        ...style,
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(24px)",
+        transition: `opacity 0.6s ease ${delay}s, transform 0.6s ease ${delay}s`,
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
 export default function LandingPage({ onGoLogin, onGoRegister }) {
   return (
     <div style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFFFF", color: "#0C4A6E", overflowX: "hidden" }}>
@@ -215,13 +250,15 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
           display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
           gap: "32px", textAlign: "center",
         }}>
-          {STATS.map(s => (
-            <div key={s.label}>
-              <div className="stat-val">{s.value}</div>
-              <div style={{ marginTop: "6px", color: "#94A3B8", fontSize: "12px", fontWeight: "600", letterSpacing: "2px" }}>
-                {s.label}
+          {STATS.map((s, i) => (
+            <RevealSection key={s.label} delay={i * 0.1}>
+              <div>
+                <div className="stat-val">{s.value}</div>
+                <div style={{ marginTop: "6px", color: "#94A3B8", fontSize: "12px", fontWeight: "600", letterSpacing: "2px" }}>
+                  {s.label}
+                </div>
               </div>
-            </div>
+            </RevealSection>
           ))}
         </div>
       </div>
@@ -247,23 +284,25 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
             gap: "16px",
           }}>
             {FEATURES.map((f, i) => (
-              <div key={f.title} className="feature-card" style={{ borderLeftColor: f.accent }}>
-                <style>{`.feature-card:nth-child(${i + 1})::before { background: ${f.accent}; }`}</style>
-                <div style={{
-                  display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px",
-                }}>
+              <RevealSection key={f.title} delay={i * 0.08}>
+                <div className="feature-card" style={{ borderLeftColor: f.accent, height: "100%" }}>
+                  <style>{`.feature-card:nth-child(${i + 1})::before { background: ${f.accent}; }`}</style>
                   <div style={{
-                    width: "8px", height: "8px", borderRadius: "2px",
-                    background: f.accent, flexShrink: 0,
-                  }} />
-                  <h3 style={{ fontSize: "15px", fontWeight: "700", color: "#0C4A6E", letterSpacing: "0.01em" }}>
-                    {f.title}
-                  </h3>
+                    display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px",
+                  }}>
+                    <div style={{
+                      width: "8px", height: "8px", borderRadius: "2px",
+                      background: f.accent, flexShrink: 0,
+                    }} />
+                    <h3 style={{ fontSize: "15px", fontWeight: "700", color: "#0C4A6E", letterSpacing: "0.01em" }}>
+                      {f.title}
+                    </h3>
+                  </div>
+                  <p style={{ fontSize: "13px", color: "#64748B", lineHeight: "1.7", margin: 0 }}>
+                    {f.desc}
+                  </p>
                 </div>
-                <p style={{ fontSize: "13px", color: "#64748B", lineHeight: "1.7", margin: 0 }}>
-                  {f.desc}
-                </p>
-              </div>
+              </RevealSection>
             ))}
           </div>
         </div>
@@ -286,24 +325,26 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "0" }}>
             {STEPS.map((step, i) => (
-              <div key={step.title} className="step-item" style={{
-                padding: "32px",
-                borderLeft: i === 0 ? "none" : "1px solid #E0F2FE",
-                position: "relative",
-              }}>
-                <div className="step-num">{String(i + 1).padStart(2, "0")}</div>
-                <h3 style={{
-                  fontFamily: "'Fraunces', serif",
-                  fontSize: "20px", fontWeight: "700",
-                  margin: "16px 0 12px",
-                  color: "#0C4A6E",
+              <RevealSection key={step.title} delay={i * 0.12}>
+                <div className="step-item" style={{
+                  padding: "32px",
+                  borderLeft: i === 0 ? "none" : "1px solid #E0F2FE",
+                  position: "relative",
                 }}>
-                  {step.title}
-                </h3>
-                <p style={{ fontSize: "14px", color: "#64748B", lineHeight: "1.7", margin: 0 }}>
-                  {step.desc}
-                </p>
-              </div>
+                  <div className="step-num">{String(i + 1).padStart(2, "0")}</div>
+                  <h3 style={{
+                    fontFamily: "'Fraunces', serif",
+                    fontSize: "20px", fontWeight: "700",
+                    margin: "16px 0 12px",
+                    color: "#0C4A6E",
+                  }}>
+                    {step.title}
+                  </h3>
+                  <p style={{ fontSize: "14px", color: "#64748B", lineHeight: "1.7", margin: 0 }}>
+                    {step.desc}
+                  </p>
+                </div>
+              </RevealSection>
             ))}
           </div>
         </div>

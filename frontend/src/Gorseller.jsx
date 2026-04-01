@@ -1,3 +1,4 @@
+import { useState } from "react"
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, Legend,
@@ -21,6 +22,8 @@ const ZEMIN_RENK = {
 // ─── 1. Zemin Profili Diyagramı (SVG) ────────────────────────────────────────
 
 export function ZeminProfilDiyagrami({ zemin, yeraltiSuyu, kazikBoyu }) {
+  const [hover, setHover] = useState(null)
+
   if (!zemin.length) return null
 
   const maxDepth = Math.max(kazikBoyu || 0, ...zemin.map(r => r.bitis))
@@ -31,7 +34,7 @@ export function ZeminProfilDiyagrami({ zemin, yeraltiSuyu, kazikBoyu }) {
   const depthToY = d => (d / maxDepth) * H
 
   return (
-    <div>
+    <div style={{ position: "relative" }}>
       <h3 style={{ color: "#0369A1", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE" }}>
         Zemin Profili
       </h3>
@@ -41,13 +44,18 @@ export function ZeminProfilDiyagrami({ zemin, yeraltiSuyu, kazikBoyu }) {
           const y1 = depthToY(row.baslangic)
           const y2 = depthToY(row.bitis)
           const renk = ZEMIN_RENK[row.zemTipi] || "#CBD5E1"
+          const isHovered = hover === i
           return (
-            <g key={i}>
+            <g key={i}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+              style={{ cursor: "pointer" }}
+            >
               <rect x={LEFT} y={y1} width={CHART_W} height={y2 - y1}
-                fill={renk} stroke="white" strokeWidth={1} opacity={0.85} />
+                fill={renk} stroke={isHovered ? "#0C4A6E" : "white"} strokeWidth={isHovered ? 2 : 1} opacity={isHovered ? 1 : 0.85} />
               {(y2 - y1) >= 18 && (
                 <text x={LEFT + CHART_W / 2} y={(y1 + y2) / 2 + 4}
-                  textAnchor="middle" fontSize={9} fill="white" fontWeight="600">
+                  textAnchor="middle" fontSize={9} fill="white" fontWeight="600" pointerEvents="none">
                   {row.zemTipi}
                 </text>
               )}
@@ -95,6 +103,20 @@ export function ZeminProfilDiyagrami({ zemin, yeraltiSuyu, kazikBoyu }) {
           Derinlik (m)
         </text>
       </svg>
+
+      {/* Hover tooltip */}
+      {hover !== null && zemin[hover] && (
+        <div style={{
+          marginTop: "8px", padding: "10px 14px",
+          background: "#0C4A6E", color: "white", borderRadius: "8px",
+          fontSize: "12px", lineHeight: "1.6",
+          animation: "fadeUp 0.15s ease",
+        }}>
+          <strong>{zemin[hover].zemTipi}</strong> — {zemin[hover].baslangic}m ~ {zemin[hover].bitis}m
+          <br />SPT: {zemin[hover].spt} | UCS: {zemin[hover].ucs} MPa | RQD: {zemin[hover].rqd}%
+          {zemin[hover].formasyon && <><br />Formasyon: {zemin[hover].formasyon}</>}
+        </div>
+      )}
 
       {/* Lejant */}
       <div style={{ marginTop: "12px", display: "flex", flexWrap: "wrap", gap: "8px" }}>

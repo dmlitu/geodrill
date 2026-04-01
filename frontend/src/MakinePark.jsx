@@ -1,5 +1,7 @@
 import { useState } from "react"
 import { bulkReplaceEquipment, fromSnakeMakine } from "./api"
+import ConfirmDialog from "./ConfirmDialog"
+import { useToast } from "./Toast"
 
 const MAKINE_TIPLERI = ["Fore Kazık", "Ankraj", "Mini Kazık"]
 const CASING_SECENEKLER = ["Evet", "Hayır", "Şartlı"]
@@ -9,7 +11,7 @@ const YAKIT_SINIFI = ["Düşük", "Orta", "Yüksek"]
 const thStyle = {
   padding: "12px 14px", textAlign: "left",
   fontSize: "12px", fontWeight: "700",
-  color: "#64748B", textTransform: "uppercase",
+  color: "var(--text-secondary)", textTransform: "uppercase",
   letterSpacing: "0.5px", whiteSpace: "nowrap"
 }
 
@@ -17,8 +19,9 @@ const tdStyle = { padding: "8px 6px", verticalAlign: "middle" }
 
 const cellInput = {
   width: "100%", padding: "7px 10px",
-  border: "1.5px solid #E2E8F0", borderRadius: "6px",
-  fontSize: "13px", outline: "none", boxSizing: "border-box"
+  border: "1.5px solid var(--input-border)", borderRadius: "6px",
+  fontSize: "13px", outline: "none", boxSizing: "border-box",
+  color: "var(--input-text)", background: "var(--input-bg)"
 }
 
 const DEFAULT_MAKINE = () => ({
@@ -45,8 +48,9 @@ function makineHatasi(m) {
 
 export default function MakinePark({ data, onChange }) {
   const [kayitDurumu, setKayitDurumu] = useState(null)
-  const [hata, setHata] = useState("")
   const [showHatalar, setShowHatalar] = useState(false)
+  const [silmeOnay, setSilmeOnay] = useState(null)
+  const toast = useToast()
 
   const makineler = data.length > 0 ? data : DEFAULT_MAKINELER
 
@@ -58,50 +62,54 @@ export default function MakinePark({ data, onChange }) {
 
   const removeRow = (id) => {
     if (makineler.length === 1) return
-    onChange(makineler.filter(m => m.id !== id))
+    setSilmeOnay(id)
+  }
+
+  const confirmRemove = () => {
+    onChange(makineler.filter(m => m.id !== silmeOnay))
+    setSilmeOnay(null)
   }
 
   const kaydet = async () => {
-    const tümHatalar = makineler.map(makineHatasi)
-    const herhangiHata = tümHatalar.some(h => Object.keys(h).length > 0)
+    const tumHatalar = makineler.map(makineHatasi)
+    const herhangiHata = tumHatalar.some(h => Object.keys(h).length > 0)
     if (herhangiHata) {
       setShowHatalar(true)
-      setHata("Satırlardaki hataları düzeltin.")
-      setKayitDurumu("error")
+      toast.error("Satırlardaki hataları düzeltin.")
       return
     }
     setShowHatalar(false)
     setKayitDurumu("loading")
-    setHata("")
     try {
       const kaydedilenler = await bulkReplaceEquipment(makineler)
       onChange(kaydedilenler.map(fromSnakeMakine))
-      setKayitDurumu("ok")
-      setTimeout(() => setKayitDurumu(null), 2000)
+      setKayitDurumu(null)
+      toast.success("Makine parkı kaydedildi.")
     } catch (e) {
-      setHata(e.message)
-      setKayitDurumu("error")
+      setKayitDurumu(null)
+      toast.error(e.message)
     }
   }
 
   return (
     <div>
+      <ConfirmDialog
+        open={silmeOnay !== null}
+        title="Makine Silinsin mi?"
+        message="Bu makineyi silmek istediginize emin misiniz? Bu islem geri alinamaz."
+        onConfirm={confirmRemove}
+        onCancel={() => setSilmeOnay(null)}
+      />
       <div style={{ marginBottom: "24px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <div>
-          <h2 style={{ color: "#0369A1", fontSize: "22px", fontWeight: "700" }}>
+          <h2 style={{ color: "var(--heading)", fontSize: "22px", fontWeight: "700" }}>
             Makine Parkı
           </h2>
-          <p style={{ color: "#94A3B8", fontSize: "14px", marginTop: "4px" }}>
+          <p style={{ color: "var(--text-muted)", fontSize: "14px", marginTop: "4px" }}>
             Bu projede kullanılabilecek makineleri düzenleyin
           </p>
         </div>
         <div style={{display: "flex", alignItems: "center", gap: "12px", flexShrink: 0}}>
-          {kayitDurumu === "ok" && (
-            <span style={{color: "#16A34A", fontSize: "13px", fontWeight: "600"}}>✓ Kaydedildi</span>
-          )}
-          {kayitDurumu === "error" && (
-            <span style={{color: "#DC2626", fontSize: "13px"}}>{hata}</span>
-          )}
           <button
             onClick={kaydet}
             disabled={kayitDurumu === "loading"}
@@ -119,15 +127,15 @@ export default function MakinePark({ data, onChange }) {
       </div>
 
       <div style={{
-        background: "white", borderRadius: "12px",
-        border: "1px solid #E2E8F0",
+        background: "var(--bg-card)", borderRadius: "12px",
+        border: "1px solid var(--input-border)",
         boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
         overflow: "hidden"
       }}>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "1000px" }}>
+          <table className="data-table" style={{ width: "100%", borderCollapse: "collapse", minWidth: "1000px" }}>
             <thead>
-              <tr style={{ background: "#F8FAFC", borderBottom: "2px solid #E2E8F0" }}>
+              <tr style={{ background: "var(--badge-muted-bg)", borderBottom: "2px solid var(--input-border)" }}>
                 <th style={thStyle}>Makine Adı</th>
                 <th style={thStyle}>Tip</th>
                 <th style={thStyle}>Marka/Model</th>
@@ -147,8 +155,8 @@ export default function MakinePark({ data, onChange }) {
                 const errStyle = (key) => mh[key] ? { borderColor: "#FCA5A5" } : {}
                 return (
                 <tr key={m.id} style={{
-                  borderBottom: "1px solid #F1F5F9",
-                  background: idx % 2 === 0 ? "white" : "#FAFAFA"
+                  borderBottom: "1px solid var(--border-subtle)",
+                  background: idx % 2 === 0 ? "var(--bg-card)" : "var(--row-alt)"
                 }}>
                   <td style={tdStyle}>
                     <input style={{ ...cellInput, width: "110px", ...errStyle("ad") }}
@@ -157,7 +165,7 @@ export default function MakinePark({ data, onChange }) {
                       onChange={e => updateRow(m.id, "ad", e.target.value)} />
                   </td>
                   <td style={tdStyle}>
-                    <select style={{ ...cellInput, width: "120px", cursor: "pointer", background: "white" }}
+                    <select style={{ ...cellInput, width: "120px", cursor: "pointer", background: "var(--input-bg)" }}
                       value={m.tip} onChange={e => updateRow(m.id, "tip", e.target.value)}>
                       {MAKINE_TIPLERI.map(t => <option key={t}>{t}</option>)}
                     </select>
@@ -183,19 +191,19 @@ export default function MakinePark({ data, onChange }) {
                       onChange={e => updateRow(m.id, "tork", parseInt(e.target.value))} />
                   </td>
                   <td style={tdStyle}>
-                    <select style={{ ...cellInput, width: "90px", cursor: "pointer", background: "white" }}
+                    <select style={{ ...cellInput, width: "90px", cursor: "pointer", background: "var(--input-bg)" }}
                       value={m.casing} onChange={e => updateRow(m.id, "casing", e.target.value)}>
                       {CASING_SECENEKLER.map(t => <option key={t}>{t}</option>)}
                     </select>
                   </td>
                   <td style={tdStyle}>
-                    <select style={{ ...cellInput, width: "80px", cursor: "pointer", background: "white" }}
+                    <select style={{ ...cellInput, width: "80px", cursor: "pointer", background: "var(--input-bg)" }}
                       value={m.darAlan} onChange={e => updateRow(m.id, "darAlan", e.target.value)}>
                       {DAR_ALAN.map(t => <option key={t}>{t}</option>)}
                     </select>
                   </td>
                   <td style={tdStyle}>
-                    <select style={{ ...cellInput, width: "90px", cursor: "pointer", background: "white" }}
+                    <select style={{ ...cellInput, width: "90px", cursor: "pointer", background: "var(--input-bg)" }}
                       value={m.yakitSinifi} onChange={e => updateRow(m.id, "yakitSinifi", e.target.value)}>
                       {YAKIT_SINIFI.map(t => <option key={t}>{t}</option>)}
                     </select>

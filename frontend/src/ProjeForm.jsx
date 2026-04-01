@@ -1,15 +1,16 @@
 import { useState } from "react"
 import { createProject, updateProject } from "./api"
+import { useToast } from "./Toast"
 
 const inputStyle = {
   width: "100%", padding: "10px 14px",
-  border: "1.5px solid #E2E8F0", borderRadius: "8px",
+  border: "1.5px solid var(--input-border)", borderRadius: "8px",
   fontSize: "14px", outline: "none", boxSizing: "border-box",
-  color: "#1E293B", background: "white"
+  color: "var(--input-text)", background: "var(--input-bg)"
 }
 
 const labelStyle = {
-  color: "#374151", fontSize: "13px",
+  color: "var(--text-secondary)", fontSize: "13px",
   fontWeight: "600", display: "block", marginBottom: "6px"
 }
 
@@ -28,15 +29,15 @@ function Field({ label, children, hata }) {
 function Card({ title, children }) {
   return (
     <div style={{
-      background: "white", borderRadius: "12px",
-      border: "1px solid #E2E8F0", padding: "24px",
+      background: "var(--bg-card)", borderRadius: "12px",
+      border: "1px solid var(--input-border)", padding: "24px",
       marginBottom: "20px",
       boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
     }}>
       <h3 style={{
-        color: "#0369A1", fontSize: "15px",
+        color: "var(--heading)", fontSize: "15px",
         fontWeight: "700", marginBottom: "20px",
-        paddingBottom: "12px", borderBottom: "2px solid #E0F2FE"
+        paddingBottom: "12px", borderBottom: "2px solid var(--border-subtle)"
       }}>
         {title}
       </h3>
@@ -57,19 +58,19 @@ function dogrula(data) {
 }
 
 export default function ProjeForm({ data, onChange, projeId, onProjeIdChange }) {
-  const [kayitDurumu, setKayitDurumu] = useState(null) // null | "loading" | "ok" | "error"
-  const [hata, setHata] = useState("")
+  const [kayitDurumu, setKayitDurumu] = useState(null)
   const [hatalar, setHatalar] = useState({})
+  const toast = useToast()
 
   const kaydet = async () => {
     const dogrulamaHatalari = dogrula(data)
     if (Object.keys(dogrulamaHatalari).length > 0) {
       setHatalar(dogrulamaHatalari)
+      toast.error("Zorunlu alanları doldurun.")
       return
     }
     setHatalar({})
     setKayitDurumu("loading")
-    setHata("")
     try {
       if (projeId) {
         await updateProject(projeId, data)
@@ -77,11 +78,11 @@ export default function ProjeForm({ data, onChange, projeId, onProjeIdChange }) 
         const yeni = await createProject(data)
         onProjeIdChange(yeni.id)
       }
-      setKayitDurumu("ok")
-      setTimeout(() => setKayitDurumu(null), 2000)
+      setKayitDurumu(null)
+      toast.success("Proje kaydedildi.")
     } catch (e) {
-      setHata(e.message)
-      setKayitDurumu("error")
+      setKayitDurumu(null)
+      toast.error(e.message)
     }
   }
 
@@ -89,20 +90,14 @@ export default function ProjeForm({ data, onChange, projeId, onProjeIdChange }) 
     <div>
       <div style={{marginBottom: "24px", display: "flex", alignItems: "flex-start", justifyContent: "space-between"}}>
         <div>
-          <h2 style={{color: "#0369A1", fontSize: "22px", fontWeight: "700"}}>
+          <h2 style={{color: "var(--heading)", fontSize: "22px", fontWeight: "700"}}>
             Proje Bilgileri
           </h2>
-          <p style={{color: "#94A3B8", fontSize: "14px", marginTop: "4px"}}>
+          <p style={{color: "var(--text-muted)", fontSize: "14px", marginTop: "4px"}}>
             Proje, saha ve kazık parametrelerini girin
           </p>
         </div>
         <div style={{display: "flex", alignItems: "center", gap: "12px", flexShrink: 0}}>
-          {kayitDurumu === "ok" && (
-            <span style={{color: "#16A34A", fontSize: "13px", fontWeight: "600"}}>✓ Kaydedildi</span>
-          )}
-          {kayitDurumu === "error" && (
-            <span style={{color: "#DC2626", fontSize: "13px"}}>{hata}</span>
-          )}
           <button
             onClick={kaydet}
             disabled={kayitDurumu === "loading"}

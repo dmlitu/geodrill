@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { downloadPdfReport, downloadSoilLayersCsv } from "./api"
 import { ZeminProfilDiyagrami, TorkDerinlikGrafigi, GanttSemasi, SenaryoKarsilastirma } from "./Gorseller"
 import {
@@ -7,16 +7,184 @@ import {
 } from "./hesaplamalar"
 
 // ── Kart bileşeni ───────────────────────────────────────
-function MetrikKart({ baslik, deger, renk, alt }) {
+function MetrikKart({ baslik, deger, renk, alt, oran }) {
   return (
     <div style={{
-      background: renk, borderRadius: "12px",
-      padding: "20px", color: "white",
-      boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+      background: "white", borderRadius: "12px",
+      padding: "20px", border: "1px solid #E2E8F0",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+      position: "relative", overflow: "hidden",
     }}>
-      <div style={{fontSize: "13px", opacity: 0.85, marginBottom: "8px"}}>{baslik}</div>
-      <div style={{fontSize: "22px", fontWeight: "700"}}>{deger}</div>
-      {alt && <div style={{fontSize: "12px", opacity: 0.7, marginTop: "4px"}}>{alt}</div>}
+      <div style={{
+        position: "absolute", left: 0, top: 0, bottom: 0, width: "4px",
+        background: renk,
+      }} />
+      <div style={{fontSize: "12px", color: "#64748B", fontWeight: "600", marginBottom: "8px", letterSpacing: "0.02em"}}>{baslik}</div>
+      <div style={{fontSize: "24px", fontWeight: "700", color: "#0C4A6E"}}>{deger}</div>
+      {alt && <div style={{fontSize: "12px", color: "#94A3B8", marginTop: "4px"}}>{alt}</div>}
+      {oran !== undefined && (
+        <div style={{ marginTop: "10px", height: "4px", background: "#F1F5F9", borderRadius: "2px", overflow: "hidden" }}>
+          <div style={{
+            width: `${Math.min(100, Math.max(0, oran))}%`, height: "100%",
+            background: renk, borderRadius: "2px",
+            transition: "width 0.6s ease",
+          }} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── PDF Önizleme Modal ──────────────────────────────────
+function PdfOnizleme({ open, onClose, onDownload, yukleniyor, proje, analiz, zemin, makineUygunluklari }) {
+  if (!open || !analiz) return null
+  const { tork, casingDur, casingM, sure, mBasi, topMazot, toplamGun } = analiz
+
+  const rows = [
+    ["Proje Adi", proje.projeAdi || "—"],
+    ["Lokasyon", proje.lokasyon || "—"],
+    ["Is Tipi", proje.isTipi],
+    ["Kazik", `${proje.kazikBoyu}m / Ø${proje.kazikCapi}mm / ${proje.kazikAdedi} adet`],
+  ]
+  const metrikler = [
+    ["Gerekli Min. Tork", `${tork} kNm`],
+    ["Muhafaza Borusu", `${casingDur} (${casingM} m)`],
+    ["1 Kazik Suresi", `${sure} saat`],
+    ["Toplam Is Suresi", `${toplamGun} gun`],
+    ["Metre Basi Mazot", `${mBasi} L/m`],
+    ["Toplam Mazot", `${Math.round(topMazot * proje.kazikAdedi)} L`],
+  ]
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 9000,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)",
+        animation: "fadeUp 0.15s ease",
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: "var(--bg-surface)", borderRadius: "16px",
+          width: "100%", maxWidth: "520px", maxHeight: "85vh",
+          overflow: "hidden", display: "flex", flexDirection: "column",
+          boxShadow: "0 24px 80px rgba(0,0,0,0.2)",
+          animation: "fadeUp 0.25s ease",
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          padding: "20px 24px", borderBottom: "1px solid var(--border-subtle)",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <div>
+            <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)" }}>PDF Rapor Onizleme</h3>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>Rapor icerigi asagidaki gibi olusturulacak</p>
+          </div>
+          <button onClick={onClose} style={{
+            background: "none", border: "none", cursor: "pointer",
+            color: "var(--text-muted)", fontSize: "20px", padding: "4px",
+          }}>×</button>
+        </div>
+
+        {/* Content */}
+        <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1 }}>
+          {/* Fake PDF page */}
+          <div style={{
+            background: "white", border: "1px solid #E2E8F0", borderRadius: "8px",
+            padding: "24px", color: "#0C4A6E", fontSize: "12px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+          }}>
+            <div style={{ textAlign: "center", marginBottom: "16px", paddingBottom: "12px", borderBottom: "2px solid #0284C7" }}>
+              <div style={{ fontFamily: "'Fraunces', serif", fontSize: "16px", fontWeight: "800", color: "#0C4A6E" }}>
+                GeoDrill — Analiz Raporu
+              </div>
+              <div style={{ fontSize: "10px", color: "#64748B", marginTop: "4px" }}>
+                {proje.projeAdi} | {proje.lokasyon} | {new Date().toLocaleDateString("tr-TR")}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: "14px" }}>
+              <div style={{ fontSize: "11px", fontWeight: "700", color: "#0369A1", marginBottom: "6px" }}>Proje Bilgileri</div>
+              {rows.map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #F1F5F9" }}>
+                  <span style={{ color: "#64748B" }}>{k}</span>
+                  <span style={{ fontWeight: "600" }}>{v}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginBottom: "14px" }}>
+              <div style={{ fontSize: "11px", fontWeight: "700", color: "#0369A1", marginBottom: "6px" }}>Analiz Sonuclari</div>
+              {metrikler.map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #F1F5F9" }}>
+                  <span style={{ color: "#64748B" }}>{k}</span>
+                  <span style={{ fontWeight: "600" }}>{v}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginBottom: "8px" }}>
+              <div style={{ fontSize: "11px", fontWeight: "700", color: "#0369A1", marginBottom: "6px" }}>Zemin Logu ({zemin.length} katman)</div>
+              <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                {zemin.map((z, i) => (
+                  <span key={i} style={{
+                    padding: "2px 8px", borderRadius: "4px", fontSize: "10px",
+                    background: "#F0F9FF", border: "1px solid #E0F2FE", color: "#0369A1",
+                  }}>
+                    {z.zemTipi} ({z.baslangic}-{z.bitis}m)
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {makineUygunluklari.length > 0 && (
+              <div>
+                <div style={{ fontSize: "11px", fontWeight: "700", color: "#0369A1", marginBottom: "6px", marginTop: "10px" }}>
+                  Ekipman ({makineUygunluklari.length} makine)
+                </div>
+                {makineUygunluklari.map((m, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #F1F5F9" }}>
+                    <span style={{ color: "#64748B" }}>{m.ad} ({m.marka})</span>
+                    <span style={{ fontWeight: "600", color: m.renk }}>{m.karar}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ marginTop: "14px", paddingTop: "8px", borderTop: "1px solid #E2E8F0", fontSize: "9px", color: "#94A3B8", textAlign: "center" }}>
+              GeoDrill Insight — {new Date().toLocaleDateString("tr-TR")}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: "16px 24px", borderTop: "1px solid var(--border-subtle)",
+          display: "flex", gap: "10px", justifyContent: "flex-end",
+        }}>
+          <button onClick={onClose} style={{
+            padding: "10px 20px", border: "1px solid var(--input-border)",
+            borderRadius: "8px", background: "var(--bg-surface)",
+            color: "var(--text-secondary)", fontSize: "13px", fontWeight: "600",
+            cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif",
+          }}>
+            Kapat
+          </button>
+          <button onClick={onDownload} disabled={yukleniyor} style={{
+            padding: "10px 24px", border: "none", borderRadius: "8px",
+            background: yukleniyor ? "#94A3B8" : "linear-gradient(135deg, #0284C7, #0EA5E9)",
+            color: "white", fontSize: "13px", fontWeight: "600",
+            cursor: yukleniyor ? "wait" : "pointer",
+            fontFamily: "'Plus Jakarta Sans', sans-serif",
+          }}>
+            {yukleniyor ? "Olusturuluyor..." : "PDF Indir"}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -50,12 +218,13 @@ function analizCsvIndir(proje, tork, casingDur, casingM, sure, toplamGun, mBasi,
 export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
   const [pdfYukleniyor, setPdfYukleniyor] = useState(false)
   const [csvYukleniyor, setCsvYukleniyor] = useState(false)
+  const [pdfOnizlemeAcik, setPdfOnizlemeAcik] = useState(false)
 
-  const handlePdf = async () => {
+  const handlePdf = useCallback(async () => {
     if (!projeId) return
     setPdfYukleniyor(true)
-    try { await downloadPdfReport(projeId) } finally { setPdfYukleniyor(false) }
-  }
+    try { await downloadPdfReport(projeId) } finally { setPdfYukleniyor(false); setPdfOnizlemeAcik(false) }
+  }, [projeId])
 
   const handleZeminCsv = async () => {
     if (!projeId) return
@@ -83,10 +252,21 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
 
   if (!zemin.length) {
     return (
-      <div style={{display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", textAlign: "center"}}>
-        <div style={{fontSize: "48px", marginBottom: "16px"}}>⚠️</div>
-        <h2 style={{color: "#0369A1", fontSize: "20px", fontWeight: "700", marginBottom: "8px"}}>Zemin verisi eksik</h2>
-        <p style={{color: "#94A3B8", fontSize: "14px"}}>Lütfen önce Zemin Logu sayfasından zemin verilerini girin.</p>
+      <div style={{display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", textAlign: "center", animation: "fadeUp 0.4s ease"}}>
+        <svg width="120" height="120" viewBox="0 0 120 120" fill="none" style={{ marginBottom: "24px" }}>
+          <rect x="20" y="30" width="80" height="70" rx="6" fill="#E0F2FE" stroke="#BAE6FD" strokeWidth="2" />
+          <rect x="32" y="45" width="56" height="4" rx="2" fill="#BAE6FD" />
+          <rect x="32" y="55" width="40" height="4" rx="2" fill="#BAE6FD" />
+          <rect x="32" y="65" width="48" height="4" rx="2" fill="#BAE6FD" />
+          <rect x="32" y="75" width="32" height="4" rx="2" fill="#BAE6FD" />
+          <circle cx="90" cy="30" r="18" fill="#FEF2F2" stroke="#FECACA" strokeWidth="2" />
+          <path d="M84 24L96 36M96 24L84 36" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+        <h2 style={{color: "#0369A1", fontSize: "20px", fontWeight: "700", marginBottom: "8px"}}>Zemin Verisi Eksik</h2>
+        <p style={{color: "#94A3B8", fontSize: "14px", maxWidth: "320px", lineHeight: "1.6"}}>
+          Analiz icin zemin katman verilerine ihtiyac var.<br />
+          <strong style={{color: "#64748B"}}>Zemin Logu</strong> sayfasindan verileri girin.
+        </p>
       </div>
     )
   }
@@ -95,10 +275,20 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
 
   return (
     <div>
+      <PdfOnizleme
+        open={pdfOnizlemeAcik}
+        onClose={() => setPdfOnizlemeAcik(false)}
+        onDownload={handlePdf}
+        yukleniyor={pdfYukleniyor}
+        proje={proje}
+        analiz={analiz}
+        zemin={zemin}
+        makineUygunluklari={makineUygunluklari}
+      />
       <div style={{marginBottom: "24px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "12px"}}>
         <div>
-          <h2 style={{color: "#0369A1", fontSize: "22px", fontWeight: "700"}}>Analiz Sonucu</h2>
-          <p style={{color: "#94A3B8", fontSize: "14px", marginTop: "4px"}}>
+          <h2 style={{color: "var(--heading)", fontSize: "22px", fontWeight: "700"}}>Analiz Sonucu</h2>
+          <p style={{color: "var(--text-muted)", fontSize: "14px", marginTop: "4px"}}>
             {proje.projeAdi || "Proje"} — {proje.kazikBoyu}m / Ø{proje.kazikCapi}mm / {proje.kazikAdedi} adet
           </p>
         </div>
@@ -113,9 +303,9 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
                 style={{padding: "8px 16px", border: "1.5px solid #E2E8F0", borderRadius: "8px", background: "white", color: "#475569", fontSize: "13px", fontWeight: "600", cursor: csvYukleniyor ? "wait" : "pointer"}}>
                 {csvYukleniyor ? "..." : "Zemin CSV"}
               </button>
-              <button onClick={handlePdf} disabled={pdfYukleniyor}
-                style={{padding: "8px 16px", border: "none", borderRadius: "8px", background: "linear-gradient(135deg, #0284C7, #0EA5E9)", color: "white", fontSize: "13px", fontWeight: "600", cursor: pdfYukleniyor ? "wait" : "pointer"}}>
-                {pdfYukleniyor ? "Oluşturuluyor..." : "PDF Rapor"}
+              <button onClick={() => setPdfOnizlemeAcik(true)}
+                style={{padding: "8px 16px", border: "none", borderRadius: "8px", background: "linear-gradient(135deg, #0284C7, #0EA5E9)", color: "white", fontSize: "13px", fontWeight: "600", cursor: "pointer"}}>
+                PDF Rapor
               </button>
               <button onClick={() => window.print()}
                 style={{padding: "8px 16px", border: "1.5px solid #E2E8F0", borderRadius: "8px", background: "white", color: "#475569", fontSize: "13px", fontWeight: "600", cursor: "pointer"}}>
@@ -127,23 +317,30 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
       </div>
 
       {/* Metrik kartlar */}
-      <div style={{display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "16px", marginBottom: "24px"}}>
-        <MetrikKart baslik="Gerekli Min. Tork" deger={`${tork} kNm`} renk="#0284C7" />
-        <MetrikKart baslik="Muhafaza Borusu" deger={casingDur} renk="#6366F1" alt={`${casingM} m tahmini`} />
-        <MetrikKart baslik="1 Kazık Süresi" deger={`${sure} saat`} renk="#0891B2" alt={`~${gunlukUretim} kazık/gün`} />
-        <MetrikKart baslik="Toplam İş Süresi" deger={`${toplamGun} gün`} renk="#0EA5E9" alt={`${proje.kazikAdedi} kazık`} />
+      <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "16px", marginBottom: "24px"}}>
+        <MetrikKart baslik="Gerekli Min. Tork" deger={`${tork} kNm`} renk="#0284C7"
+          alt={tork < 100 ? "Hafif zemin" : tork < 200 ? "Orta zorluk" : "Agir zemin"}
+          oran={Math.min(100, (tork / 300) * 100)} />
+        <MetrikKart baslik="Muhafaza Borusu" deger={casingDur} renk="#6366F1" alt={`${casingM} m tahmini`}
+          oran={(casingM / proje.kazikBoyu) * 100} />
+        <MetrikKart baslik="1 Kazik Suresi" deger={`${sure} saat`} renk="#0891B2" alt={`~${gunlukUretim} kazik/gun`}
+          oran={Math.min(100, (sure / 12) * 100)} />
+        <MetrikKart baslik="Toplam Is Suresi" deger={`${toplamGun} gun`} renk="#0EA5E9" alt={`${proje.kazikAdedi} kazik`}
+          oran={Math.min(100, (toplamGun / 60) * 100)} />
         <MetrikKart
           baslik="Stabilite Skoru"
-          deger={`${Math.round(zemin.reduce((s, r) => s + (stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Yüksek" ? 70 : stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Orta" ? 40 : 15), 0) / zemin.length)}/100`}
-          renk="#DC2626"
+          deger={(() => { const skor = Math.round(zemin.reduce((s, r) => s + (stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Yüksek" ? 70 : stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Orta" ? 40 : 15), 0) / zemin.length); return `${skor}/100` })()}
+          renk={(() => { const skor = Math.round(zemin.reduce((s, r) => s + (stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Yüksek" ? 70 : stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Orta" ? 40 : 15), 0) / zemin.length); return skor > 50 ? "#DC2626" : skor > 30 ? "#D97706" : "#16A34A" })()}
+          alt={(() => { const skor = Math.round(zemin.reduce((s, r) => s + (stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Yüksek" ? 70 : stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Orta" ? 40 : 15), 0) / zemin.length); return skor > 50 ? "Yuksek risk" : skor > 30 ? "Orta risk" : "Dusuk risk" })()}
+          oran={Math.round(zemin.reduce((s, r) => s + (stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Yüksek" ? 70 : stabiliteRiski(r.zemTipi, r.kohezyon, r.spt, proje.yeraltiSuyu) === "Orta" ? 40 : 15), 0) / zemin.length)}
         />
       </div>
 
       {/* İki kolon */}
-      <div style={{display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "20px", marginBottom: "20px"}}>
+      <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "20px", marginBottom: "20px"}}>
         {/* Sol — Proje özeti */}
-        <div style={{background: "white", borderRadius: "12px", border: "1px solid #E2E8F0", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)"}}>
-          <h3 style={{color: "#0369A1", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE"}}>
+        <div style={{background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--input-border)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)"}}>
+          <h3 style={{color: "var(--heading)", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid var(--border-subtle)"}}>
             📋 Proje Özeti
           </h3>
           {[
@@ -156,13 +353,13 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
             ["Kazık Adedi", proje.kazikAdedi],
             ["Yeraltı Suyu", `${proje.yeraltiSuyu} m`],
           ].map(([k, v]) => (
-            <div key={k} style={{display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid #F8FAFC"}}>
+            <div key={k} style={{display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid var(--border-subtle)"}}>
               <span style={{color: "#64748B", fontSize: "13px"}}>{k}</span>
               <span style={{color: "#1E293B", fontSize: "13px", fontWeight: "600"}}>{v}</span>
             </div>
           ))}
 
-          <h3 style={{color: "#0369A1", fontSize: "15px", fontWeight: "700", margin: "20px 0 12px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE"}}>
+          <h3 style={{color: "var(--heading)", fontSize: "15px", fontWeight: "700", margin: "20px 0 12px", paddingBottom: "10px", borderBottom: "2px solid var(--border-subtle)"}}>
             🔧 Teknik Öneriler
           </h3>
           {[
@@ -171,7 +368,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
             ["Bir Kazık Mazot", `${topMazot} L`],
             ["Toplam Mazot", `${Math.round(topMazot * proje.kazikAdedi)} L`],
           ].map(([k, v]) => (
-            <div key={k} style={{display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid #F8FAFC"}}>
+            <div key={k} style={{display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid var(--border-subtle)"}}>
               <span style={{color: "#64748B", fontSize: "13px"}}>{k}</span>
               <span style={{color: "#1E293B", fontSize: "13px", fontWeight: "600"}}>{v}</span>
             </div>
@@ -181,8 +378,8 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
         {/* Sağ — Kritik katman + casing */}
         <div style={{display: "flex", flexDirection: "column", gap: "16px"}}>
           {kritik && (
-            <div style={{background: "white", borderRadius: "12px", border: "1px solid #E2E8F0", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)"}}>
-              <h3 style={{color: "#0369A1", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE"}}>
+            <div style={{background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--input-border)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)"}}>
+              <h3 style={{color: "var(--heading)", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid var(--border-subtle)"}}>
                 🪨 Kritik Zemin Katmanı
               </h3>
               {[
@@ -193,7 +390,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
                 ["UCS", `${kritik.ucs} MPa`],
                 ["RQD", kritik.rqd],
               ].map(([k, v]) => (
-                <div key={k} style={{display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid #F8FAFC"}}>
+                <div key={k} style={{display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid var(--border-subtle)"}}>
                   <span style={{color: "#64748B", fontSize: "13px"}}>{k}</span>
                   <span style={{color: "#1E293B", fontSize: "13px", fontWeight: "600"}}>{v}</span>
                 </div>
@@ -201,12 +398,12 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
             </div>
           )}
 
-          <div style={{background: "white", borderRadius: "12px", border: "1px solid #E2E8F0", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)"}}>
-            <h3 style={{color: "#0369A1", fontSize: "15px", fontWeight: "700", marginBottom: "12px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE"}}>
+          <div style={{background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--input-border)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)"}}>
+            <h3 style={{color: "var(--heading)", fontSize: "15px", fontWeight: "700", marginBottom: "12px", paddingBottom: "10px", borderBottom: "2px solid var(--border-subtle)"}}>
               🔩 Casing Değerlendirmesi
             </h3>
             {gerekce.map((g, i) => (
-              <div key={i} style={{fontSize: "13px", color: "#475569", padding: "5px 0", borderBottom: "1px solid #F8FAFC"}}>
+              <div key={i} style={{fontSize: "13px", color: "#475569", padding: "5px 0", borderBottom: "1px solid var(--border-subtle)"}}>
                 • {g}
               </div>
             ))}
@@ -215,33 +412,33 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
       </div>
 
       {/* Görselleştirmeler */}
-      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "20px", marginBottom: "20px", alignItems: "start" }}>
-        <div style={{ background: "white", borderRadius: "12px", border: "1px solid #E2E8F0", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px", marginBottom: "20px", alignItems: "start" }}>
+        <div style={{ background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--input-border)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
           <ZeminProfilDiyagrami zemin={zemin} yeraltiSuyu={proje.yeraltiSuyu} kazikBoyu={proje.kazikBoyu} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          <div style={{ background: "white", borderRadius: "12px", border: "1px solid #E2E8F0", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+          <div style={{ background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--input-border)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
             <TorkDerinlikGrafigi zemin={zemin} kazikCapi={proje.kazikCapi} />
           </div>
-          <div style={{ background: "white", borderRadius: "12px", border: "1px solid #E2E8F0", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+          <div style={{ background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--input-border)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
             <GanttSemasi kazikAdedi={proje.kazikAdedi} sure={sure} toplamGun={toplamGun} />
           </div>
         </div>
       </div>
 
-      <div style={{ background: "white", borderRadius: "12px", border: "1px solid #E2E8F0", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", marginBottom: "20px" }}>
+      <div style={{ background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--input-border)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", marginBottom: "20px" }}>
         <SenaryoKarsilastirma zemin={zemin} kazikCapi={proje.kazikCapi} kazikBoyu={proje.kazikBoyu} kazikAdedi={proje.kazikAdedi} />
       </div>
 
       {/* Makine uygunluk */}
       {makineUygunluklari.length > 0 && (
-        <div style={{background: "white", borderRadius: "12px", border: "1px solid #E2E8F0", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)"}}>
-          <h3 style={{color: "#0369A1", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE"}}>
+        <div style={{background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--input-border)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)"}}>
+          <h3 style={{color: "var(--heading)", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid var(--border-subtle)"}}>
             ⚙️ Makine Uygunluk Sonuçları
           </h3>
 
           {/* Özet sayılar */}
-          <div style={{display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px"}}>
+          <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "12px", marginBottom: "20px"}}>
             {[
               ["Uygun", makineUygunluklari.filter(m => m.karar === "Uygun").length, "#16A34A", "#F0FDF4"],
               ["Şartlı Uygun", makineUygunluklari.filter(m => m.karar === "Şartlı Uygun").length, "#D97706", "#FFFBEB"],
@@ -257,9 +454,9 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
 
           {/* Tablo */}
           <div style={{overflowX: "auto"}}>
-            <table style={{width: "100%", borderCollapse: "collapse"}}>
+            <table className="data-table" style={{width: "100%", borderCollapse: "collapse"}}>
               <thead>
-                <tr style={{background: "#F8FAFC", borderBottom: "2px solid #E2E8F0"}}>
+                <tr style={{background: "var(--badge-muted-bg)", borderBottom: "2px solid var(--input-border)"}}>
                   {["Makine", "Marka", "Tork (kNm)", "Max Derinlik", "Max Çap", "Casing", "Karar", "Gerekçe"].map(h => (
                     <th key={h} style={{padding: "10px 14px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#64748B", whiteSpace: "nowrap"}}>{h}</th>
                   ))}
@@ -267,7 +464,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
               </thead>
               <tbody>
                 {makineUygunluklari.map((m, i) => (
-                  <tr key={m.id || i} style={{borderBottom: "1px solid #F1F5F9", background: i % 2 === 0 ? "white" : "#FAFAFA"}}>
+                  <tr key={m.id || i} style={{borderBottom: "1px solid var(--border-subtle)", background: i % 2 === 0 ? "var(--bg-card)" : "var(--row-alt)"}}>
                     <td style={{padding: "10px 14px", fontSize: "13px", fontWeight: "600", color: "#1E293B"}}>{m.ad}</td>
                     <td style={{padding: "10px 14px", fontSize: "13px", color: "#475569"}}>{m.marka}</td>
                     <td style={{padding: "10px 14px", fontSize: "13px", color: "#475569"}}>{m.tork}</td>

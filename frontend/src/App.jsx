@@ -1,10 +1,11 @@
-import { useState, useEffect, Component } from "react"
+import { useState, useEffect, useCallback, Component } from "react"
 import AnalizSonucu from "./AnalizSonucu"
 import MakinePark from "./MakinePark"
 import ZeminLogu from "./ZeminLogu"
 import ProjeForm from "./ProjeForm"
 import LandingPage from "./LandingPage"
 import RegisterPage from "./RegisterPage"
+import { ToastProvider } from "./Toast"
 import {
   login, logout, getToken,
   listProjects, getProject,
@@ -34,6 +35,44 @@ class ErrorBoundary extends Component {
     )
     return this.props.children
   }
+}
+
+function SkeletonBlock({ width = "100%", height = "16px", radius = "6px" }) {
+  return (
+    <div style={{
+      width, height, borderRadius: radius,
+      background: "linear-gradient(90deg, #E0F2FE 25%, #F0F9FF 50%, #E0F2FE 75%)",
+      backgroundSize: "200% 100%",
+      animation: "shimmer 1.5s ease infinite",
+    }} />
+  )
+}
+
+function SkeletonLoader() {
+  return (
+    <div style={{ animation: "fadeUp 0.3s ease" }}>
+      <div style={{ marginBottom: "24px" }}>
+        <SkeletonBlock width="200px" height="24px" />
+        <div style={{ marginTop: "8px" }}><SkeletonBlock width="300px" height="14px" /></div>
+      </div>
+      {[1, 2].map(i => (
+        <div key={i} style={{
+          background: "white", borderRadius: "12px", border: "1px solid #E2E8F0",
+          padding: "24px", marginBottom: "20px",
+        }}>
+          <SkeletonBlock width="140px" height="18px" />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "20px" }}>
+            {[1,2,3,4].map(j => (
+              <div key={j}>
+                <SkeletonBlock width="80px" height="12px" />
+                <div style={{ marginTop: "8px" }}><SkeletonBlock height="40px" radius="8px" /></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 const NAV_ITEMS = [
@@ -223,8 +262,8 @@ function Sidebar({ active, onNav, open, onClose }) {
         aria-label="Ana menü"
         style={{
           width: "220px", minHeight: "100vh",
-          background: "white",
-          borderRight: "1px solid #E0F2FE",
+          background: "var(--bg-surface)",
+          borderRight: "1px solid var(--border-subtle)",
           display: "flex", flexDirection: "column", flexShrink: 0,
           position: "relative", zIndex: 50,
         }}
@@ -233,7 +272,7 @@ function Sidebar({ active, onNav, open, onClose }) {
         {/* Logo */}
         <div style={{
           padding: "20px 18px",
-          borderBottom: "1px solid #E0F2FE",
+          borderBottom: "1px solid var(--border-subtle)",
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -243,9 +282,9 @@ function Sidebar({ active, onNav, open, onClose }) {
               ))}
             </div>
             <div>
-              <span style={{ fontFamily: "'Fraunces', serif", fontWeight: "900", fontSize: "17px", color: "#0C4A6E" }}>Geo</span>
-              <span style={{ fontFamily: "'Fraunces', serif", fontWeight: "900", fontSize: "17px", color: "#0EA5E9" }}>Drill</span>
-              <div style={{ color: "#94A3B8", fontSize: "8px", letterSpacing: "3px", fontWeight: "600", marginTop: "1px" }}>INSIGHT</div>
+              <span style={{ fontFamily: "'Fraunces', serif", fontWeight: "900", fontSize: "17px", color: "var(--text-primary)" }}>Geo</span>
+              <span style={{ fontFamily: "'Fraunces', serif", fontWeight: "900", fontSize: "17px", color: "var(--accent)" }}>Drill</span>
+              <div style={{ color: "var(--text-muted)", fontSize: "8px", letterSpacing: "3px", fontWeight: "600", marginTop: "1px" }}>INSIGHT</div>
             </div>
           </div>
           <button
@@ -266,11 +305,11 @@ function Sidebar({ active, onNav, open, onClose }) {
               style={{
                 width: "100%", display: "flex", alignItems: "center",
                 gap: "10px", padding: "10px 12px",
-                background: active === item.id ? "#E0F2FE" : "transparent",
-                border: active === item.id ? "1px solid #BAE6FD" : "1px solid transparent",
-                borderLeft: active === item.id ? "3px solid #0EA5E9" : "3px solid transparent",
+                background: active === item.id ? "var(--bg-card-hover)" : "transparent",
+                border: active === item.id ? "1px solid var(--border-medium)" : "1px solid transparent",
+                borderLeft: active === item.id ? "3px solid var(--accent)" : "3px solid transparent",
                 borderRadius: "6px",
-                color: active === item.id ? "#0C4A6E" : "#64748B",
+                color: active === item.id ? "var(--text-primary)" : "var(--text-secondary)",
                 fontSize: "13px", fontWeight: active === item.id ? "600" : "400",
                 cursor: "pointer", marginBottom: "4px", textAlign: "left",
                 fontFamily: "'Plus Jakarta Sans', sans-serif",
@@ -289,12 +328,40 @@ function Sidebar({ active, onNav, open, onClose }) {
 
 // ─── Header ───────────────────────────────────────────────────────────────────
 
-function Header({ username, onLogout, onMenuOpen }) {
+function DarkModeToggle({ dark, onToggle }) {
+  return (
+    <button
+      onClick={onToggle}
+      aria-label={dark ? "Açık temaya geç" : "Koyu temaya geç"}
+      style={{
+        width: "36px", height: "20px", borderRadius: "10px",
+        border: "none", cursor: "pointer", position: "relative",
+        background: dark ? "#475569" : "#E0F2FE",
+        transition: "background 0.25s ease",
+        flexShrink: 0,
+      }}
+    >
+      <div style={{
+        position: "absolute", top: "2px",
+        left: dark ? "18px" : "2px",
+        width: "16px", height: "16px", borderRadius: "50%",
+        background: dark ? "#38BDF8" : "#0EA5E9",
+        transition: "left 0.25s ease",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: "9px",
+      }}>
+        {dark ? "🌙" : "☀️"}
+      </div>
+    </button>
+  )
+}
+
+function Header({ username, onLogout, onMenuOpen, dark, onToggleDark }) {
   return (
     <header style={{
       height: "54px",
-      background: "white",
-      borderBottom: "1px solid #E0F2FE",
+      background: "var(--bg-surface)",
+      borderBottom: "1px solid var(--border-subtle)",
       display: "flex", alignItems: "center",
       justifyContent: "space-between",
       padding: "0 24px", gap: "16px",
@@ -304,7 +371,7 @@ function Header({ username, onLogout, onMenuOpen }) {
         aria-label="Menüyü aç"
         style={{
           background: "none", border: "none", cursor: "pointer",
-          color: "#64748B", fontSize: "20px", lineHeight: 1,
+          color: "var(--text-secondary)", fontSize: "20px", lineHeight: 1,
           padding: "4px", display: "none",
         }}
         className="hamburger-btn"
@@ -312,18 +379,19 @@ function Header({ username, onLogout, onMenuOpen }) {
         ☰
       </button>
 
-      <span style={{ color: "#94A3B8", fontSize: "13px", marginLeft: "auto" }}>
-        <span style={{ color: "#64748B" }}>{username}</span>
+      <span style={{ color: "var(--text-muted)", fontSize: "13px", marginLeft: "auto" }}>
+        <span style={{ color: "var(--text-secondary)" }}>{username}</span>
       </span>
+      <DarkModeToggle dark={dark} onToggle={onToggleDark} />
       <button
         onClick={onLogout}
         aria-label="Oturumu kapat"
         style={{
           padding: "6px 14px",
-          border: "1px solid #BAE6FD",
+          border: "1px solid var(--border-medium)",
           borderRadius: "6px",
           background: "transparent",
-          color: "#64748B",
+          color: "var(--text-secondary)",
           fontSize: "12px", cursor: "pointer",
           fontFamily: "'Plus Jakarta Sans', sans-serif",
           fontWeight: "600", letterSpacing: "0.02em",
@@ -346,6 +414,20 @@ function Dashboard({ username, onLogout }) {
   const [zemin, setZemin] = useState([])
   const [makineler, setMakineler] = useState([])
   const [yukleniyor, setYukleniyor] = useState(true)
+  const [dark, setDark] = useState(() => localStorage.getItem("gd_theme") === "dark")
+
+  const toggleDark = useCallback(() => {
+    setDark(prev => {
+      const next = !prev
+      document.documentElement.setAttribute("data-theme", next ? "dark" : "light")
+      localStorage.setItem("gd_theme", next ? "dark" : "light")
+      return next
+    })
+  }, [])
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light")
+  }, [dark])
 
   // Giriş sonrası veri yükleme
   useEffect(() => {
@@ -389,8 +471,11 @@ function Dashboard({ username, onLogout }) {
     return (
       <div style={{display: "flex", minHeight: "100vh"}}>
         <Sidebar active={activePage} onNav={setActivePage} open={false} onClose={() => {}} />
-        <div style={{flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-base)"}}>
-          <p style={{color: "#94A3B8", fontSize: "14px", fontFamily: "'DM Mono', monospace", letterSpacing: "0.04em"}}>yükleniyor...</p>
+        <div style={{flex: 1, display: "flex", flexDirection: "column", minWidth: 0}}>
+          <Header username={username} onLogout={handleLogout} onMenuOpen={() => {}} dark={dark} onToggleDark={toggleDark} />
+          <main style={{flex: 1, padding: "32px 28px", background: "var(--bg-base)"}}>
+            <SkeletonLoader />
+          </main>
         </div>
       </div>
     )
@@ -400,41 +485,43 @@ function Dashboard({ username, onLogout }) {
     <div style={{display: "flex", minHeight: "100vh"}}>
       <Sidebar active={activePage} onNav={setActivePage} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div style={{flex: 1, display: "flex", flexDirection: "column", minWidth: 0}}>
-        <Header username={username} onLogout={handleLogout} onMenuOpen={() => setSidebarOpen(true)} />
-        <main style={{flex: 1, padding: "32px 28px", background: "#F0F9FF", overflowY: "auto"}}>
-          {activePage === "proje" && (
-            <ProjeForm
-              data={proje}
-              onChange={handleProjeChange}
-              projeId={projeId}
-              onProjeIdChange={setProjeId}
-            />
-          )}
-          {activePage === "zemin" && (
-            <ZeminLogu
-              data={zemin}
-              onChange={setZemin}
-              yeraltiSuyu={proje.yeraltiSuyu}
-              kazikBoyu={proje.kazikBoyu}
-              projeId={projeId}
-            />
-          )}
-          {activePage === "makine" && (
-            <MakinePark
-              data={makineler}
-              onChange={setMakineler}
-            />
-          )}
-          {activePage === "analiz" && (
-            <ErrorBoundary>
-              <AnalizSonucu
-                proje={proje}
-                zemin={zemin}
-                makineler={makineler}
+        <Header username={username} onLogout={handleLogout} onMenuOpen={() => setSidebarOpen(true)} dark={dark} onToggleDark={toggleDark} />
+        <main style={{flex: 1, padding: "32px 28px", background: "var(--bg-base)", overflowY: "auto"}}>
+          <div key={activePage} style={{ animation: "fadeUp 0.3s ease" }}>
+            {activePage === "proje" && (
+              <ProjeForm
+                data={proje}
+                onChange={handleProjeChange}
+                projeId={projeId}
+                onProjeIdChange={setProjeId}
+              />
+            )}
+            {activePage === "zemin" && (
+              <ZeminLogu
+                data={zemin}
+                onChange={setZemin}
+                yeraltiSuyu={proje.yeraltiSuyu}
+                kazikBoyu={proje.kazikBoyu}
                 projeId={projeId}
               />
-            </ErrorBoundary>
-          )}
+            )}
+            {activePage === "makine" && (
+              <MakinePark
+                data={makineler}
+                onChange={setMakineler}
+              />
+            )}
+            {activePage === "analiz" && (
+              <ErrorBoundary>
+                <AnalizSonucu
+                  proje={proje}
+                  zemin={zemin}
+                  makineler={makineler}
+                  projeId={projeId}
+                />
+              </ErrorBoundary>
+            )}
+          </div>
         </main>
       </div>
     </div>
@@ -462,7 +549,7 @@ export default function App() {
     setAuthPage("landing")
   }
 
-  if (user) return <Dashboard username={user} onLogout={handleLogout} />
+  if (user) return <ToastProvider><Dashboard username={user} onLogout={handleLogout} /></ToastProvider>
 
   if (authPage === "register")
     return (
