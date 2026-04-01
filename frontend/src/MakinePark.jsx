@@ -267,7 +267,7 @@ export default function MakinePark({ data, onChange }) {
                       {CASING_SECENEKLER.map(t => <option key={t}>{t}</option>)}
                     </select>
                   </td>
-                  <td style={tdStyle}
+                  <td style={tdStyle}>
                     <input style={{ ...cellInput, width: "140px" }}
                       value={m.not} placeholder="Notlar..."
                       onChange={e => updateRow(m.id, "not", e.target.value)} />
