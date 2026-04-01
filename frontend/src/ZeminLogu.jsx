@@ -30,8 +30,10 @@ const cellInput = {
 
 const cellSelect = { ...cellInput, cursor: "pointer" }
 
-function stabiliteRiski(zemTipi, kohezyon, spt, yas) {
-  if (["Kum", "Çakıl"].includes(zemTipi) && yas >= 0) return "Yüksek"
+function stabiliteRiski(zemTipi, kohezyon, spt, yas, baslangic = 0) {
+  if (["Kum", "Çakıl"].includes(zemTipi)) {
+    return (yas > 0 && baslangic >= yas) ? "Yüksek" : "Orta"
+  }
   if (kohezyon === "Kohezyonsuz" && spt <= 10) return "Yüksek"
   if (kohezyon === "Kohezyonsuz" && spt <= 30) return "Orta"
   if (zemTipi === "Dolgu") return "Orta"
@@ -186,7 +188,7 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
             </thead>
             <tbody>
               {satirlar.map((row, idx) => {
-                const risk = stabiliteRiski(row.zemTipi, row.kohezyon, row.spt, yeraltiSuyu)
+                const risk = stabiliteRiski(row.zemTipi, row.kohezyon, row.spt, yeraltiSuyu, row.baslangic)
                 const uc = ucOneri(row.zemTipi, row.ucs)
                 const renkler = RISK_RENK[risk]
                 const rh = showHatalar ? satirHatasi(row) : {}

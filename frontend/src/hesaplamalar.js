@@ -16,8 +16,11 @@ export function gerekliTork(zemin, capMm) {
   return Math.round(maxTork * 10) / 10
 }
 
-export function stabiliteRiski(tip, kohezyon, spt, yas) {
-  if (["Kum", "Çakıl"].includes(tip) && yas >= 0) return "Yüksek"
+export function stabiliteRiski(tip, kohezyon, spt, yas, baslangic = 0) {
+  // Kum/Çakıl: yeraltı suyu altındaysa yüksek risk, değilse orta
+  if (["Kum", "Çakıl"].includes(tip)) {
+    return (yas > 0 && baslangic >= yas) ? "Yüksek" : "Orta"
+  }
   if (kohezyon === "Kohezyonsuz" && spt <= 10) return "Yüksek"
   if (kohezyon === "Kohezyonsuz" && spt <= 30) return "Orta"
   if (tip === "Dolgu") return "Orta"
@@ -44,7 +47,7 @@ export function casingMetreHesapla(zemin, yas) {
   let toplam = 0
   for (const row of zemin) {
     const kalinlik = row.bitis - row.baslangic
-    const risk = stabiliteRiski(row.zemTipi, row.kohezyon, row.spt, yas)
+    const risk = stabiliteRiski(row.zemTipi, row.kohezyon, row.spt, yas, row.baslangic)
     if (risk === "Yüksek") toplam += kalinlik
     else if (risk === "Orta") toplam += kalinlik * 0.5
   }

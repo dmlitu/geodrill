@@ -10,7 +10,7 @@ export default function RegisterPage({ onLogin, onGoLogin }) {
 
   const handleSubmit = async () => {
     const { fullName, username, email, password, password2 } = form
-    if (!username || !email || !password) { setError("Tüm zorunlu alanları doldurun."); return }
+    if (!username || !password) { setError("Kullanıcı adı ve şifre zorunludur."); return }
     if (password !== password2) { setError("Şifreler eşleşmiyor."); return }
     if (password.length < 8) { setError("Şifre en az 8 karakter olmalı."); return }
 
@@ -64,7 +64,7 @@ export default function RegisterPage({ onLogin, onGoLogin }) {
             <Field label="Kullanıcı Adı *" placeholder="kullanici_adi"
               value={form.username} onChange={set("username")} />
 
-            <Field label="E-posta *" type="email" placeholder="ornek@firma.com"
+            <Field label="E-posta" type="email" placeholder="ornek@firma.com"
               value={form.email} onChange={set("email")} />
 
             <Field label="Şifre *" type="password" placeholder="••••••••"

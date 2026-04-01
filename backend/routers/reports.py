@@ -55,9 +55,10 @@ def gerekli_tork(zemin, cap_mm):
     return round(max_tork * 10) / 10
 
 
-def stabilite_riski(tip, kohezyon, spt, yas):
-    if tip in ("Kum", "Çakıl") and yas >= 0:
-        return "Yüksek"
+def stabilite_riski(tip, kohezyon, spt, yas, baslangic=0):
+    # Kum/Çakıl: yeraltı suyu altındaysa yüksek risk, değilse orta
+    if tip in ("Kum", "Çakıl"):
+        return "Yüksek" if (yas > 0 and baslangic >= yas) else "Orta"
     if kohezyon == "Kohezyonsuz" and spt <= 10:
         return "Yüksek"
     if kohezyon == "Kohezyonsuz" and spt <= 30:
@@ -71,7 +72,7 @@ def casing_metre(zemin, yas):
     toplam = 0
     for row in zemin:
         kalinlik = row.bitis - row.baslangic
-        risk = stabilite_riski(row.zem_tipi, row.kohezyon, row.spt, yas)
+        risk = stabilite_riski(row.zem_tipi, row.kohezyon, row.spt, yas, row.baslangic)
         if risk == "Yüksek":
             toplam += kalinlik
         elif risk == "Orta":
@@ -173,7 +174,7 @@ def export_soil_layers_csv(
             "Kohezyon": l.kohezyon, "SPT": l.spt,
             "UCS (MPa)": l.ucs, "RQD (%)": l.rqd,
             "Aciklama": l.aciklama,
-            "Stabilite Riski": stabilite_riski(l.zem_tipi, l.kohezyon, l.spt, project.yeralti_suyu),
+            "Stabilite Riski": stabilite_riski(l.zem_tipi, l.kohezyon, l.spt, project.yeralti_suyu, l.baslangic),
         } for l in layers]
         df = pd.DataFrame(rows)
         buf = io.StringIO()
@@ -217,7 +218,7 @@ def _build_pdf_report(project, current_user, db):
 
     layers = (
         db.query(models.SoilLayer)
-        .filter(models.SoilLayer.project_id == project_id)
+        .filter(models.SoilLayer.project_id == project.id)
         .order_by(models.SoilLayer.baslangic)
         .all()
     )
@@ -233,7 +234,7 @@ def _build_pdf_report(project, current_user, db):
     c_dur = casing_durum(layers, project.yeralti_suyu)
     sure = kazik_suresi(layers, project.kazik_capi, project.kazik_boyu, c_m)
     m_basi, tek_mazot = mazot_tahmini(tork, project.kazik_boyu)
-    toplam_gun = round((sure * project.kazik_adedi) / 10 * 10) / 10
+    toplam_gun = round(sure * project.kazik_adedi * 10) / 10
 
     # Casing zorunlu mu?
     c_zorunlu = c_dur == "Gerekli"
@@ -325,7 +326,7 @@ def _build_pdf_report(project, current_user, db):
             [
                 str(l.baslangic), str(l.bitis), l.formasyon or "—", l.zem_tipi,
                 str(l.spt), str(l.ucs), str(l.rqd),
-                stabilite_riski(l.zem_tipi, l.kohezyon, l.spt, project.yeralti_suyu),
+                stabilite_riski(l.zem_tipi, l.kohezyon, l.spt, project.yeralti_suyu, l.baslangic),
             ]
             for l in layers
         ]

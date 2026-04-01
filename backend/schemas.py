@@ -13,6 +13,8 @@ class Token(BaseModel):
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=8, max_length=128)
+    email: Optional[str] = None
+    full_name: Optional[str] = None
 
 
 class UserOut(BaseModel):
