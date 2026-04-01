@@ -33,10 +33,17 @@ export const KATSAYILAR = {
 
     // Rock face shear: tau ≈ UCS/35 (conservative lower bound for rotary cutting)
     // Source: FHWA GEC 10 §7.4 rock-socket interface shear. Class B.
-    // Note: FHWA gives interface shear UCS/20–UCS/5; applying full τ to face-cutting
-    // model T=τ×πd³/8 over-predicts torque (τ acts on cutter tips, not full face).
-    // UCS/35 calibrates face-cutting model to field torque records for Kelly boring.
     kaya_ucs_tau_boleni: 35,    // tau [kPa] = UCS [MPa] × 1000 / 35
+
+    // Default UCS (MPa) used when soil type is rock but UCS is not measured.
+    // Prevents fall-through to soil formula which gives nonsensically low torque.
+    // Conservative lower-bound estimates per rock type. Class C.
+    kaya_ucs_varsayilan: {
+      "Ayrışmış Kaya": 5,    // heavily weathered, very soft rock
+      "Kumtaşı":       15,   // soft–medium sandstone (Trakya-type)
+      "Kireçtaşı":     20,   // medium limestone
+      "Sert Kaya":     60,   // hard rock lower bound
+    },
 
     // RQD variability factors — lower RQD = higher uncertainty → conservative upward margin
     // Source: FHWA GEC 10 §7.4 rock quality + conservative judgment
@@ -187,10 +194,16 @@ export function gerekliTorkAralik(zemin, capMm, isTipi = "Fore Kazık") {
     const sinif = zeminSinifi(row.zemTipi)
     guvenSiniflari.push(guvenSinifi(row).sinif)
 
+    // For rock types with no measured UCS, use type-specific default UCS
+    // to prevent fall-through to soil formula (which gives nonsensically low torque).
+    const ucsEtkili = ucs > 0 ? ucs
+      : (sinif === "kaya" ? (K.kaya_ucs_varsayilan[row.zemTipi] || 10) : 0)
+
     let tau, tauIz
-    if (ucs > 0) {
-      tau   = (ucs * 1000) / K.kaya_ucs_tau_boleni
-      tauIz = `UCS=${ucs} MPa → τ=${Math.round(tau)} kPa (UCS/35, FHWA GEC 10 §7.4, Sınıf B)`
+    if (ucsEtkili > 0 && sinif === "kaya") {
+      const varsayilanMi = ucs === 0
+      tau   = (ucsEtkili * 1000) / K.kaya_ucs_tau_boleni
+      tauIz = `UCS=${ucsEtkili} MPa${varsayilanMi ? " (varsayılan)" : ""} → τ=${Math.round(tau)} kPa (UCS/35, FHWA GEC 10 §7.4, Sınıf ${varsayilanMi ? "C" : "B"})`
     } else if (sinif === "kohezyonlu") {
       tau   = Math.max(spt * K.kohezyon_spt, K.kohezyon_su_min)
       tauIz = `SPT=${spt} → su≈${Math.round(tau)} kPa (N×${K.kohezyon_spt}, FHWA GEC 5, Sınıf B)`
@@ -466,13 +479,16 @@ export function katmanTeknikCikti(zemin, capMm) {
     const rqd   = parseFloat(row.rqd) || 0
     const sinif = zeminSinifi(row.zemTipi)
 
+    const ucsEtkili = ucs > 0 ? ucs
+      : (sinif === "kaya" ? (K.kaya_ucs_varsayilan[row.zemTipi] || 10) : 0)
+
     let tau
-    if (ucs > 0)                     tau = (ucs * 1000) / K.kaya_ucs_tau_boleni
-    else if (sinif === "kohezyonlu") tau = Math.max(spt * K.kohezyon_spt, K.kohezyon_su_min)
-    else                             tau = Math.max(spt * K.kohezyon_siz_spt, K.kohezyon_siz_tau_min)
+    if (ucsEtkili > 0 && sinif === "kaya") tau = (ucsEtkili * 1000) / K.kaya_ucs_tau_boleni
+    else if (sinif === "kohezyonlu")        tau = Math.max(spt * K.kohezyon_spt, K.kohezyon_su_min)
+    else                                    tau = Math.max(spt * K.kohezyon_siz_spt, K.kohezyon_siz_tau_min)
 
     let rqdFaktor = 1.0
-    if (rqd > 0 || ucs > 0) {
+    if (rqd > 0 || ucsEtkili > 0) {
       for (const e of [75, 50, 25, 0]) {
         if (rqd >= e) { rqdFaktor = K.rqd_faktor[e]; break }
       }

@@ -39,6 +39,14 @@ class TorkCoefficients:
     # UCS/35 calibrates to field torque records for Kelly boring in weak–medium rock.
     kaya_ucs_tau_boleni: float = 35.0  # tau [kPa] = UCS [MPa] × 1000 / 35
 
+    # Default UCS (MPa) for rock types when not measured — prevents fall-through to soil formula
+    kaya_ucs_varsayilan: Dict[str, float] = field(default_factory=lambda: {
+        "Ayrışmış Kaya": 5.0,
+        "Kumtaşı":       15.0,
+        "Kireçtaşı":     20.0,
+        "Sert Kaya":     60.0,
+    })
+
     # RQD variability factors (lower RQD → higher uncertainty → conservative upward margin)
     # Source: FHWA GEC 10 §7.4 rock quality + conservative judgment
     rqd_faktor: Dict[int, float] = field(default_factory=lambda: {

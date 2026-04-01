@@ -151,9 +151,15 @@ def gerekli_tork_aralik(layers: list, cap_mm: float, is_tipi: str = "Fore Kazık
         gs = guven_sinifi(row)
         guven_siniflari.append(gs["sinif"])
 
-        if ucs > 0:
-            tau = (ucs * 1000) / K.kaya_ucs_tau_boleni
-            tau_iz = f"UCS={ucs} MPa → τ={round(tau)} kPa (UCS/35, FHWA GEC 10 §7.4, Sınıf B)"
+        # For rock types with no measured UCS, use type-specific default UCS
+        ucs_etkili = ucs if ucs > 0 else (K.kaya_ucs_varsayilan.get(zem, 10.0) if sinif == "kaya" else 0.0)
+
+        if ucs_etkili > 0 and sinif == "kaya":
+            varsayilan_mi = ucs == 0
+            tau = (ucs_etkili * 1000) / K.kaya_ucs_tau_boleni
+            sinif_str = "C" if varsayilan_mi else "B"
+            not_str = " (varsayılan)" if varsayilan_mi else ""
+            tau_iz = f"UCS={ucs_etkili} MPa{not_str} → τ={round(tau)} kPa (UCS/35, FHWA GEC 10 §7.4, Sınıf {sinif_str})"
         elif sinif == "kohezyonlu":
             tau = max(spt * K.kohezyon_spt, K.kohezyon_su_min)
             tau_iz = f"SPT={spt} → su≈{round(tau)} kPa (N×{K.kohezyon_spt}, FHWA GEC 5, Sınıf B)"
@@ -163,7 +169,7 @@ def gerekli_tork_aralik(layers: list, cap_mm: float, is_tipi: str = "Fore Kazık
 
         # RQD variability factor
         rqd_faktor = 1.0
-        if rqd > 0 or ucs > 0:
+        if rqd > 0 or ucs_etkili > 0:
             for esik in (75, 50, 25, 0):
                 if rqd >= esik:
                     rqd_faktor = K.rqd_faktor[esik]
