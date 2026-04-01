@@ -211,17 +211,16 @@ def kazik_suresi(layers: list, cap_mm: float, kazik_boyu: float, casing_m: float
     for row in layers:
         k = float(row.get("bitis", 0)) - float(row.get("baslangic", 0))
         sure += k / rop_hesapla(row.get("zem_tipi", ""), float(row.get("ucs") or 0), cap_mm)
-        if row.get("zem_tipi") in ("Kumtaşı", "Kireçtaşı", "Sert Kaya", "Ayrışmış Kaya") \
-                and onceki_tip != row.get("zem_tipi"):
+        kaya_tipleri = ("Kumtaşı", "Kireçtaşı", "Sert Kaya", "Ayrışmış Kaya")
+        # Only count tool change on soil→rock transition, not rock-start or rock→rock
+        if row.get("zem_tipi") in kaya_tipleri \
+                and onceki_tip is not None and onceki_tip not in kaya_tipleri:
             uc_deg += 1
         onceki_tip = row.get("zem_tipi")
 
     sure += uc_deg * S.alet_degisim_saat
     sure += casing_m * S.casing_saat_m
-    # Reinforcement cage lowering (Zayed & Halpin 2005 §4)
-    sure += S.kafes_sure_saat
-    # Concrete: pile volume × pour rate factor (Zayed & Halpin 2005 §4.3)
-    sure += math.pi * (cap_m / 2) ** 2 * kazik_boyu * S.beton_katsayi
+    # Cage and concrete are post-rig parallel operations — excluded from rig cycle time
 
     ek_sure = (S.derinlik_ek[30] if kazik_boyu >= 30
                else S.derinlik_ek[20] if kazik_boyu >= 20
@@ -230,11 +229,18 @@ def kazik_suresi(layers: list, cap_mm: float, kazik_boyu: float, casing_m: float
     return round(sure * 10) / 10
 
 
+def kafes_beton_suresi(cap_mm: float, kazik_boyu: float) -> float:
+    """Post-rig parallel operation time: cage + concrete (hours)."""
+    S = KATSAYILAR.sure
+    cap_m = cap_mm / 1000
+    beton = math.pi * (cap_m / 2) ** 2 * kazik_boyu * S.beton_katsayi
+    return round((S.kafes_sure_saat + beton) * 10) / 10
+
+
 # ─── Fuel Estimate ────────────────────────────────────────────────────────────
 
 def mazot_tahmini(tork: float, kazik_boyu: float) -> dict:
     """Fuel consumption estimate. Class C."""
-    d = KATSAYILAR.mazot.dilimler  # not in new config — use inline below
     if tork < 100:
         m_basi = 8.0 + tork * 0.040
     elif tork < 200:

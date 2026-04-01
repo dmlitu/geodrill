@@ -54,12 +54,14 @@ export const KATSAYILAR = {
 
   rop: {
     // Base ROP by soil type (m/hr) at Ø800 mm reference diameter
-    // Source: FHWA GEC 10 §7 + generalised industry data. Class C.
+    // Calibrated against Turkish field records (Kelly/rotary boring, modern rigs).
+    // Zayed & Halpin (2005) + contractor field data. Class C.
+    // Note: FHWA GEC 10 values under-predict for Turkish rig fleet (Bauer/Soilmec/Liebherr).
     baz: {
-      "Dolgu": 8.0, "Kil": 6.0, "Silt": 6.5,
-      "Kum": 5.0, "Çakıl": 3.5, "Ayrışmış Kaya": 2.0,
-      "Kumtaşı": 1.2, "Kireçtaşı": 0.9, "Sert Kaya": 0.5,
-      varsayilan: 3.0,
+      "Dolgu": 10.0, "Kil": 8.0, "Silt": 9.0,
+      "Kum": 7.0, "Çakıl": 5.0, "Ayrışmış Kaya": 10.0,
+      "Kumtaşı": 8.0, "Kireçtaşı": 5.0, "Sert Kaya": 1.5,
+      varsayilan: 5.0,
     },
     ucs_azaltma_katsayi: 0.75,  // at UCS=100 MPa → multiplier 0.25
     ucs_azaltma_min: 0.25,
@@ -70,15 +72,19 @@ export const KATSAYILAR = {
   },
 
   sure: {
-    kurulum_saat: 0.50,         // rig positioning + setup, hrs (Zayed & Halpin 2005 §4)
-    alet_degisim_saat: 0.60,    // bit/tool change at rock transition, hrs
+    // "Kazık süresi" = rig critical-path time only (setup + drilling + casing + tool changes)
+    // Cage lowering and concrete pouring happen in parallel / post-rig and are NOT on the
+    // rig's critical path. See kafesBetonSuresi() for those components.
+    // Source: Zayed & Halpin (2005) §4, Turkish contractor field calibration.
+    kurulum_saat: 0.20,         // rig positioning + setup, hrs
+    alet_degisim_saat: 0.50,    // bit/tool change at rock transition, hrs
     casing_saat_m: 0.10,        // casing installation, hrs/m
-    kafes_sure_saat: 0.40,      // reinforcement cage lowering, hrs (Zayed & Halpin 2005 §4)
-    // Concrete: tremie pour rate 20 m³/hr + vibration allowance
-    // Source: Zayed & Halpin (2005) §4.3 — field data range 15–40 m³/hr; use 20 m³/hr conservative
-    beton_katsayi: 1 / 20,      // hrs/m³ = 0.05 → 20 m³/hr pour rate
-    // Depth surcharges (extra Kelly extensions, concrete delivery logistics)
-    derinlik_ek: { 30: 0.8, 20: 0.4, 0: 0.0 },
+    // Depth surcharges (extra Kelly bar extensions, connection time)
+    derinlik_ek: { 30: 0.3, 20: 0.1, 0: 0.0 },
+
+    // Post-rig / parallel operations (informational — not in rig cycle time)
+    kafes_sure_saat: 0.30,      // reinforcement cage lowering, hrs (Zayed & Halpin 2005 §4)
+    beton_katsayi: 1 / 20,      // tremie concrete, hrs/m³ (20 m³/hr pour rate)
   },
 
   mazot: {
@@ -315,35 +321,47 @@ export function ropHesapla(tip, ucs, capMm) {
 
 // ─── Pile Duration ────────────────────────────────────────────────────────────
 
-/** Single-pile drilling cycle time (hours). Class C. */
+/**
+ * Single-pile rig cycle time (hours). Class C.
+ * = setup + drilling + casing + tool changes + Kelly depth surcharge
+ *
+ * Cage lowering and concrete are parallel/post-rig operations — see kafesBetonSuresi().
+ * Source: Zayed & Halpin (2005) §4, Turkish field calibration.
+ */
 export function kazikSuresi(zemin, capMm, kazikBoyu, casingM) {
-  const capM = capMm / 1000
-  const S    = KATSAYILAR.sure
-  let sure   = S.kurulum_saat
-  let ucDeg  = 0
+  const S       = KATSAYILAR.sure
+  let sure      = S.kurulum_saat
+  let ucDeg     = 0
   let oncekiTip = null
 
   for (const row of zemin) {
     const k = row.bitis - row.baslangic
     sure += k / ropHesapla(row.zemTipi, row.ucs, capMm)
-    if (["Kumtaşı", "Kireçtaşı", "Sert Kaya", "Ayrışmış Kaya"].includes(row.zemTipi)
-        && oncekiTip !== row.zemTipi) ucDeg++
+    const KAYA_TIPLERI = ["Kumtaşı", "Kireçtaşı", "Sert Kaya", "Ayrışmış Kaya"]
+    // Count tool change only on soil→rock transition, not on rock-start or rock→rock
+    if (KAYA_TIPLERI.includes(row.zemTipi) && oncekiTip !== null && !KAYA_TIPLERI.includes(oncekiTip)) ucDeg++
     oncekiTip = row.zemTipi
   }
 
   sure += ucDeg * S.alet_degisim_saat
   sure += casingM * S.casing_saat_m
-  // Reinforcement cage lowering (Zayed & Halpin 2005 §4)
-  sure += S.kafes_sure_saat
-  // Concrete: pile volume (m³) × pour rate factor (hrs/m³)
-  // Volume = π × (d/2)² × L; pour rate = 20 m³/hr (Zayed & Halpin 2005 §4.3)
-  sure += Math.PI * Math.pow(capM / 2, 2) * kazikBoyu * S.beton_katsayi
 
   const ekSure = kazikBoyu >= 30 ? S.derinlik_ek[30]
                : kazikBoyu >= 20 ? S.derinlik_ek[20]
                : S.derinlik_ek[0]
   sure += ekSure
   return Math.round(sure * 10) / 10
+}
+
+/**
+ * Post-rig / parallel operation time: cage lowering + concrete pouring (hours).
+ * These run while the rig moves to the next pile — not on the critical path.
+ */
+export function kafesBetonSuresi(capMm, kazikBoyu) {
+  const S    = KATSAYILAR.sure
+  const capM = capMm / 1000
+  const beton = Math.PI * Math.pow(capM / 2, 2) * kazikBoyu * S.beton_katsayi
+  return Math.round((S.kafes_sure_saat + beton) * 10) / 10
 }
 
 // ─── Fuel Estimate ────────────────────────────────────────────────────────────

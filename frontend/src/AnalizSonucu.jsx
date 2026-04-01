@@ -3,7 +3,7 @@ import { downloadPdfReport, downloadSoilLayersCsv } from "./api"
 import { ZeminProfilDiyagrami, TorkDerinlikGrafigi, GanttSemasi, SenaryoKarsilastirma } from "./Gorseller"
 import {
   gerekliTork, gerekliTorkAralik, stabiliteRiski, casingDurum, casingMetreHesapla,
-  kazikSuresi, mazotTahmini, kritikKatman, makinaUygunluk,
+  kazikSuresi, kafesBetonSuresi, mazotTahmini, kritikKatman, makinaUygunluk,
   katmanTeknikCikti, operasyonOnerisi,
 } from "./hesaplamalar"
 
@@ -241,10 +241,11 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     const { durum: casingDur, gerekce, zorunlu } = casingDurum(zemin, proje.yeraltiSuyu)
     const casingM = casingMetreHesapla(zemin, proje.yeraltiSuyu)
     const sure = kazikSuresi(zemin, proje.kazikCapi, proje.kazikBoyu, casingM)
+    const kafesBetonS = kafesBetonSuresi(proje.kazikCapi, proje.kazikBoyu)
     const { mBasi, toplam: topMazot } = mazotTahmini(tork, proje.kazikBoyu)
     const kritik = kritikKatman(zemin)
     const gunlukUretim = Math.max(1, Math.round(10 / sure))
-    // Total working days = (hrs/pile × pile count) / 10 hrs per workday
+    // Total working days = (rig hrs/pile × pile count) / 10 hrs per workday
     const toplamGun = Math.round((sure * proje.kazikAdedi / 10) * 10) / 10
     const ucOneri = zemin.some(r => ["Kumtaşı", "Kireçtaşı", "Sert Kaya"].includes(r.zemTipi) || r.ucs >= 25)
       ? "Kaya ucu gerekli" : zemin.some(r => r.zemTipi === "Ayrışmış Kaya" || r.ucs >= 10)
@@ -267,7 +268,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
       : { makine: null, durum: "Uygun makine yok", renk: "#DC2626", bg: "#FEF2F2" }
     const katmanCiktilar = katmanTeknikCikti(zemin, proje.kazikCapi)
     const opOneri = operasyonOnerisi(zemin, proje.yeraltiSuyu)
-    return { tork, torkAralik, casingDur, gerekce, zorunlu, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri }
+    return { tork, torkAralik, casingDur, gerekce, zorunlu, casingM, sure, kafesBetonS, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri }
   }, [zemin, proje, makineler])
 
   if (!zemin.length) {
@@ -291,7 +292,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     )
   }
 
-  const { tork, torkAralik, casingDur, gerekce, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri } = analiz
+  const { tork, torkAralik, casingDur, gerekce, casingM, sure, kafesBetonS, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri } = analiz
 
   return (
     <div>
@@ -417,8 +418,8 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
           oran={Math.min(100, (tork / 300) * 100)} />
         <MetrikKart baslik="Muhafaza Borusu" deger={casingDur} renk="#6366F1" alt={`${casingM} m tahmini`}
           oran={(casingM / proje.kazikBoyu) * 100} />
-        <MetrikKart baslik="1 Kazik Suresi" deger={`${sure} saat`} renk="#0891B2" alt={`~${gunlukUretim} kazik/gun`}
-          oran={Math.min(100, (sure / 12) * 100)} />
+        <MetrikKart baslik="1 Kazık Süresi (Rig)" deger={`${sure} saat`} renk="#0891B2" alt={`+${kafesBetonS}s kafes+beton | ~${gunlukUretim} kazık/gün`}
+          oran={Math.min(100, (sure / 8) * 100)} />
         <MetrikKart baslik="Toplam Is Suresi" deger={`${toplamGun} gun`} renk="#0EA5E9" alt={`${proje.kazikAdedi} kazik`}
           oran={Math.min(100, (toplamGun / 60) * 100)} />
         <MetrikKart

@@ -58,12 +58,14 @@ class TorkCoefficients:
 class RopCoefficients:
     # Base ROP by soil type (m/hr) at Ø800 mm reference diameter. Class C.
     # Source: FHWA GEC 10 §7 + generalised industry data
+    # Calibrated against Turkish field records (Kelly/rotary boring, modern rigs).
+    # Zayed & Halpin (2005) + contractor field data. Class C.
     baz: Dict[str, float] = field(default_factory=lambda: {
-        "Dolgu": 8.0, "Kil": 6.0, "Silt": 6.5,
-        "Kum": 5.0, "Çakıl": 3.5, "Ayrışmış Kaya": 2.0,
-        "Kumtaşı": 1.2, "Kireçtaşı": 0.9, "Sert Kaya": 0.5,
+        "Dolgu": 10.0, "Kil": 8.0, "Silt": 9.0,
+        "Kum": 7.0, "Çakıl": 5.0, "Ayrışmış Kaya": 10.0,
+        "Kumtaşı": 8.0, "Kireçtaşı": 5.0, "Sert Kaya": 1.5,
     })
-    varsayilan: float = 3.0
+    varsayilan: float = 5.0
     ucs_azaltma_katsayi: float = 0.75   # at UCS=100 MPa → factor 0.25
     ucs_azaltma_min: float = 0.25
     referans_cap_m: float = 0.80
@@ -74,16 +76,17 @@ class RopCoefficients:
 
 @dataclass(frozen=True)
 class SureCoefficients:
-    kurulum_saat: float = 0.50          # rig positioning + setup (Zayed & Halpin 2005 §4)
-    alet_degisim_saat: float = 0.60     # bit/tool change at rock transition
+    # Rig critical-path components only (cage + concrete are parallel ops)
+    # Source: Zayed & Halpin (2005) §4, Turkish field calibration
+    kurulum_saat: float = 0.20          # rig positioning + setup, hrs
+    alet_degisim_saat: float = 0.50     # bit/tool change at rock transition, hrs
     casing_saat_m: float = 0.10         # casing installation, hrs/m
-    kafes_sure_saat: float = 0.40       # reinforcement cage lowering (Zayed & Halpin 2005 §4)
-    # Concrete: tremie pour rate 20 m³/hr (Zayed & Halpin 2005 §4.3)
-    beton_katsayi: float = 1 / 20       # hrs/m³ = 0.05 → 20 m³/hr pour rate
-    # Depth surcharges (extra Kelly extensions, concrete delivery logistics)
     derinlik_ek: Dict[int, float] = field(default_factory=lambda: {
-        30: 0.8, 20: 0.4, 0: 0.0
+        30: 0.3, 20: 0.1, 0: 0.0
     })
+    # Post-rig / parallel operations (informational — not on rig critical path)
+    kafes_sure_saat: float = 0.30       # cage lowering, hrs
+    beton_katsayi: float = 1 / 20       # tremie concrete, hrs/m³ (20 m³/hr)
 
 
 @dataclass(frozen=True)
