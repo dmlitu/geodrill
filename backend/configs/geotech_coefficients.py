@@ -84,9 +84,6 @@ class SureCoefficients:
     derinlik_ek: Dict[int, float] = field(default_factory=lambda: {
         30: 0.3, 20: 0.1, 0: 0.0
     })
-    # Post-rig / parallel operations (informational — not on rig critical path)
-    kafes_sure_saat: float = 0.30       # cage lowering, hrs
-    beton_katsayi: float = 1 / 20       # tremie concrete, hrs/m³ (20 m³/hr)
 
 
 @dataclass(frozen=True)

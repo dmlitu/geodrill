@@ -82,9 +82,6 @@ export const KATSAYILAR = {
     // Depth surcharges (extra Kelly bar extensions, connection time)
     derinlik_ek: { 30: 0.3, 20: 0.1, 0: 0.0 },
 
-    // Post-rig / parallel operations (informational — not in rig cycle time)
-    kafes_sure_saat: 0.30,      // reinforcement cage lowering, hrs (Zayed & Halpin 2005 §4)
-    beton_katsayi: 1 / 20,      // tremie concrete, hrs/m³ (20 m³/hr pour rate)
   },
 
   mazot: {
@@ -353,16 +350,6 @@ export function kazikSuresi(zemin, capMm, kazikBoyu, casingM) {
   return Math.round(sure * 10) / 10
 }
 
-/**
- * Post-rig / parallel operation time: cage lowering + concrete pouring (hours).
- * These run while the rig moves to the next pile — not on the critical path.
- */
-export function kafesBetonSuresi(capMm, kazikBoyu) {
-  const S    = KATSAYILAR.sure
-  const capM = capMm / 1000
-  const beton = Math.PI * Math.pow(capM / 2, 2) * kazikBoyu * S.beton_katsayi
-  return Math.round((S.kafes_sure_saat + beton) * 10) / 10
-}
 
 // ─── Fuel Estimate ────────────────────────────────────────────────────────────
 

@@ -3,7 +3,7 @@ import { downloadPdfReport, downloadSoilLayersCsv } from "./api"
 import { ZeminProfilDiyagrami, TorkDerinlikGrafigi, GanttSemasi, SenaryoKarsilastirma } from "./Gorseller"
 import {
   gerekliTork, gerekliTorkAralik, stabiliteRiski, casingDurum, casingMetreHesapla,
-  kazikSuresi, kafesBetonSuresi, mazotTahmini, kritikKatman, makinaUygunluk,
+  kazikSuresi, mazotTahmini, kritikKatman, makinaUygunluk,
   katmanTeknikCikti, operasyonOnerisi,
 } from "./hesaplamalar"
 
@@ -50,7 +50,7 @@ function PdfOnizleme({ open, onClose, onDownload, yukleniyor, proje, analiz, zem
   const metrikler = [
     ["Gerekli Min. Tork", `${tork} kNm`],
     ["Muhafaza Borusu", `${casingDur} (${casingM} m)`],
-    ["1 Kazik Suresi", `${sure} saat`],
+    ["1 Kazık Delgi Süresi", `${sure} saat`],
     ["Toplam Is Suresi", `${toplamGun} gun`],
     ["Metre Basi Mazot", `${mBasi} L/m`],
     ["Toplam Mazot", `${Math.round(topMazot * proje.kazikAdedi)} L`],
@@ -197,7 +197,7 @@ function analizCsvIndir(proje, tork, casingDur, casingM, sure, toplamGun, mBasi,
     ["Gerekli Min. Tork (kNm)", tork],
     ["Casing Durumu", casingDur],
     ["Tahmini Casing (m)", casingM],
-    ["1 Kazık Süresi (saat)", sure],
+    ["1 Kazık Delgi Süresi (saat)", sure],
     ["Toplam İş Süresi (gün)", toplamGun],
     ["Metre Başı Mazot (L/m)", mBasi],
     ["Toplam Mazot (L)", Math.round(topMazot * proje.kazikAdedi)],
@@ -241,7 +241,6 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     const { durum: casingDur, gerekce, zorunlu } = casingDurum(zemin, proje.yeraltiSuyu)
     const casingM = casingMetreHesapla(zemin, proje.yeraltiSuyu)
     const sure = kazikSuresi(zemin, proje.kazikCapi, proje.kazikBoyu, casingM)
-    const kafesBetonS = kafesBetonSuresi(proje.kazikCapi, proje.kazikBoyu)
     const { mBasi, toplam: topMazot } = mazotTahmini(tork, proje.kazikBoyu)
     const kritik = kritikKatman(zemin)
     const gunlukUretim = Math.max(1, Math.round(10 / sure))
@@ -268,7 +267,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
       : { makine: null, durum: "Uygun makine yok", renk: "#DC2626", bg: "#FEF2F2" }
     const katmanCiktilar = katmanTeknikCikti(zemin, proje.kazikCapi)
     const opOneri = operasyonOnerisi(zemin, proje.yeraltiSuyu)
-    return { tork, torkAralik, casingDur, gerekce, zorunlu, casingM, sure, kafesBetonS, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri }
+    return { tork, torkAralik, casingDur, gerekce, zorunlu, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri }
   }, [zemin, proje, makineler])
 
   if (!zemin.length) {
@@ -292,7 +291,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     )
   }
 
-  const { tork, torkAralik, casingDur, gerekce, casingM, sure, kafesBetonS, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri } = analiz
+  const { tork, torkAralik, casingDur, gerekce, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri } = analiz
 
   return (
     <div>
@@ -418,7 +417,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
           oran={Math.min(100, (tork / 300) * 100)} />
         <MetrikKart baslik="Muhafaza Borusu" deger={casingDur} renk="#6366F1" alt={`${casingM} m tahmini`}
           oran={(casingM / proje.kazikBoyu) * 100} />
-        <MetrikKart baslik="1 Kazık Süresi (Rig)" deger={`${sure} saat`} renk="#0891B2" alt={`+${kafesBetonS}s kafes+beton | ~${gunlukUretim} kazık/gün`}
+        <MetrikKart baslik="1 Kazık Delgi Süresi" deger={`${sure} saat`} renk="#0891B2" alt={`~${gunlukUretim} kazık/gün`}
           oran={Math.min(100, (sure / 8) * 100)} />
         <MetrikKart baslik="Toplam Is Suresi" deger={`${toplamGun} gun`} renk="#0EA5E9" alt={`${proje.kazikAdedi} kazik`}
           oran={Math.min(100, (toplamGun / 60) * 100)} />

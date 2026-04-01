@@ -229,14 +229,6 @@ def kazik_suresi(layers: list, cap_mm: float, kazik_boyu: float, casing_m: float
     return round(sure * 10) / 10
 
 
-def kafes_beton_suresi(cap_mm: float, kazik_boyu: float) -> float:
-    """Post-rig parallel operation time: cage + concrete (hours)."""
-    S = KATSAYILAR.sure
-    cap_m = cap_mm / 1000
-    beton = math.pi * (cap_m / 2) ** 2 * kazik_boyu * S.beton_katsayi
-    return round((S.kafes_sure_saat + beton) * 10) / 10
-
-
 # ─── Fuel Estimate ────────────────────────────────────────────────────────────
 
 def mazot_tahmini(tork: float, kazik_boyu: float) -> dict:
