@@ -46,9 +46,28 @@ def seed_default_users():
         db.close()
 
 
+def _run_schema_migrations():
+    """ADD COLUMN migrations for existing tables — safe to re-run (IF NOT EXISTS / try/except)."""
+    from sqlalchemy import text
+    with engine.begin() as conn:
+        migrations = [
+            # v3.0: CPT ve Su alanları zemin katmanlarına
+            "ALTER TABLE soil_layers ADD COLUMN cpt_qc REAL DEFAULT 0.0",
+            "ALTER TABLE soil_layers ADD COLUMN su REAL DEFAULT 0.0",
+            # v3.0: Crowd force makine tablosuna
+            "ALTER TABLE equipment ADD COLUMN crowd_force REAL DEFAULT 0.0",
+        ]
+        for sql in migrations:
+            try:
+                conn.execute(text(sql))
+            except Exception:
+                pass  # Kolon zaten mevcutsa yok say
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    _run_schema_migrations()
     seed_default_users()
     logger.info("GeoDrill API started successfully")
     yield
