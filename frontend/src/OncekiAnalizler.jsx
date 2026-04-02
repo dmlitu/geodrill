@@ -14,36 +14,48 @@ function ProjeKarti({ proje, onDuzenle, onSil }) {
   const [acik, setAcik] = useState(false)
   const [detay, setDetay] = useState(null)
   const [yukleniyor, setYukleniyor] = useState(false)
+  const [hata, setHata] = useState(null)
   const [pdfYukleniyor, setPdfYukleniyor] = useState(false)
   const [xlsxYukleniyor, setXlsxYukleniyor] = useState(false)
   const toast = useToast()
 
-  const toggle = async () => {
-    if (!acik && !detay) {
-      setYukleniyor(true)
-      try {
-        const tam = await getProject(proje.id)
-        const zemin = (tam.soil_layers || []).map(fromSnakeLayer)
-        const projeData = fromSnake(tam)
-        let analiz = null
-        if (zemin.length) {
-          const tork = gerekliTork(zemin, projeData.kazikCapi)
-          const { durum: casingDur, zorunlu } = casingDurum(zemin, projeData.yeraltiSuyu)
-          const casingM = casingMetreHesapla(zemin, projeData.yeraltiSuyu)
-          const sure = kazikSuresi(zemin, projeData.kazikCapi, projeData.kazikBoyu, casingM)
-          const { mBasi, toplam: topMazot } = mazotTahmini(tork, projeData.kazikBoyu)
-          const toplamGun = Math.round(sure * projeData.kazikAdedi * 10) / 10
-          const katmanCiktilar = katmanTeknikCikti(zemin, projeData.kazikCapi)
-          analiz = { tork, casingDur, casingM, sure, mBasi, topMazot, toplamGun, zorunlu, katmanCiktilar }
-        }
-        setDetay({ zemin, proje: projeData, analiz })
-      } catch (e) {
-        toast.error("Proje yüklenemedi: " + e.message)
-      } finally {
-        setYukleniyor(false)
+  const yukleDetay = async () => {
+    setYukleniyor(true)
+    setHata(null)
+    try {
+      const tam = await getProject(proje.id)
+      const zemin = (tam.soil_layers || []).map(fromSnakeLayer)
+      const projeData = fromSnake(tam)
+      let analiz = null
+      if (zemin.length) {
+        const tork = gerekliTork(zemin, projeData.kazikCapi)
+        const { durum: casingDur, zorunlu } = casingDurum(zemin, projeData.yeraltiSuyu)
+        const casingM = casingMetreHesapla(zemin, projeData.yeraltiSuyu)
+        const sure = kazikSuresi(zemin, projeData.kazikCapi, projeData.kazikBoyu, casingM)
+        const { mBasi, toplam: topMazot } = mazotTahmini(tork, projeData.kazikBoyu)
+        const toplamGun = Math.round(sure * projeData.kazikAdedi * 10) / 10
+        const katmanCiktilar = katmanTeknikCikti(zemin, projeData.kazikCapi)
+        analiz = { tork, casingDur, casingM, sure, mBasi, topMazot, toplamGun, zorunlu, katmanCiktilar }
       }
+      setDetay({ zemin, proje: projeData, analiz })
+    } catch (e) {
+      const agHatasi = e instanceof TypeError || e.message === "Load failed" || e.message === "Failed to fetch"
+      setHata(agHatasi
+        ? "Sunucuya bağlanılamadı. Backend çalışıyor mu? Tekrar deneyin."
+        : "Yükleme hatası: " + e.message
+      )
+    } finally {
+      setYukleniyor(false)
     }
-    setAcik(p => !p)
+  }
+
+  const toggle = async () => {
+    if (!acik && !detay && !yukleniyor) {
+      setAcik(true)
+      await yukleDetay()
+    } else if (!yukleniyor) {
+      setAcik(p => !p)
+    }
   }
 
   const handlePdf = async () => {
@@ -120,7 +132,18 @@ function ProjeKarti({ proje, onDuzenle, onSil }) {
       {acik && (
         <div style={{ borderTop: "1px solid var(--border-subtle)", padding: "20px", background: "var(--row-alt)" }}>
           {yukleniyor ? (
-            <div style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)", fontSize: "13px" }}>Yükleniyor...</div>
+            <div style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)", fontSize: "13px" }}>
+              <span style={{ display: "inline-block", animation: "spin 1s linear infinite", marginRight: "8px" }}>⟳</span>
+              Yükleniyor...
+            </div>
+          ) : hata ? (
+            <div style={{ textAlign: "center", padding: "16px", background: "#FEF2F2", borderRadius: "8px", border: "1px solid #FECACA" }}>
+              <div style={{ fontSize: "13px", color: "#DC2626", marginBottom: "10px" }}>{hata}</div>
+              <button
+                onClick={e => { e.stopPropagation(); yukleDetay() }}
+                style={{ padding: "6px 18px", border: "none", borderRadius: "6px", background: "#DC2626", color: "white", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}
+              >Tekrar Dene</button>
+            </div>
           ) : detay ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
               {/* Analiz özeti */}
@@ -178,9 +201,7 @@ function ProjeKarti({ proje, onDuzenle, onSil }) {
                 </div>
               )}
             </div>
-          ) : (
-            <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>Detay yüklenemedi.</div>
-          )}
+          ) : null}
         </div>
       )}
     </div>
