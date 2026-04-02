@@ -126,7 +126,7 @@ export const KATSAYILAR = {
       "Kum":            7.0,
       "Çakıl":          4.5,
       "Ayrışmış Kaya": 10.0,
-      "Kumtaşı":        7.0,
+      "Kumtaşı":       10.0,  // Trakya/zayıf-orta kumtaşı saha verisi; UCS azaltması sert olanı yavaşlatır
       "Kireçtaşı":      4.0,
       "Sert Kaya":      1.2,
       varsayilan:       5.0,
@@ -736,7 +736,8 @@ export function kritikKatman(zemin) {
  */
 export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, isTipi = "Fore Kazık") {
   const CV = KATSAYILAR.cevrim
-  const KAYA_TIPLERI = ["Kumtaşı", "Kireçtaşı", "Sert Kaya", "Ayrışmış Kaya"]
+  // Alet değişimi (Kelly kova → kaya kesici) yalnızca sert formasyon geçişlerinde
+  const KAYA_TIPLERI = ["Kireçtaşı", "Sert Kaya"]
 
   // ── Delme süresi ──────────────────────────────────────────────────────────
   let tDelme = 0
