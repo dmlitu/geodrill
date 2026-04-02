@@ -37,6 +37,8 @@ class SoilLayerCreate(BaseModel):
     spt: int = Field(10, ge=0, le=300)
     ucs: float = Field(0.0, ge=0)
     rqd: float = Field(0.0, ge=0, le=100)
+    cpt_qc: float = Field(0.0, ge=0)
+    su: float = Field(0.0, ge=0)
     aciklama: str = ""
 
     @model_validator(mode="after")
@@ -101,6 +103,7 @@ class EquipmentCreate(BaseModel):
     max_derinlik: float = Field(24.0, gt=0)
     max_cap: int = Field(1000, gt=0)
     tork: float = Field(180.0, gt=0)
+    crowd_force: float = Field(0.0, ge=0)
     casing: str = "Evet"
     dar_alan: str = "Hayır"
     yakit_sinifi: str = "Orta"
@@ -118,6 +121,7 @@ class EquipmentOut(BaseModel):
     max_derinlik: float
     max_cap: int
     tork: float
+    crowd_force: float
     casing: str
     dar_alan: str
     yakit_sinifi: str

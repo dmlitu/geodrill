@@ -247,6 +247,8 @@ function toSnakeLayer(r) {
     spt: Number(r.spt) || 0,
     ucs: Number(r.ucs) || 0,
     rqd: Number(r.rqd) || 0,
+    cpt_qc: Number(r.cptQc) || 0,
+    su: Number(r.su) || 0,
     aciklama: r.aciklama ?? "",
   }
 }
@@ -262,6 +264,8 @@ export function fromSnakeLayer(r) {
     spt: r.spt ?? 0,
     ucs: r.ucs ?? 0,
     rqd: r.rqd ?? 0,
+    cptQc: r.cpt_qc ?? 0,
+    su: r.su ?? 0,
     aciklama: r.aciklama ?? "",
   }
 }
@@ -274,6 +278,7 @@ function toSnakeMakine(m) {
     max_derinlik: Number(m.maxDerinlik) || 24,
     max_cap: Number(m.maxCap) || 1000,
     tork: Number(m.tork) || 180,
+    crowd_force: Number(m.crowdForce) || 0,
     casing: m.casing ?? "Evet",
     dar_alan: m.darAlan ?? m.dar_alan ?? "Hayır",
     yakit_sinifi: m.yakitSinifi ?? m.yakit_sinifi ?? "Orta",
@@ -290,6 +295,7 @@ export function fromSnakeMakine(m) {
     maxDerinlik: m.max_derinlik ?? 24,
     maxCap: m.max_cap ?? 1000,
     tork: m.tork ?? 180,
+    crowdForce: m.crowd_force ?? 0,
     casing: m.casing ?? "Evet",
     darAlan: m.dar_alan ?? "Hayır",
     yakitSinifi: m.yakit_sinifi ?? "Orta",

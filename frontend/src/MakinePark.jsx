@@ -29,7 +29,7 @@ const DEFAULT_MAKINE = () => ({
   id: Date.now() + Math.random(),
   ad: "", tip: "Fore Kazık", marka: "",
   maxDerinlik: 24, maxCap: 1000, tork: 180,
-  casing: "Evet", not: ""
+  casing: "Evet", crowdForce: 0, not: ""
 })
 
 const DEFAULT_MAKINELER = [
@@ -215,6 +215,7 @@ export default function MakinePark({ data, onChange }) {
                 <th style={thStyle}>Max Derinlik (m)</th>
                 <th style={thStyle}>Max Çap (mm)</th>
                 <th style={thStyle}>Tork (kNm)</th>
+                <th style={thStyle}>Crowd (kN)</th>
                 <th style={thStyle}>Casing</th>
                 <th style={thStyle}>Not</th>
                 <th style={thStyle}></th>
@@ -260,6 +261,12 @@ export default function MakinePark({ data, onChange }) {
                     <input style={{ ...cellInput, width: "80px", ...errStyle("tork") }} type="number"
                       value={m.tork} min="0" title={mh.tork || ""}
                       onChange={e => updateRow(m.id, "tork", parseInt(e.target.value))} />
+                  </td>
+                  <td style={tdStyle}>
+                    <input style={{ ...cellInput, width: "80px" }} type="number"
+                      value={m.crowdForce || 0} min="0" step="50" placeholder="0"
+                      title="Crowd (bas) kuvveti kN — 0 = bilinmiyor"
+                      onChange={e => updateRow(m.id, "crowdForce", parseInt(e.target.value) || 0)} />
                   </td>
                   <td style={tdStyle}>
                     <select style={{ ...cellInput, width: "90px", cursor: "pointer", background: "var(--input-bg)" }}

@@ -65,6 +65,8 @@ class SoilLayer(Base):
     spt = Column(Integer, default=10)
     ucs = Column(Float, default=0.0)
     rqd = Column(Float, default=0.0)
+    cpt_qc = Column(Float, default=0.0)  # CPT qc (MPa)
+    su = Column(Float, default=0.0)      # undrained shear strength (kPa)
     aciklama = Column(Text, default="")
 
     project = relationship("Project", back_populates="soil_layers")
@@ -82,6 +84,7 @@ class Equipment(Base):
     max_derinlik = Column(Float, default=24.0)
     max_cap = Column(Integer, default=1000)
     tork = Column(Float, default=180.0)
+    crowd_force = Column(Float, default=0.0)          # crowd force / downward thrust (kN)
     casing = Column(String(20), default="Evet")       # Evet / Hayır / Şartlı
     dar_alan = Column(String(10), default="Hayır")    # Evet / Hayır
     yakit_sinifi = Column(String(20), default="Orta") # Düşük / Orta / Yüksek

@@ -19,6 +19,7 @@ from modules.calculations.engine import (
     gerekli_tork_aralik, gerekli_tork, stabilite_riski,
     casing_durum as _casing_durum_full, casing_metre,
     kazik_suresi, mazot_tahmini as _mazot_tahmini, makine_uygunluk,
+    tam_cevrim_suresi, guven_analizi, aciklama_uret,
 )
 
 logger = logging.getLogger("geodrill.reports")
@@ -43,7 +44,20 @@ def _layer_to_dict(l) -> dict:
         "baslangic": l.baslangic, "bitis": l.bitis,
         "zem_tipi": l.zem_tipi, "kohezyon": l.kohezyon,
         "spt": l.spt, "ucs": l.ucs, "rqd": l.rqd,
+        "cpt_qc": getattr(l, "cpt_qc", 0) or 0,
+        "su": getattr(l, "su", 0) or 0,
         "formasyon": l.formasyon, "aciklama": l.aciklama,
+    }
+
+def _equipment_to_dict(m) -> dict:
+    """Convert ORM Equipment to plain dict for engine functions."""
+    return {
+        "ad": m.ad, "tip": m.tip, "marka": m.marka or "",
+        "max_derinlik": m.max_derinlik, "max_cap": m.max_cap,
+        "tork": m.tork, "casing": m.casing,
+        "crowd_force": getattr(m, "crowd_force", 0) or 0,
+        "dar_alan": getattr(m, "dar_alan", "Hayır") or "Hayır",
+        "yakit_sinifi": getattr(m, "yakit_sinifi", "Orta") or "Orta",
     }
 
 
@@ -134,20 +148,23 @@ def _build_pdf_report(project, current_user, db):
         .all()
     )
 
-    # Hesaplamalar — engine v2.0 (reference-driven, confidence-scored)
+    # Hesaplamalar — engine v3.0
     layer_dicts = [_layer_to_dict(l) for l in layers]
-    tork_aralik = gerekli_tork_aralik(layer_dicts, project.kazik_capi, project.is_tipi)
+    yas = project.yeralti_suyu or 0
+    tork_aralik = gerekli_tork_aralik(layer_dicts, project.kazik_capi, project.is_tipi, yas)
     tork = tork_aralik["nominal"]
     tork_min = tork_aralik["min"]
     tork_max = tork_aralik["max"]
     tork_guven = tork_aralik["guven"]
-    casing_full = _casing_durum_full(layer_dicts, project.yeralti_suyu)
+    casing_full = _casing_durum_full(layer_dicts, yas)
     c_dur = casing_full["durum"]
-    c_m = casing_metre(layer_dicts, project.yeralti_suyu)
-    sure = kazik_suresi(layer_dicts, project.kazik_capi, project.kazik_boyu, c_m)
-    m_basi, tek_mazot = mazot_tahmini(tork, project.kazik_boyu)
-    toplam_gun = round(sure * project.kazik_adedi * 10) / 10
+    c_m = casing_metre(layer_dicts, yas)
     c_zorunlu = casing_full["zorunlu"]
+    sure = kazik_suresi(layer_dicts, project.kazik_capi, project.kazik_boyu, c_m)
+    cevrim = tam_cevrim_suresi(layer_dicts, project.kazik_capi, project.kazik_boyu, c_m, project.is_tipi)
+    guven = guven_analizi(layer_dicts, yas, project.kazik_boyu)
+    m_basi, tek_mazot = mazot_tahmini(tork, project.kazik_boyu)
+    toplam_gun = round(cevrim["t_toplam_cevrim"] * project.kazik_adedi / 9.0 * 10) / 10
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -180,7 +197,7 @@ def _build_pdf_report(project, current_user, db):
     # Yönetici Özeti
     uygun_makine_sayisi = sum(
         1 for m in equipment
-        if makine_uygunluk(m, tork, project.kazik_boyu, project.kazik_capi, c_zorunlu) == "Uygun"
+        if makine_uygunluk(_equipment_to_dict(m), tork, project.kazik_boyu, project.kazik_capi, c_zorunlu, project.is_tipi, layer_dicts, yas)["karar"] in ("Uygun", "Rahat Uygun")
     ) if equipment else 0
     risk_durumu = "yüksek riskli zemin katmanları içermektedir" if any(
         stabilite_riski(l.zem_tipi, l.kohezyon, l.spt, project.yeralti_suyu, l.baslangic) == "Yüksek" for l in layers
@@ -231,15 +248,20 @@ def _build_pdf_report(project, current_user, db):
 
     # Analiz Sonuçları
     content.append(Paragraph("Analiz Sonuçları", h2))
+    guven_str = f"{guven['seviye']} ({guven['puan']}/100, Sınıf {guven['sinif']})" if guven else "—"
+    tork_band_str = f"{tork} kNm (bant: {tork_min}–{tork_max}, Güven {tork_guven})"
     ana_data = [
         ["Metrik", "Değer"],
-        ["Gerekli Minimum Tork", f"{tork} kNm"],
+        ["Gerekli Minimum Tork", tork_band_str],
         ["Muhafaza Borusu Durumu", c_dur],
         ["Tahmini Casing Uzunluğu", f"{c_m} m"],
-        ["1 Kazık Delme Süresi", f"{sure} saat"],
+        ["1 Kazık Delme Süresi (delme+casing)", f"{sure} saat"],
+        ["1 Kazık Tam Çevrim", f"{cevrim['t_toplam_cevrim']} saat"],
+        ["Günlük Tahmini Üretim", f"~{cevrim['gunluk_uretim_adet']} kazık/gün"],
         ["Toplam İş Süresi", f"{toplam_gun} gün"],
         ["Metre Başı Mazot", f"{m_basi} L/m"],
         ["Toplam Mazot (tüm kazıklar)", f"{round(tek_mazot * project.kazik_adedi)} L"],
+        ["Hesap Güveni", guven_str],
     ]
     ana_table = Table(ana_data, colWidths=[8*cm, 9*cm])
     ana_table.setStyle(TableStyle([
@@ -294,7 +316,7 @@ def _build_pdf_report(project, current_user, db):
         eq_rows = [eq_header] + [
             [
                 m.ad, m.marka or "—", str(m.tork), f"{m.max_derinlik} m",
-                m.casing, makine_uygunluk(m, tork, project.kazik_boyu, project.kazik_capi, c_zorunlu),
+                m.casing, makine_uygunluk(_equipment_to_dict(m), tork, project.kazik_boyu, project.kazik_capi, c_zorunlu, project.is_tipi, layer_dicts, yas)["karar"],
             ]
             for m in equipment
         ]
@@ -316,7 +338,7 @@ def _build_pdf_report(project, current_user, db):
             "Uygun Değil": colors.HexColor("#FEF2F2"),
         }
         for idx, m in enumerate(equipment, start=1):
-            karar = makine_uygunluk(m, tork, project.kazik_boyu, project.kazik_capi, c_zorunlu)
+            karar = makine_uygunluk(_equipment_to_dict(m), tork, project.kazik_boyu, project.kazik_capi, c_zorunlu, project.is_tipi, layer_dicts, yas)["karar"]
             eq_style.append(("BACKGROUND", (5, idx), (5, idx), karar_colors.get(karar, colors.white)))
         eq_table.setStyle(TableStyle(eq_style))
         content.append(eq_table)

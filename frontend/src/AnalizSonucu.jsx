@@ -5,6 +5,7 @@ import {
   gerekliTork, gerekliTorkAralik, stabiliteRiski, casingDurum, casingMetreHesapla,
   kazikSuresi, mazotTahmini, kritikKatman, makinaUygunluk,
   katmanTeknikCikti, operasyonOnerisi,
+  tamCevrimSuresi, guvenAnalizi, aciklamaUret,
 } from "./hesaplamalar"
 
 // ── Kart bileşeni ───────────────────────────────────────
@@ -236,20 +237,25 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
   // useMemo: zemin veya proje değişmediğinde hesaplamalar yeniden yapılmaz
   const analiz = useMemo(() => {
     if (!zemin.length) return null
-    const torkAralik = gerekliTorkAralik(zemin, proje.kazikCapi, proje.isTipi)
+    const torkAralik = gerekliTorkAralik(zemin, proje.kazikCapi, proje.isTipi, proje.yeraltiSuyu)
     const tork = torkAralik.nominal
     const { durum: casingDur, gerekce, zorunlu } = casingDurum(zemin, proje.yeraltiSuyu)
     const casingM = casingMetreHesapla(zemin, proje.yeraltiSuyu)
     const sure = kazikSuresi(zemin, proje.kazikCapi, proje.kazikBoyu, casingM)
+    const cevrim = tamCevrimSuresi(zemin, proje.kazikCapi, proje.kazikBoyu, casingM, proje.isTipi)
+    const guven = guvenAnalizi(zemin, proje.yeraltiSuyu, proje.kazikBoyu)
     const { mBasi, toplam: topMazot } = mazotTahmini(tork, proje.kazikBoyu)
     const kritik = kritikKatman(zemin)
-    const gunlukUretim = Math.max(1, Math.round(10 / sure))
-    // Total working days = (rig hrs/pile × pile count) / 10 hrs per workday
-    const toplamGun = Math.round((sure * proje.kazikAdedi / 10) * 10) / 10
+    const gunlukUretim = cevrim.gunlukUretimAdet
+    const toplamGun = Math.round((cevrim.tToplamCevrim * proje.kazikAdedi / 9.0) * 10) / 10
     const ucOneri = zemin.some(r => ["Kumtaşı", "Kireçtaşı", "Sert Kaya"].includes(r.zemTipi) || r.ucs >= 25)
       ? "Kaya ucu gerekli" : zemin.some(r => r.zemTipi === "Ayrışmış Kaya" || r.ucs >= 10)
       ? "Geçiş tipi uç" : "Standart uç yeterli"
-    const makineUygunluklari = makineler.map(m => ({ ...m, ...makinaUygunluk(m, tork, proje.kazikBoyu, proje.kazikCapi, zorunlu, proje.isTipi) }))
+    const makineUygunluklari = makineler.map(m => {
+      const uyg = makinaUygunluk(m, tork, proje.kazikBoyu, proje.kazikCapi, zorunlu, proje.isTipi, zemin, proje.yeraltiSuyu)
+      const aciklama = aciklamaUret(m.ad, uyg.karar, uyg.torkOran, kritik, guven, proje.isTipi, zemin, proje.yeraltiSuyu)
+      return { ...m, ...uyg, aciklama }
+    })
     // Stabilite skoru — bir kez hesapla
     const stabiliteSkor = zemin.length > 0
       ? Math.round(zemin.reduce((s, r) => {
@@ -258,16 +264,16 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
         }, 0) / zemin.length)
       : 0
     // Sistem Kararı — en uygun makineyi belirle
-    const uygunMakineler = makineUygunluklari.filter(m => m.karar === "Uygun")
-    const riskliMakineler = makineUygunluklari.filter(m => m.karar === "Riskli" || m.karar === "Şartlı Uygun")
+    const uygunMakineler = makineUygunluklari.filter(m => m.karar === "Uygun" || m.karar === "Rahat Uygun")
+    const sinirdaMakineler = makineUygunluklari.filter(m => m.karar === "Şartlı Uygun" || m.karar === "Sınırda")
     const sistemKarari = uygunMakineler.length > 0
       ? { makine: uygunMakineler.reduce((best, m) => m.tork < best.tork ? m : best, uygunMakineler[0]), durum: "Uygun", renk: "#16A34A", bg: "#F0FDF4" }
-      : riskliMakineler.length > 0
-      ? { makine: riskliMakineler[0], durum: riskliMakineler[0].karar, renk: "#D97706", bg: "#FFFBEB" }
+      : sinirdaMakineler.length > 0
+      ? { makine: sinirdaMakineler[0], durum: sinirdaMakineler[0].karar, renk: "#D97706", bg: "#FFFBEB" }
       : { makine: null, durum: "Uygun makine yok", renk: "#DC2626", bg: "#FEF2F2" }
     const katmanCiktilar = katmanTeknikCikti(zemin, proje.kazikCapi)
     const opOneri = operasyonOnerisi(zemin, proje.yeraltiSuyu)
-    return { tork, torkAralik, casingDur, gerekce, zorunlu, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri }
+    return { tork, torkAralik, casingDur, gerekce, zorunlu, casingM, sure, cevrim, guven, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri }
   }, [zemin, proje, makineler])
 
   if (!zemin.length) {
@@ -291,7 +297,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     )
   }
 
-  const { tork, torkAralik, casingDur, gerekce, casingM, sure, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri } = analiz
+  const { tork, torkAralik, casingDur, gerekce, casingM, sure, cevrim, guven, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri } = analiz
 
   return (
     <div>
@@ -410,10 +416,38 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
         </div>
       </div>
 
+      {/* Güven Bandı */}
+      {guven && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap",
+          background: guven.seviye === "YÜKSEK" ? "#F0FDF4" : guven.seviye === "ORTA" ? "#FFFBEB" : "#FEF2F2",
+          border: `1px solid ${guven.seviye === "YÜKSEK" ? "#BBF7D0" : guven.seviye === "ORTA" ? "#FDE68A" : "#FECACA"}`,
+          borderRadius: "10px", padding: "12px 18px", marginBottom: "16px",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "18px" }}>{guven.seviye === "YÜKSEK" ? "🟢" : guven.seviye === "ORTA" ? "🟡" : "🔴"}</span>
+            <span style={{ fontWeight: "700", fontSize: "13px", color: guven.seviye === "YÜKSEK" ? "#15803D" : guven.seviye === "ORTA" ? "#92400E" : "#991B1B" }}>
+              Güven: {guven.seviye} ({guven.puan}/100)
+            </span>
+          </div>
+          <span style={{ fontSize: "12px", color: "#475569" }}>Sınıf {guven.sinif} —</span>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            {guven.kaynaklar.map((k, i) => (
+              <span key={i} style={{ padding: "2px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "600", background: "#E0F2FE", color: "#0369A1" }}>{k}</span>
+            ))}
+          </div>
+          {torkAralik?.uyarilar?.length > 0 && (
+            <div style={{ width: "100%", marginTop: "6px", fontSize: "12px", color: "#92400E", fontStyle: "italic" }}>
+              {torkAralik.uyarilar.join(" · ")}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Metrik kartlar */}
       <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "16px", marginBottom: "24px"}}>
         <MetrikKart baslik="Gerekli Min. Tork" deger={`${tork} kNm`} renk="#0284C7"
-          alt={tork < 100 ? "Hafif zemin" : tork < 200 ? "Orta zorluk" : "Agir zemin"}
+          alt={`Bant: ${torkAralik?.min}–${torkAralik?.max} kNm`}
           oran={Math.min(100, (tork / 300) * 100)} />
         <MetrikKart baslik="Muhafaza Borusu" deger={casingDur} renk="#6366F1" alt={`${casingM} m tahmini`}
           oran={(casingM / proje.kazikBoyu) * 100} />
@@ -429,6 +463,41 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
           oran={stabiliteSkor}
         />
       </div>
+
+      {/* Tam Çevrim Süresi Kartı */}
+      {cevrim && (
+        <div style={{ background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--input-border)", padding: "20px 24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", marginBottom: "20px" }}>
+          <h3 style={{ fontSize: "14px", fontWeight: "700", color: "var(--heading)", marginBottom: "14px", paddingBottom: "10px", borderBottom: "2px solid var(--border-subtle)" }}>
+            ⏱ Tam Çevrim Süresi Dökümü (1 Kazık)
+          </h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px" }}>
+            {[
+              { label: "Delme", val: cevrim.tDelme, unit: "saat", renk: "#0284C7" },
+              { label: "Beton", val: cevrim.tBeton, unit: "saat", renk: "#6366F1" },
+              { label: "Donatı Kafesi", val: cevrim.tDonati, unit: "saat", renk: "#0891B2" },
+              { label: "Casing Ops.", val: cevrim.tCasingOps, unit: "saat", renk: "#7C3AED" },
+              { label: "Lojistik", val: Math.round((cevrim.tKurulum + cevrim.tRekonumlama) * 10) / 10, unit: "saat", renk: "#64748B" },
+              { label: "Beklenmedik", val: cevrim.tBeklenmedik, unit: "saat", renk: "#D97706" },
+            ].map(({ label, val, unit, renk }) => (
+              <div key={label} style={{ background: "#F8FAFC", borderRadius: "8px", padding: "10px 14px", borderLeft: `3px solid ${renk}` }}>
+                <div style={{ fontSize: "11px", color: "#64748B", fontWeight: "600", marginBottom: "4px" }}>{label}</div>
+                <div style={{ fontSize: "16px", fontWeight: "700", color: "#0C4A6E" }}>{val} <span style={{ fontSize: "11px", color: "#94A3B8" }}>{unit}</span></div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid var(--border-subtle)", display: "flex", gap: "24px", flexWrap: "wrap" }}>
+            <div style={{ fontSize: "13px", color: "#475569" }}>
+              <span style={{ fontWeight: "700", color: "#0C4A6E" }}>Toplam: {cevrim.tToplamCevrim} saat/kazık</span>
+            </div>
+            <div style={{ fontSize: "13px", color: "#475569" }}>
+              Günlük üretim: <span style={{ fontWeight: "700", color: "#0C4A6E" }}>~{gunlukUretim} kazık/gün</span>
+            </div>
+            <div style={{ fontSize: "13px", color: "#475569" }}>
+              Tahmini toplam: <span style={{ fontWeight: "700", color: "#0C4A6E" }}>{toplamGun} gün</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* İki kolon */}
       <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "20px", marginBottom: "20px"}}>
@@ -555,7 +624,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
             : opOneri.ucDegisimler.map((u, i) => (
               <div key={i} style={{ padding: "8px 12px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: "8px", marginBottom: "8px" }}>
                 <div style={{ fontSize: "13px", fontWeight: "700", color: "#92400E" }}>{u.derinlik} m derinliğinde</div>
-                <div style={{ fontSize: "12px", color: "#78350F" }}>{u.eskiUc} → {u.yeniUc} · {u.zemin}</div>
+                <div style={{ fontSize: "12px", color: "#78350F" }}>{u.eskiUc} → {u.yeniUc}</div>
               </div>
             ))}
         </div>
@@ -567,7 +636,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
             ? <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>Tanımlanmış kritik derinlik bulunmuyor.</p>
             : opOneri.kritikDerinlikler.map((k, i) => (
               <div key={i} style={{ padding: "8px 12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: "8px", marginBottom: "8px" }}>
-                <div style={{ fontSize: "13px", fontWeight: "700", color: "#991B1B" }}>{k.baslangic}–{k.bitis} m · {k.zemin}</div>
+                <div style={{ fontSize: "13px", fontWeight: "700", color: "#991B1B" }}>{k.baslangic}–{k.bitis} m · {k.zemTipi}</div>
                 <div style={{ fontSize: "12px", color: "#7F1D1D" }}>{k.neden}</div>
               </div>
             ))}
@@ -580,8 +649,8 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
             ? <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>Yüksek riskli zon tespit edilmedi.</p>
             : opOneri.riskliZonlar.map((r, i) => (
               <div key={i} style={{ padding: "8px 12px", background: r.risk === "Yüksek" ? "#FEF2F2" : "#FFFBEB", border: `1px solid ${r.risk === "Yüksek" ? "#FECACA" : "#FDE68A"}`, borderRadius: "8px", marginBottom: "8px" }}>
-                <div style={{ fontSize: "13px", fontWeight: "700", color: r.risk === "Yüksek" ? "#991B1B" : "#92400E" }}>{r.baslangic}–{r.bitis} m · {r.zemin}</div>
-                <div style={{ fontSize: "12px", color: r.risk === "Yüksek" ? "#7F1D1D" : "#78350F" }}>{r.neden} · Risk: {r.risk}</div>
+                <div style={{ fontSize: "13px", fontWeight: "700", color: r.risk === "Yüksek" ? "#991B1B" : "#92400E" }}>{r.derinlik}–{r.bitis} m · {r.zemTipi}</div>
+                <div style={{ fontSize: "12px", color: r.risk === "Yüksek" ? "#7F1D1D" : "#78350F" }}>Risk: {r.risk}</div>
               </div>
             ))}
         </div>
@@ -633,7 +702,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
             <table className="data-table" style={{width: "100%", borderCollapse: "collapse"}}>
               <thead>
                 <tr style={{background: "var(--badge-muted-bg)", borderBottom: "2px solid var(--input-border)"}}>
-                  {["Makine", "Marka", "Tork (kNm)", "Max Derinlik", "Max Çap", "Casing", "Karar", "Gerekçe"].map(h => (
+                  {["Makine", "Marka", "Tork (kNm)", "Max Derinlik", "Max Çap", "Casing", "Karar", "Gerekçe", "Mühendis Notu"].map(h => (
                     <th key={h} style={{padding: "10px 14px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#64748B", whiteSpace: "nowrap"}}>{h}</th>
                   ))}
                 </tr>
@@ -653,6 +722,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
                       </span>
                     </td>
                     <td style={{padding: "10px 14px", fontSize: "12px", color: "#64748B"}}>{m.gerekce}</td>
+                    <td style={{padding: "10px 14px", fontSize: "12px", color: "#475569", maxWidth: "260px", lineHeight: "1.5"}}>{m.aciklama}</td>
                   </tr>
                 ))}
               </tbody>
