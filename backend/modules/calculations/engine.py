@@ -15,12 +15,70 @@ from configs.geotech_coefficients import KATSAYILAR
 
 # ─── Soil Classification ──────────────────────────────────────────────────────
 
-def zemin_sinifi(zem_tipi: str) -> str:
-    if zem_tipi in ("Kil", "Silt"):
+import re as _re
+
+_STANDART = {
+    "Dolgu", "Kil", "Silt", "Kum", "Çakıl",
+    "Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya",
+}
+
+# Rock compound nouns — checked before soil keywords
+_KAYA_ANAHTAR = [
+    (_re.compile(r"sert\s*kaya|granit|bazalt|diyabaz|gnays|mermer|kuvarsit|riyolit|andezit|gabro", _re.I), "Sert Kaya"),
+    (_re.compile(r"kireçtaşı|kalker|kalkerli|fosilli\s*k|nümmülit|mikritik\s*k|biyoklastik|rudist", _re.I), "Kireçtaşı"),
+    (_re.compile(r"kumtaşı|grovak|arenit|çakıltaşı|konglomera|brekş", _re.I), "Kumtaşı"),
+    (_re.compile(r"ayrışmış\s*kaya|bozuşmuş\s*kaya", _re.I), "Ayrışmış Kaya"),
+]
+
+_ZEMIN_ANAHTAR = [
+    (_re.compile(r"dolgu|moloz|yapay", _re.I), "Dolgu"),
+    (_re.compile(r"çakıl", _re.I), "Çakıl"),
+    (_re.compile(r"kum", _re.I), "Kum"),
+    (_re.compile(r"silt", _re.I), "Silt"),
+    (_re.compile(r"kil", _re.I), "Kil"),
+]
+
+
+def zemin_hesap_tipi(zem_tipi: str, kohezyon: str = "") -> str:
+    """Maps any free-text geological description to one of the 9 standard calculation types.
+    Mirror of hesaplamalar.js::zeminHesapTipi — keep in sync.
+    """
+    if not zem_tipi:
+        return "Kum"
+    s = zem_tipi.strip()
+    if s in _STANDART:
+        return s
+    for pattern, tip in _KAYA_ANAHTAR:
+        if pattern.search(s):
+            return tip
+    # For mixed soil names, last keyword wins (dominant fraction in Turkish convention)
+    last_tip, last_idx = None, -1
+    for pattern, tip in _ZEMIN_ANAHTAR:
+        m = pattern.search(s)
+        if m and m.start() > last_idx:
+            last_idx = m.start()
+            last_tip = tip
+    if last_tip:
+        return last_tip
+    # Fallback: kohezyon-based (only when cohesion class is explicitly known)
+    if kohezyon == "Kohezyonlu":
+        return "Kil"
+    if kohezyon == "Kaya":
+        return "Ayrışmış Kaya"
+    if kohezyon == "Kohezyonsuz":
+        return "Kum"
+    return None  # truly unknown — callers use their own defaults
+
+
+def zemin_sinifi(zem_tipi: str, kohezyon: str = "") -> str:
+    tip = zemin_hesap_tipi(zem_tipi, kohezyon)
+    if not tip:
+        return "belirsiz"
+    if tip in ("Kil", "Silt"):
         return "kohezyonlu"
-    if zem_tipi in ("Kum", "Çakıl", "Dolgu"):
+    if tip in ("Kum", "Çakıl", "Dolgu"):
         return "granüler"
-    if zem_tipi in ("Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya"):
+    if tip in ("Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya"):
         return "kaya"
     return "belirsiz"
 
@@ -40,14 +98,15 @@ def stabilite_riski(tip: str, kohezyon: str, spt: float, yas: float, baslangic: 
     Per-layer stability risk classification.
     Source: EN 1536:2010 §5, FHWA GEC 10 §4
     """
-    C = KATSAYILAR.stabilite
-    if tip in ("Kum", "Çakıl"):
+    C         = KATSAYILAR.stabilite
+    hesap_tip = zemin_hesap_tipi(tip, kohezyon)
+    if hesap_tip in ("Kum", "Çakıl"):
         return "Yüksek" if (yas > 0 and baslangic >= yas) else "Orta"
     if kohezyon == "Kohezyonsuz" and spt <= C.cok_gevsek_spt:
         return "Yüksek"
     if kohezyon == "Kohezyonsuz" and spt <= C.orta_spt:
         return "Orta"
-    if tip == "Dolgu":
+    if hesap_tip == "Dolgu":
         return "Orta"
     return "Düşük"
 
@@ -71,7 +130,8 @@ def casing_durum(layers: list, yas: float) -> dict:
         koh = row.get("kohezyon", "")
         bas = float(row.get("baslangic", 0))
 
-        if zem in ("Kum", "Çakıl") and k > C.kum_cakil_min_kalinlik:
+        hesap_tip = zemin_hesap_tipi(zem, koh)
+        if hesap_tip in ("Kum", "Çakıl") and k > C.kum_cakil_min_kalinlik:
             zorunlu = True
             gerekce.append(f"{zem} ({bas}–{row['bitis']} m, {k} m) — EN 1536 §5 gereği")
         if koh == "Kohezyonsuz" and yas > 0 and bas >= yas:
@@ -80,7 +140,7 @@ def casing_durum(layers: list, yas: float) -> dict:
         if spt < C.cok_gevsek_spt and koh == "Kohezyonsuz":
             zorunlu = True
             gerekce.append(f"SPT={spt}<{C.cok_gevsek_spt} ({bas}–{row['bitis']} m) — çok gevşek")
-        if zem == "Dolgu" and k > C.dolgu_sartli_kalinlik:
+        if hesap_tip == "Dolgu" and k > C.dolgu_sartli_kalinlik:
             sartli = True
             gerekce.append(f"Dolgu ({bas}–{row['bitis']} m, {k} m) — kalın dolgu, önerilir")
 
@@ -106,11 +166,12 @@ def casing_metre(layers: list, yas: float) -> float:
 
 # ─── Rate of Penetration ─────────────────────────────────────────────────────
 
-def rop_hesapla(tip: str, ucs: float, cap_mm: float) -> float:
+def rop_hesapla(tip: str, ucs: float, cap_mm: float, kohezyon: str = "") -> float:
     """Estimated penetration rate (m/hr). Class C."""
-    R = KATSAYILAR.rop
-    cap_m = cap_mm / 1000
-    baz = R.baz.get(tip, R.varsayilan)
+    R         = KATSAYILAR.rop
+    cap_m     = cap_mm / 1000
+    hesap_tip = zemin_hesap_tipi(tip, kohezyon)
+    baz       = R.baz.get(hesap_tip, R.varsayilan)
     if ucs > 0:
         baz *= max(R.ucs_azaltma_min, 1 - (ucs / 100) * R.ucs_azaltma_katsayi)
     baz *= max(R.cap_azaltma_min, 1 - (cap_m - R.referans_cap_m) * R.cap_azaltma_katsayi)
@@ -146,13 +207,15 @@ def gerekli_tork_aralik(layers: list, cap_mm: float, is_tipi: str = "Fore Kazık
         spt = float(row.get("spt") or 0)
         ucs = float(row.get("ucs") or 0)
         rqd = float(row.get("rqd") or 0)
-        zem = row.get("zem_tipi", "")
-        sinif = zemin_sinifi(zem)
-        gs = guven_sinifi(row)
+        zem       = row.get("zem_tipi", "")
+        koh       = row.get("kohezyon", "")
+        hesap_tip = zemin_hesap_tipi(zem, koh)
+        sinif     = zemin_sinifi(zem, koh)
+        gs        = guven_sinifi(row)
         guven_siniflari.append(gs["sinif"])
 
         # For rock types with no measured UCS, use type-specific default UCS
-        ucs_etkili = ucs if ucs > 0 else (K.kaya_ucs_varsayilan.get(zem, 10.0) if sinif == "kaya" else 0.0)
+        ucs_etkili = ucs if ucs > 0 else (K.kaya_ucs_varsayilan.get(hesap_tip, 10.0) if sinif == "kaya" else 0.0)
 
         if ucs_etkili > 0 and sinif == "kaya":
             varsayilan_mi = ucs == 0
@@ -215,14 +278,16 @@ def kazik_suresi(layers: list, cap_mm: float, kazik_boyu: float, casing_m: float
     onceki_tip = None
 
     for row in layers:
-        k = float(row.get("bitis", 0)) - float(row.get("baslangic", 0))
-        sure += k / rop_hesapla(row.get("zem_tipi", ""), float(row.get("ucs") or 0), cap_mm)
+        k         = float(row.get("bitis", 0)) - float(row.get("baslangic", 0))
+        koh_row   = row.get("kohezyon", "")
+        hesap_tip = zemin_hesap_tipi(row.get("zem_tipi", ""), koh_row)
+        sure += k / rop_hesapla(row.get("zem_tipi", ""), float(row.get("ucs") or 0), cap_mm, koh_row)
         kaya_tipleri = ("Kumtaşı", "Kireçtaşı", "Sert Kaya", "Ayrışmış Kaya")
         # Only count tool change on soil→rock transition, not rock-start or rock→rock
-        if row.get("zem_tipi") in kaya_tipleri \
+        if hesap_tip in kaya_tipleri \
                 and onceki_tip is not None and onceki_tip not in kaya_tipleri:
             uc_deg += 1
-        onceki_tip = row.get("zem_tipi")
+        onceki_tip = hesap_tip
 
     sure += uc_deg * S.alet_degisim_saat
     sure += casing_m * S.casing_saat_m

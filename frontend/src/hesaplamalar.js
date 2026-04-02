@@ -140,10 +140,76 @@ export const KATSAYILAR = {
 
 // ─── Soil Classification ──────────────────────────────────────────────────────
 
-export function zeminSinifi(zemTipi) {
-  if (["Kil", "Silt"].includes(zemTipi))                                          return "kohezyonlu"
-  if (["Kum", "Çakıl", "Dolgu"].includes(zemTipi))                               return "granüler"
-  if (["Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya"].includes(zemTipi)) return "kaya"
+const STANDART_TIPLER = [
+  "Dolgu", "Kil", "Silt", "Kum", "Çakıl",
+  "Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya",
+]
+
+// Keyword → standard calculation type mapping.
+// Rules:
+//   1. Rock compound nouns checked before simple soil words (e.g. "kumtaşı" before "kum")
+//   2. For mixed soil descriptions (killi siltli kum), the LAST detected keyword wins
+//      because Turkish geotechnical convention lists dominant fraction last.
+//   3. kohezyon fallback used when no keyword found.
+const KAYA_ANAHTAR = [
+  { r: /sert\s*kaya|granit|bazalt|diyabaz|gnays|mermer|kuvarsit|riyolit|andezit|gabro/i, tip: "Sert Kaya" },
+  { r: /kireçtaşı|kalker|kalkerli|fosilli\s*k|nümmülit|mikritik\s*k|biyoklastik|rudist/i, tip: "Kireçtaşı" },
+  { r: /kumtaşı|grovak|arenit|çakıltaşı|konglomera|brekş/i, tip: "Kumtaşı" },
+  { r: /ayrışmış\s*kaya|bozuşmuş\s*kaya/i, tip: "Ayrışmış Kaya" },
+]
+const ZEMIN_ANAHTAR = [
+  { r: /dolgu|moloz|yapay/i, tip: "Dolgu" },
+  { r: /çakıl/i, tip: "Çakıl" },
+  { r: /kum/i, tip: "Kum" },
+  { r: /silt/i, tip: "Silt" },
+  { r: /kil/i, tip: "Kil" },
+]
+
+/**
+ * Returns the standard calculation type for any free-text geological description.
+ * - Exact standard type → returns it directly
+ * - Rock keywords matched first (compound words before simple)
+ * - Soil keywords: last match wins (dominant fraction in Turkish convention)
+ * - Falls back to kohezyon if no keyword detected
+ */
+export function zeminHesapTipi(zemTipi, kohezyon) {
+  if (!zemTipi) return "Kum"
+  const s = zemTipi.trim()
+
+  // Exact standard type — fast path
+  if (STANDART_TIPLER.includes(s)) return s
+
+  const lower = s.toLowerCase()
+
+  // Rock compound nouns take priority (check before soil words)
+  for (const { r, tip } of KAYA_ANAHTAR) {
+    if (r.test(lower)) return tip
+  }
+
+  // For soil keywords, scan the string and keep the last match
+  let lastTip = null
+  let lastIdx = -1
+  for (const { r, tip } of ZEMIN_ANAHTAR) {
+    const m = lower.search(r)
+    if (m !== -1 && m > lastIdx) { lastIdx = m; lastTip = tip }
+  }
+  if (lastTip) return lastTip
+
+  // Fallback: kohezyon-based (only when cohesion class is explicitly known)
+  if (kohezyon === "Kohezyonlu") return "Kil"
+  if (kohezyon === "Kaya")       return "Ayrışmış Kaya"
+  if (kohezyon === "Kohezyonsuz") return "Kum"
+
+  // Truly unknown — callers handle with their own defaults
+  return null
+}
+
+export function zeminSinifi(zemTipi, kohezyon) {
+  const tip = zeminHesapTipi(zemTipi, kohezyon)
+  if (!tip)                                                                    return "belirsiz"
+  if (["Kil", "Silt"].includes(tip))                                          return "kohezyonlu"
+  if (["Kum", "Çakıl", "Dolgu"].includes(tip))                               return "granüler"
+  if (["Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya"].includes(tip)) return "kaya"
   return "belirsiz"
 }
 
@@ -191,13 +257,14 @@ export function gerekliTorkAralik(zemin, capMm, isTipi = "Fore Kazık") {
     const spt = parseFloat(row.spt) || 0
     const ucs = parseFloat(row.ucs) || 0
     const rqd = parseFloat(row.rqd) || 0
-    const sinif = zeminSinifi(row.zemTipi)
+    const hesapTip = zeminHesapTipi(row.zemTipi, row.kohezyon)
+    const sinif = zeminSinifi(row.zemTipi, row.kohezyon)
     guvenSiniflari.push(guvenSinifi(row).sinif)
 
     // For rock types with no measured UCS, use type-specific default UCS
     // to prevent fall-through to soil formula (which gives nonsensically low torque).
     const ucsEtkili = ucs > 0 ? ucs
-      : (sinif === "kaya" ? (K.kaya_ucs_varsayilan[row.zemTipi] || 10) : 0)
+      : (sinif === "kaya" ? (K.kaya_ucs_varsayilan[hesapTip] || 10) : 0)
 
     let tau, tauIz
     if (ucsEtkili > 0 && sinif === "kaya") {
@@ -255,12 +322,13 @@ export function gerekliTork(zemin, capMm) {
  * Source: EN 1536:2010 §5, FHWA GEC 10 §4
  */
 export function stabiliteRiski(tip, kohezyon, spt, yas, baslangic = 0) {
-  const C = KATSAYILAR.stabilite
-  if (["Kum", "Çakıl"].includes(tip))
+  const C        = KATSAYILAR.stabilite
+  const hesapTip = zeminHesapTipi(tip, kohezyon)
+  if (["Kum", "Çakıl"].includes(hesapTip))
     return (yas > 0 && baslangic >= yas) ? "Yüksek" : "Orta"
   if (kohezyon === "Kohezyonsuz" && spt <= C.cok_gevsek_spt) return "Yüksek"
   if (kohezyon === "Kohezyonsuz" && spt <= C.orta_spt)       return "Orta"
-  if (tip === "Dolgu")                                        return "Orta"
+  if (hesapTip === "Dolgu")                                   return "Orta"
   return "Düşük"
 }
 
@@ -276,10 +344,11 @@ export function casingDurum(zemin, yas) {
   let zorunlu = false, sartli = false
 
   for (const row of zemin) {
-    const spt = parseFloat(row.spt) || 0
-    const k   = row.bitis - row.baslangic
+    const spt      = parseFloat(row.spt) || 0
+    const k        = row.bitis - row.baslangic
+    const hesapTip = zeminHesapTipi(row.zemTipi, row.kohezyon)
 
-    if (["Kum", "Çakıl"].includes(row.zemTipi) && k > C.kum_cakil_min_kalinlik) {
+    if (["Kum", "Çakıl"].includes(hesapTip) && k > C.kum_cakil_min_kalinlik) {
       zorunlu = true
       gerekce.push(`${row.zemTipi} (${row.baslangic}–${row.bitis} m, ${k} m) — EN 1536 §5 gereği`)
     }
@@ -291,7 +360,7 @@ export function casingDurum(zemin, yas) {
       zorunlu = true
       gerekce.push(`SPT=${spt}<${C.cok_gevsek_spt} (${row.baslangic}–${row.bitis} m) — çok gevşek`)
     }
-    if (row.zemTipi === "Dolgu" && k > C.dolgu_sartli_kalinlik) {
+    if (hesapTip === "Dolgu" && k > C.dolgu_sartli_kalinlik) {
       sartli = true
       gerekce.push(`Dolgu (${row.baslangic}–${row.bitis} m, ${k} m) — kalın dolgu, önerilir`)
     }
@@ -319,10 +388,11 @@ export function casingMetreHesapla(zemin, yas) {
  * Estimated penetration rate (m/hr). Class C.
  * Source: FHWA GEC 10 §7 + industry generalisation.
  */
-export function ropHesapla(tip, ucs, capMm) {
-  const R    = KATSAYILAR.rop
-  const capM = capMm / 1000
-  let baz    = R.baz[tip] ?? R.baz.varsayilan
+export function ropHesapla(tip, ucs, capMm, kohezyon = null) {
+  const R        = KATSAYILAR.rop
+  const capM     = capMm / 1000
+  const hesapTip = zeminHesapTipi(tip, kohezyon)
+  let baz        = R.baz[hesapTip] ?? R.baz.varsayilan
   if (ucs > 0)
     baz *= Math.max(R.ucs_azaltma_min, 1 - (ucs / 100) * R.ucs_azaltma_katsayi)
   baz *= Math.max(R.cap_azaltma_min, 1 - (capM - R.referans_cap_m) * R.cap_azaltma_katsayi)
@@ -345,12 +415,13 @@ export function kazikSuresi(zemin, capMm, kazikBoyu, casingM) {
   let oncekiTip = null
 
   for (const row of zemin) {
-    const k = row.bitis - row.baslangic
-    sure += k / ropHesapla(row.zemTipi, row.ucs, capMm)
+    const k        = row.bitis - row.baslangic
+    const hesapTip = zeminHesapTipi(row.zemTipi, row.kohezyon)
+    sure += k / ropHesapla(row.zemTipi, row.ucs, capMm, row.kohezyon)
     const KAYA_TIPLERI = ["Kumtaşı", "Kireçtaşı", "Sert Kaya", "Ayrışmış Kaya"]
     // Count tool change only on soil→rock transition, not on rock-start or rock→rock
-    if (KAYA_TIPLERI.includes(row.zemTipi) && oncekiTip !== null && !KAYA_TIPLERI.includes(oncekiTip)) ucDeg++
-    oncekiTip = row.zemTipi
+    if (KAYA_TIPLERI.includes(hesapTip) && oncekiTip !== null && !KAYA_TIPLERI.includes(oncekiTip)) ucDeg++
+    oncekiTip = hesapTip
   }
 
   sure += ucDeg * S.alet_degisim_saat
