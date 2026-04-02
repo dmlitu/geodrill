@@ -420,19 +420,18 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
       {guven && (
         <div style={{
           display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap",
-          background: guven.seviye === "YÜKSEK" ? "#F0FDF4" : guven.seviye === "ORTA" ? "#FFFBEB" : "#FEF2F2",
-          border: `1px solid ${guven.seviye === "YÜKSEK" ? "#BBF7D0" : guven.seviye === "ORTA" ? "#FDE68A" : "#FECACA"}`,
+          background: guven.seviye === "HIGH" ? "#F0FDF4" : guven.seviye === "MEDIUM" ? "#FFFBEB" : "#FEF2F2",
+          border: `1px solid ${guven.seviye === "HIGH" ? "#BBF7D0" : guven.seviye === "MEDIUM" ? "#FDE68A" : "#FECACA"}`,
           borderRadius: "10px", padding: "12px 18px", marginBottom: "16px",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontSize: "18px" }}>{guven.seviye === "YÜKSEK" ? "🟢" : guven.seviye === "ORTA" ? "🟡" : "🔴"}</span>
-            <span style={{ fontWeight: "700", fontSize: "13px", color: guven.seviye === "YÜKSEK" ? "#15803D" : guven.seviye === "ORTA" ? "#92400E" : "#991B1B" }}>
-              Güven: {guven.seviye} ({guven.puan}/100)
+            <span style={{ fontSize: "18px" }}>{guven.seviye === "HIGH" ? "🟢" : guven.seviye === "MEDIUM" ? "🟡" : "🔴"}</span>
+            <span style={{ fontWeight: "700", fontSize: "13px", color: guven.seviye === "HIGH" ? "#15803D" : guven.seviye === "MEDIUM" ? "#92400E" : "#991B1B" }}>
+              Hesap Güveni: {guven.seviye === "HIGH" ? "Yüksek" : guven.seviye === "MEDIUM" ? "Orta" : "Düşük"} ({guven.puan}/100)
             </span>
           </div>
-          <span style={{ fontSize: "12px", color: "#475569" }}>Sınıf {guven.sinif} —</span>
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            {guven.kaynaklar.map((k, i) => (
+            {(guven.sebepler || []).slice(0, 3).map((k, i) => (
               <span key={i} style={{ padding: "2px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "600", background: "#E0F2FE", color: "#0369A1" }}>{k}</span>
             ))}
           </div>
