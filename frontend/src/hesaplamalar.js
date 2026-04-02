@@ -1240,39 +1240,31 @@ export function operasyonOnerisi(zemin, yas) {
 /**
  * Bileşen bazlı maliyet tahmini. Sınıf C — saha ve market verileriyle kalibre edin.
  */
-export function fiyatAnalizi(tork, kazikBoyu, kazikCapi, kazikAdedi, makineTork) {
-  const capM = kazikCapi / 1000
-  const alanM2 = Math.PI * Math.pow(capM / 2, 2)
+/**
+ * Proje maliyet tahmini — kullanıcı parametrelerine göre hesaplanır.
+ * @param {object} parametreler - { mazotFiyati, makineKirasi, iscilikSaat, sarfMalzeme, karPayiYuzde }
+ * @param {object} proje        - { kazikBoyu, kazikAdedi }
+ * @param {number} mBasi        - Metre başı mazot (L/m) — mazotTahmini() çıktısı
+ * @param {number} topMazot     - Tek kazık toplam mazot (L)
+ * @param {number} sure         - Tek kazık delgi süresi (saat)
+ * @returns {{ mazotMaliyeti, amortismanMaliyeti, iscilikMaliyeti, sarfMalzemeMaliyeti,
+ *             altToplam, karPayi, toplam, kazikBasi, metreBasi }}
+ */
+export function fiyatAnalizi(parametreler, proje, mBasi, topMazot, sure) {
+  const { mazotFiyati = 45, makineKirasi = 800, iscilikSaat = 200, sarfMalzeme = 150, karPayiYuzde = 20 } = parametreler || {}
+  const kazikBoyu  = Number(proje?.kazikBoyu)  || 0
+  const kazikAdedi = Number(proje?.kazikAdedi) || 1
 
-  const birimFiyatlar = {
-    beton:   4500,   // TL/m³
-    donati:  180,    // TL/kg
-    delgi:   tork < 150 ? 800 : tork < 300 ? 1200 : 1800,  // TL/m (tork bantlı)
-    casing:  400,    // TL/m
-    mobilizasyon: 80000,
-  }
+  const mazotMaliyeti      = Math.round(mBasi * kazikBoyu * kazikAdedi * mazotFiyati)
+  const amortismanMaliyeti = Math.round(sure  * kazikAdedi * makineKirasi)
+  const iscilikMaliyeti    = Math.round(sure  * kazikAdedi * iscilikSaat)
+  const sarfMalzemeMaliyeti = Math.round(kazikBoyu * kazikAdedi * sarfMalzeme)
 
-  const betonHacmi = alanM2 * kazikBoyu * 1.10  // 10% israf payı
-  const donatiKg   = alanM2 * kazikBoyu * 120    // 120 kg/m³ tipik donatı yoğunluğu
+  const altToplam = mazotMaliyeti + amortismanMaliyeti + iscilikMaliyeti + sarfMalzemeMaliyeti
+  const karPayi   = Math.round(altToplam * karPayiYuzde / 100)
+  const toplam    = altToplam + karPayi
+  const kazikBasi = kazikAdedi > 0 ? Math.round(toplam / kazikAdedi) : 0
+  const metreBasi = kazikAdedi > 0 && kazikBoyu > 0 ? Math.round(toplam / (kazikBoyu * kazikAdedi)) : 0
 
-  const birinciKazik = {
-    delgi:   kazikBoyu * birimFiyatlar.delgi,
-    beton:   betonHacmi * birimFiyatlar.beton,
-    donati:  donatiKg  * birimFiyatlar.donati,
-  }
-
-  const toplamBirim = Object.values(birinciKazik).reduce((a, b) => a + b, 0)
-  const toplamProje = toplamBirim * kazikAdedi + birimFiyatlar.mobilizasyon
-
-  return {
-    birimFiyatlar,
-    betonHacmi:   Math.round(betonHacmi * 10) / 10,
-    donatiKg:     Math.round(donatiKg),
-    birinciKazik: Object.fromEntries(
-      Object.entries(birinciKazik).map(([k, v]) => [k, Math.round(v)])
-    ),
-    toplamBirim:   Math.round(toplamBirim),
-    toplamProje:   Math.round(toplamProje),
-    mobilizasyon:  birimFiyatlar.mobilizasyon,
-  }
+  return { mazotMaliyeti, amortismanMaliyeti, iscilikMaliyeti, sarfMalzemeMaliyeti, altToplam, karPayi, toplam, kazikBasi, metreBasi }
 }

@@ -419,24 +419,70 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
       {/* Güven Bandı */}
       {guven && (
         <div style={{
-          display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap",
           background: guven.seviye === "HIGH" ? "#F0FDF4" : guven.seviye === "MEDIUM" ? "#FFFBEB" : "#FEF2F2",
           border: `1px solid ${guven.seviye === "HIGH" ? "#BBF7D0" : guven.seviye === "MEDIUM" ? "#FDE68A" : "#FECACA"}`,
-          borderRadius: "10px", padding: "12px 18px", marginBottom: "16px",
+          borderRadius: "12px", padding: "16px 20px", marginBottom: "16px",
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontSize: "18px" }}>{guven.seviye === "HIGH" ? "🟢" : guven.seviye === "MEDIUM" ? "🟡" : "🔴"}</span>
-            <span style={{ fontWeight: "700", fontSize: "13px", color: guven.seviye === "HIGH" ? "#15803D" : guven.seviye === "MEDIUM" ? "#92400E" : "#991B1B" }}>
-              Hesap Güveni: {guven.seviye === "HIGH" ? "Yüksek" : guven.seviye === "MEDIUM" ? "Orta" : "Düşük"} ({guven.puan}/100)
-            </span>
+          {/* Başlık satırı + puan barı */}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "20px" }}>{guven.seviye === "HIGH" ? "🟢" : guven.seviye === "MEDIUM" ? "🟡" : "🔴"}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: "700", fontSize: "13px", color: guven.seviye === "HIGH" ? "#15803D" : guven.seviye === "MEDIUM" ? "#92400E" : "#991B1B", marginBottom: "4px" }}>
+                Hesap Güveni: {guven.seviye === "HIGH" ? "Yüksek" : guven.seviye === "MEDIUM" ? "Orta" : "Düşük"} — {guven.puan}/100 puan
+              </div>
+              <div style={{ height: "6px", background: "rgba(0,0,0,0.08)", borderRadius: "3px", overflow: "hidden", maxWidth: "320px" }}>
+                <div style={{
+                  height: "100%", borderRadius: "3px", transition: "width 0.6s ease",
+                  width: `${guven.puan}%`,
+                  background: guven.seviye === "HIGH" ? "#16A34A" : guven.seviye === "MEDIUM" ? "#D97706" : "#DC2626",
+                }} />
+              </div>
+            </div>
           </div>
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            {(guven.sebepler || []).slice(0, 3).map((k, i) => (
-              <span key={i} style={{ padding: "2px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "600", background: "#E0F2FE", color: "#0369A1" }}>{k}</span>
-            ))}
+
+          {/* Karşılaştırmalı kriter tablosu */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
+            {/* Mevcut kriterler */}
+            {(guven.sebepler || []).length > 0 && (
+              <div>
+                <div style={{ fontSize: "11px", fontWeight: "700", color: "#15803D", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>
+                  Mevcut Veriler
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  {(guven.sebepler || []).map((s, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#166534" }}>
+                      <span style={{ color: "#16A34A", fontWeight: "700", flexShrink: 0 }}>✓</span>
+                      <span>{s}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Eksik kriterler / öneriler */}
+            {(guven.eksikVeriler || []).length > 0 && (
+              <div>
+                <div style={{ fontSize: "11px", fontWeight: "700", color: "#92400E", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>
+                  Güveni Artırmak İçin Ekleyin
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  {(guven.eksikVeriler || []).map((e, i) => {
+                    const puan = e.includes("CPT") ? "+35" : e.includes("su") || e.includes("Su") ? "+25" : e.includes("UCS") ? "+25" : e.includes("SPT") ? "+20" : e.includes("RQD") ? "+10" : e.includes("suyu") ? "+10" : e.includes("kapsamıyor") ? "+10" : null
+                    return (
+                      <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "6px", fontSize: "12px", color: "#92400E" }}>
+                        <span style={{ color: "#D97706", fontWeight: "700", flexShrink: 0, marginTop: "1px" }}>+</span>
+                        <span style={{ flex: 1 }}>{e}</span>
+                        {puan && <span style={{ flexShrink: 0, padding: "1px 7px", borderRadius: "8px", background: "#FDE68A", color: "#92400E", fontSize: "11px", fontWeight: "700" }}>{puan} puan</span>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
+
           {torkAralik?.uyarilar?.length > 0 && (
-            <div style={{ width: "100%", marginTop: "6px", fontSize: "12px", color: "#92400E", fontStyle: "italic" }}>
+            <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid rgba(0,0,0,0.06)", fontSize: "12px", color: "#92400E", fontStyle: "italic" }}>
               {torkAralik.uyarilar.join(" · ")}
             </div>
           )}
