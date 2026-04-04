@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import BlogPost from "./BlogPost"
 
 function useScrollReveal(threshold = 0.15) {
   const ref = useRef(null)
@@ -158,6 +159,25 @@ function DemoForm({ open, onClose }) {
 
 export default function LandingPage({ onGoLogin, onGoRegister }) {
   const [demoAcik, setDemoAcik] = useState(false)
+  const [activePage, setActivePage] = useState("home")
+  const [selectedPost, setSelectedPost] = useState(null)
+  const [mobMenu, setMobMenu] = useState(false)
+
+  const goHome = () => { setActivePage("home"); setSelectedPost(null); setMobMenu(false) }
+  const goPost = (post) => { setSelectedPost(post); setActivePage("post"); setMobMenu(false); window.scrollTo(0, 0) }
+  const scrollToSection = (id) => {
+    setMobMenu(false)
+    if (activePage !== "home") {
+      goHome()
+      setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }), 80)
+    } else {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })
+    }
+  }
+
+  if (activePage === "post" && selectedPost) {
+    return <BlogPost post={selectedPost} allPosts={BLOG_POSTS} onBack={goHome} onGoPost={goPost} />
+  }
 
   return (
     <div style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#FFFFFF", color: "#0C4A6E", overflowX: "hidden" }}>
@@ -264,6 +284,50 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
           0%, 100% { box-shadow: 0 0 0 0 rgba(14,165,233,0.4); }
           50%       { box-shadow: 0 0 0 8px rgba(14,165,233,0); }
         }
+
+        .nav-link {
+          padding: 6px 12px; border: none; border-radius: 6px;
+          background: transparent; color: #64748B; font-size: 13px;
+          font-weight: 600; cursor: pointer;
+          font-family: 'Plus Jakarta Sans', sans-serif;
+          transition: color 0.2s, background 0.2s; white-space: nowrap;
+        }
+        .nav-link:hover { color: #0369A1; background: #F0F9FF; }
+
+        .hamburger-btn {
+          display: none; flex-direction: column; gap: 5px;
+          background: none; border: none; cursor: pointer; padding: 6px;
+        }
+        .hamburger-btn span {
+          display: block; width: 22px; height: 2px;
+          background: #0C4A6E; border-radius: 1px;
+          transition: background 0.2s;
+        }
+
+        .desktop-nav-links { display: flex; gap: 2px; align-items: center; }
+
+        @media (max-width: 840px) {
+          .desktop-nav-links { display: none !important; }
+          .hamburger-btn { display: flex !important; }
+          nav { padding: 0 20px !important; }
+        }
+
+        .sss-item { border: 1px solid #E0F2FE; border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
+        .sss-trigger {
+          width: 100%; padding: 17px 20px; display: flex; align-items: center;
+          justify-content: space-between; background: white; border: none;
+          cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif;
+          text-align: left; transition: background 0.15s;
+        }
+        .sss-trigger:hover { background: #F8FAFF; }
+
+        .blog-card {
+          background: white; border: 1px solid #E0F2FE; border-radius: 14px;
+          padding: 0; text-align: left; cursor: pointer; overflow: hidden;
+          transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+          font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .blog-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(14,165,233,0.1); border-color: #BAE6FD; }
       `}</style>
 
       <DemoForm open={demoAcik} onClose={() => setDemoAcik(false)} />
@@ -277,12 +341,48 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "0 48px", height: "60px",
       }}>
-        <Logo />
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+        <button onClick={goHome} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Logo /></button>
+
+        {/* Desktop nav */}
+        <div className="desktop-nav-links">
+          {[["Hakkımızda", "hakkimizda"], ["Blog", "blog"], ["SSS", "sss"], ["İletişim", "iletisim"]].map(([label, id]) => (
+            <button key={id} className="nav-link" onClick={() => scrollToSection(id)}>{label}</button>
+          ))}
+          <div style={{ width: "1px", height: "20px", background: "#E0F2FE", margin: "0 8px" }} />
           <button className="nav-btn-ghost" onClick={onGoLogin}>Giriş Yap</button>
           <button className="nav-btn-accent" onClick={() => setDemoAcik(true)}>Demo Talep Et</button>
         </div>
+
+        {/* Mobil hamburger */}
+        <button className="hamburger-btn" onClick={() => setMobMenu(p => !p)} aria-label="Menü">
+          <span /><span /><span />
+        </button>
       </nav>
+
+      {/* Mobil menü */}
+      {mobMenu && (
+        <div onClick={() => setMobMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 99, background: "rgba(12,74,110,0.25)" }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            position: "absolute", top: "60px", left: 0, right: 0,
+            background: "white", borderBottom: "1px solid #E0F2FE",
+            padding: "12px 20px 20px", display: "flex", flexDirection: "column", gap: "2px",
+          }}>
+            {[["Hakkımızda", "hakkimizda"], ["Blog", "blog"], ["SSS", "sss"], ["İletişim", "iletisim"]].map(([label, id]) => (
+              <button key={id} onClick={() => scrollToSection(id)} style={{
+                background: "none", border: "none", padding: "11px 8px",
+                fontSize: "15px", fontWeight: "600", color: "#0C4A6E",
+                cursor: "pointer", textAlign: "left",
+                borderBottom: "1px solid #F0F9FF",
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+              }}>{label}</button>
+            ))}
+            <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+              <button className="nav-btn-ghost" style={{ flex: 1 }} onClick={() => { onGoLogin(); setMobMenu(false) }}>Giriş Yap</button>
+              <button className="nav-btn-accent" style={{ flex: 1 }} onClick={() => { setDemoAcik(true); setMobMenu(false) }}>Demo Talep Et</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Hero ── */}
       <section style={{ position: "relative", minHeight: "100vh", display: "flex", alignItems: "center", overflow: "hidden" }}>
@@ -534,6 +634,113 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
         </section>
       </RevealSection>
 
+      {/* ── Hakkımızda ── */}
+      <RevealSection>
+        <section id="hakkimizda" style={{ padding: "80px 48px", background: "white" }}>
+          <div style={{ maxWidth: "960px", margin: "0 auto" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+              <div style={{ width: "24px", height: "1px", background: "#0EA5E9" }} />
+              <span style={{ color: "#0EA5E9", fontSize: "11px", fontWeight: "700", letterSpacing: "3px" }}>HAKKIMIZDA</span>
+            </div>
+            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: "clamp(26px, 3.5vw, 40px)", fontWeight: "800", margin: "0 0 20px", color: "#0C4A6E", letterSpacing: "-0.02em", lineHeight: "1.2" }}>
+              Geoteknik Mühendisliğini<br />Dijitalleştiriyoruz
+            </h2>
+            <p style={{ fontSize: "16px", color: "#64748B", lineHeight: "1.8", maxWidth: "620px", margin: "0 0 44px" }}>
+              GeoDrill Insight, geoteknik şirketlerin sondaj kararlarını veri tabanlı, standartlaştırılmış ve belgelenebilir hale getirmek için kurulmuştur. SPT, UCS ve RQD verilerine dayanan hesap motorumuz, sektörde yaygın olan Excel tabloları ve kişisel deneyim odaklı yaklaşımların yerini almayı hedefler.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "16px", marginBottom: "44px" }}>
+              {[
+                { sayi: "200+", baslik: "Proje" },
+                { sayi: "40+", baslik: "Firma" },
+                { sayi: "FHWA / EN", baslik: "Standart" },
+                { sayi: "3–5 dk", baslik: "Analiz Süresi" },
+              ].map(s => (
+                <div key={s.baslik} style={{ background: "#F8FAFF", border: "1px solid #E0F2FE", borderRadius: "10px", padding: "20px", textAlign: "center" }}>
+                  <div style={{ fontFamily: "'Fraunces', serif", fontSize: "26px", fontWeight: "900", color: "#0284C7", marginBottom: "4px" }}>{s.sayi}</div>
+                  <div style={{ fontSize: "12px", color: "#94A3B8", fontWeight: "600", letterSpacing: "0.03em" }}>{s.baslik}</div>
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: "14px", color: "#64748B", lineHeight: "1.8", maxWidth: "620px" }}>
+              Hesap motorumuz FHWA GEC 10, EN 1536:2010, Eurocode 7 ve Türkiye zemin mekaniği saha kayıtları esas alınarak geliştirilmiştir. Her hesap gerekçesiyle birlikte PDF raporuna yansıtılır.
+            </p>
+          </div>
+        </section>
+      </RevealSection>
+
+      {/* ── Blog ── */}
+      <RevealSection>
+        <section id="blog" style={{ padding: "80px 48px", background: "#F8FAFF" }}>
+          <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "40px", flexWrap: "wrap", gap: "16px" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+                  <div style={{ width: "24px", height: "1px", background: "#0EA5E9" }} />
+                  <span style={{ color: "#0EA5E9", fontSize: "11px", fontWeight: "700", letterSpacing: "3px" }}>BLOG</span>
+                </div>
+                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: "clamp(24px, 3vw, 36px)", fontWeight: "800", margin: 0, color: "#0C4A6E", letterSpacing: "-0.02em" }}>Teknik Yazılar</h2>
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px" }}>
+              {BLOG_POSTS.map(post => (
+                <LandingBlogCard key={post.id} post={post} onClick={() => goPost(post)} />
+              ))}
+            </div>
+          </div>
+        </section>
+      </RevealSection>
+
+      {/* ── SSS ── */}
+      <RevealSection>
+        <section id="sss" style={{ padding: "80px 48px", background: "white" }}>
+          <div style={{ maxWidth: "700px", margin: "0 auto" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+              <div style={{ width: "24px", height: "1px", background: "#0EA5E9" }} />
+              <span style={{ color: "#0EA5E9", fontSize: "11px", fontWeight: "700", letterSpacing: "3px" }}>SSS</span>
+            </div>
+            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: "clamp(24px, 3vw, 36px)", fontWeight: "800", margin: "0 0 40px", color: "#0C4A6E", letterSpacing: "-0.02em" }}>Sık Sorulan Sorular</h2>
+            <div>
+              {SSS_ITEMS.map((item, i) => <SSSItem key={i} item={item} />)}
+            </div>
+          </div>
+        </section>
+      </RevealSection>
+
+      {/* ── İletişim ── */}
+      <RevealSection>
+        <section id="iletisim" style={{ padding: "80px 48px", background: "#F8FAFF" }}>
+          <div style={{ maxWidth: "900px", margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "60px", alignItems: "start" }}>
+            {/* Sol: bilgi */}
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+                <div style={{ width: "24px", height: "1px", background: "#0EA5E9" }} />
+                <span style={{ color: "#0EA5E9", fontSize: "11px", fontWeight: "700", letterSpacing: "3px" }}>İLETİŞİM</span>
+              </div>
+              <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: "clamp(24px, 3vw, 34px)", fontWeight: "800", margin: "0 0 16px", color: "#0C4A6E", letterSpacing: "-0.02em" }}>Birlikte Değerlendirelim</h2>
+              <p style={{ fontSize: "15px", color: "#64748B", lineHeight: "1.8", margin: "0 0 32px" }}>
+                Projeniz için en uygun çözümü birlikte belirleyelim. Demo talebi veya teknik sorularınız için bize ulaşın.
+              </p>
+              {[
+                { icon: "✉", baslik: "E-posta", deger: "info@geodrillinsight.com" },
+                { icon: "📍", baslik: "Konum", deger: "İstanbul, Türkiye" },
+                { icon: "🕐", baslik: "Yanıt Süresi", deger: "24 saat içinde dönüş" },
+              ].map(c => (
+                <div key={c.baslik} style={{ display: "flex", alignItems: "flex-start", gap: "12px", marginBottom: "16px" }}>
+                  <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: "#EFF6FF", border: "1px solid #DBEAFE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px", flexShrink: 0 }}>{c.icon}</div>
+                  <div>
+                    <div style={{ fontSize: "11px", fontWeight: "700", color: "#94A3B8", letterSpacing: "0.04em", marginBottom: "3px" }}>{c.baslik.toUpperCase()}</div>
+                    <div style={{ fontSize: "14px", fontWeight: "600", color: "#0C4A6E" }}>{c.deger}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Sağ: form */}
+            <IletisimForm onDemoAc={() => setDemoAcik(true)} />
+          </div>
+        </section>
+      </RevealSection>
+
       {/* ── CTA ── */}
       <RevealSection>
         <section style={{
@@ -684,3 +891,168 @@ const STEPS = [
   { title: "Sonuç", desc: "Makine kararı, teknik çıktılar ve operasyon önerileri tek ekranda görüntülenir." },
   { title: "Fiyat Analizi", desc: "Mazot, amortisman, işçilik ve sarf malzeme maliyetleri hesaplanır. Kar payı dahil toplam fiyat." },
 ]
+
+const BLOG_POSTS = [
+  {
+    id: 1,
+    kategori: "Saha Deneyimi",
+    baslik: "Trakya Formasyonunda Fore Kazık Delgi Sürelerini Etkileyen Faktörler",
+    ozet: "Silivri ve Çerkezköy bölgelerinde yürütülen 40+ projenin verileri ışığında, kumtaşı dominantlı Trakya formasyonunda penetrasyon hızını etkileyen parametreler incelendi.",
+    yazar: { ad: "Mert Doğan", unvan: "Geoteknik Müh., MSc", avatar: "MD" },
+    tarih: "28 Mart 2026",
+    okumaSuresi: 6,
+    resimRenk: "#0284C7",
+    etiketler: ["Kumtaşı", "ROP", "Trakya"],
+  },
+  {
+    id: 2,
+    kategori: "Teknik Rehber",
+    baslik: "SPT Verilerinden Makine Seçimine: Adım Adım Karar Analizi",
+    ozet: "N-değeri bazlı SPT sonuçlarını doğrudan tork hesabına nasıl entegre edersiniz? Kelly rotary sistemleri için pratik bir metodoloji.",
+    yazar: { ad: "Damla Akyüz", unvan: "Zemin Mühendisi", avatar: "DA" },
+    tarih: "15 Mart 2026",
+    okumaSuresi: 8,
+    resimRenk: "#0369A1",
+    etiketler: ["SPT", "Makine Seçimi", "Tork"],
+  },
+  {
+    id: 3,
+    kategori: "Mühendislik Notu",
+    baslik: "Casing Tasarımında Yeraltı Suyu Tablasının Etkisi",
+    ozet: "EN 1536 ve Eurocode 7 çerçevesinde yeraltı suyu seviyesinin casing uzunluğu kararlarına nasıl yansıtıldığı ve GeoDrill'in bu kararı nasıl otomatikleştirdiği.",
+    yazar: { ad: "Mert Doğan", unvan: "Geoteknik Müh., MSc", avatar: "MD" },
+    tarih: "5 Mart 2026",
+    okumaSuresi: 5,
+    resimRenk: "#0EA5E9",
+    etiketler: ["Casing", "Yeraltı Suyu", "EN 1536"],
+  },
+]
+
+const SSS_ITEMS = [
+  { soru: "GeoDrill hangi zemin tiplerini destekler?", cevap: "Dolgu, Kil, Silt, Kum, Çakıl, Ayrışmış Kaya, Kumtaşı, Kireçtaşı ve Sert Kaya — toplam 9 zemin tipi. Her tip için ayrı stabilite, ROP ve tork katsayıları uygulanmaktadır." },
+  { soru: "Hesaplamalar ne kadar doğru?", cevap: "Hesap motoru FHWA GEC 10, EN 1536:2010 ve Eurocode 7 standartlarına dayanmaktadır. ROP tahminleri Trakya, Marmara ve İç Anadolu bölgesi saha verileriyle kalibre edilmiştir. SPT, UCS ve CPT girildiğinde hesap güveni 'Yüksek' bandına çıkar." },
+  { soru: "Birden fazla kullanıcı sistemi kullanabilir mi?", cevap: "Evet. Her kullanıcı kendi hesabıyla giriş yapar; projeler ve makine parkı kişiye özel ayrı tutulur. Firmalar demo hesabı talebiyle başlayabilir, ihtiyaca göre hesap sayısı artırılabilir." },
+  { soru: "PDF raporlar kurumsal sunumlara uygun mu?", cevap: "Evet. Raporlar proje özeti, teknik analiz tabloları, makine uygunluk matrisi ve hesap gerekçelerini içermektedir. Logosu ve renk teması GeoDrill standardındadır; kurumsal ihtiyaçlar için özelleştirme planlanmaktadır." },
+  { soru: "Yeraltı suyu verisi girilmezse ne olur?", cevap: "Sistem güvenli tarafta kalır: kohezyonsuz katmanlarda su varlığı varsayılmaz, ancak hesap güven puanından 10 puan düşer ve casing kararında 'şartlı' değerlendirme yapılır. Saha ölçümü girmek her zaman daha doğru sonuç üretir." },
+  { soru: "Mobil cihazlarda çalışıyor mu?", cevap: "Evet, tüm modern tarayıcılarda ve mobil cihazlarda çalışmaktadır. Saha koşullarında tablet veya telefon üzerinden veri girişi yapılabilmektedir." },
+]
+
+// ─── SSS Akordeon Bileşeni ────────────────────────────────────────────────────
+
+function SSSItem({ item }) {
+  const [acik, setAcik] = useState(false)
+  return (
+    <div className="sss-item" style={{ boxShadow: acik ? "0 4px 16px rgba(14,165,233,0.07)" : "none" }}>
+      <button className="sss-trigger" onClick={() => setAcik(p => !p)} style={{ background: acik ? "#F0F9FF" : "white" }}>
+        <span style={{ fontSize: "15px", fontWeight: "600", color: "#0C4A6E", paddingRight: "12px" }}>{item.soru}</span>
+        <span style={{ fontSize: "20px", color: "#0EA5E9", flexShrink: 0, transition: "transform 0.2s", transform: acik ? "rotate(45deg)" : "none", lineHeight: 1 }}>+</span>
+      </button>
+      {acik && (
+        <div style={{ padding: "2px 20px 18px", background: "#F0F9FF", borderTop: "1px solid #E0F2FE" }}>
+          <p style={{ margin: "14px 0 0", fontSize: "14px", color: "#64748B", lineHeight: "1.75" }}>{item.cevap}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Landing Blog Kartı ───────────────────────────────────────────────────────
+
+function LandingBlogCard({ post, onClick }) {
+  return (
+    <button className="blog-card" onClick={onClick}>
+      <div style={{ height: "4px", background: `linear-gradient(90deg, ${post.resimRenk}, #38BDF8)` }} />
+      <div style={{ padding: "24px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px" }}>
+          <span style={{ padding: "3px 10px", background: `${post.resimRenk}18`, color: post.resimRenk, borderRadius: "20px", fontSize: "10px", fontWeight: "700", letterSpacing: "0.05em" }}>
+            {post.kategori.toUpperCase()}
+          </span>
+          <span style={{ color: "#CBD5E1", fontSize: "11px" }}>·</span>
+          <span style={{ fontSize: "11px", color: "#94A3B8" }}>{post.okumaSuresi} dk okuma</span>
+        </div>
+        <h3 style={{ fontSize: "16px", fontWeight: "700", color: "#0C4A6E", lineHeight: "1.4", margin: "0 0 10px" }}>{post.baslik}</h3>
+        <p style={{ fontSize: "13px", color: "#64748B", lineHeight: "1.65", margin: "0 0 20px" }}>{post.ozet}</p>
+        <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+          <div style={{ width: "30px", height: "30px", borderRadius: "50%", background: `linear-gradient(135deg, ${post.resimRenk}, #38BDF8)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "700", color: "white", flexShrink: 0 }}>
+            {post.yazar.avatar}
+          </div>
+          <div>
+            <div style={{ fontSize: "12px", fontWeight: "600", color: "#0C4A6E" }}>{post.yazar.ad}</div>
+            <div style={{ fontSize: "11px", color: "#94A3B8" }}>{post.tarih}</div>
+          </div>
+        </div>
+      </div>
+    </button>
+  )
+}
+
+// ─── İletişim Formu ───────────────────────────────────────────────────────────
+
+function IletisimForm({ onDemoAc }) {
+  const [form, setForm] = useState({ ad: "", email: "", mesaj: "" })
+  const [gonderildi, setGonderildi] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }))
+
+  const gonder = async (e) => {
+    e.preventDefault()
+    if (!form.ad || !form.email) return
+    setLoading(true)
+    await new Promise(r => setTimeout(r, 700))
+    setLoading(false)
+    setGonderildi(true)
+  }
+
+  const inputS = {
+    width: "100%", padding: "10px 14px",
+    border: "1.5px solid #E0F2FE", borderRadius: "8px",
+    fontSize: "14px", outline: "none", boxSizing: "border-box",
+    background: "white", color: "#0C4A6E",
+    fontFamily: "'Plus Jakarta Sans', sans-serif",
+    transition: "border-color 0.2s",
+  }
+  const labelS = { display: "block", fontSize: "11px", fontWeight: "700", color: "#64748B", letterSpacing: "0.04em", marginBottom: "6px" }
+
+  if (gonderildi) {
+    return (
+      <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: "12px", padding: "32px", textAlign: "center" }}>
+        <div style={{ fontSize: "36px", marginBottom: "12px" }}>✅</div>
+        <div style={{ fontFamily: "'Fraunces', serif", fontSize: "18px", fontWeight: "700", color: "#15803D", marginBottom: "8px" }}>Mesajınız Alındı</div>
+        <p style={{ fontSize: "13px", color: "#64748B" }}>En kısa sürede dönüş yapacağız.</p>
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={gonder} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+      <div>
+        <label style={labelS}>AD SOYAD *</label>
+        <input style={inputS} placeholder="Ahmet Yılmaz" value={form.ad} onChange={set("ad")} required
+          onFocus={e => e.target.style.borderColor = "#0EA5E9"} onBlur={e => e.target.style.borderColor = "#E0F2FE"} />
+      </div>
+      <div>
+        <label style={labelS}>E-POSTA *</label>
+        <input style={inputS} type="email" placeholder="ahmet@firma.com" value={form.email} onChange={set("email")} required
+          onFocus={e => e.target.style.borderColor = "#0EA5E9"} onBlur={e => e.target.style.borderColor = "#E0F2FE"} />
+      </div>
+      <div>
+        <label style={labelS}>MESAJINIZ</label>
+        <textarea style={{ ...inputS, resize: "vertical", minHeight: "90px" }} placeholder="Projeniz veya sorunuz hakkında kısaca bilgi verin..."
+          value={form.mesaj} onChange={set("mesaj")}
+          onFocus={e => e.target.style.borderColor = "#0EA5E9"} onBlur={e => e.target.style.borderColor = "#E0F2FE"} />
+      </div>
+      <button type="submit" disabled={loading || !form.ad || !form.email} style={{
+        padding: "13px", border: "none", borderRadius: "8px",
+        background: (loading || !form.ad || !form.email) ? "#BAE6FD" : "linear-gradient(135deg, #0284C7, #0EA5E9)",
+        color: "white", fontSize: "15px", fontWeight: "700",
+        cursor: (loading || !form.ad || !form.email) ? "not-allowed" : "pointer",
+        fontFamily: "'Plus Jakarta Sans', sans-serif",
+      }}>
+        {loading ? "Gönderiliyor..." : "Mesaj Gönder"}
+      </button>
+      <p style={{ fontSize: "12px", color: "#94A3B8", textAlign: "center", margin: 0 }}>
+        Ya da <button onClick={onDemoAc} type="button" style={{ background: "none", border: "none", color: "#0EA5E9", fontWeight: "700", cursor: "pointer", fontSize: "12px", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>demo talep edin</button> — 24 saat içinde dönüş yapılır.
+      </p>
+    </form>
+  )
+}
