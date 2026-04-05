@@ -29,6 +29,7 @@ from configs.geotech_coefficients import KATSAYILAR
 _STANDART = {
     "Dolgu", "Kil", "Silt", "Kum", "Çakıl",
     "Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya",
+    "Organik Kil", "Torf",
 }
 
 # Rock compound nouns — checked before soil keywords
@@ -91,7 +92,7 @@ def zemin_sinifi(zem_tipi: str, kohezyon: str = "") -> str:
     tip = zemin_hesap_tipi(zem_tipi, kohezyon)
     if not tip:
         return "belirsiz"
-    if tip in ("Kil", "Silt"):
+    if tip in ("Kil", "Silt", "Organik Kil", "Torf"):
         return "kohezyonlu"
     if tip in ("Kum", "Çakıl", "Dolgu"):
         return "granüler"
@@ -122,7 +123,8 @@ def guven_sinifi(layer: dict) -> dict:
         return {"sinif": "B", "aciklama": "CPT qc korelasyonundan türetilmiş (Sınıf B)"}
     if ucs > 0:
         return {"sinif": "B", "aciklama": "UCS ölçümünden türetilmiş (Sınıf B)"}
-    if spt > 0:
+    # SPT yalnızca kaya olmayan zeminlerde güven göstergesi sayılır (kaya'da SPT uygulanmaz)
+    if spt > 0 and sinif_str != "kaya":
         return {"sinif": "B", "aciklama": "SPT korelasyonundan türetilmiş (Sınıf B)"}
     return {"sinif": "C", "aciklama": "Yalnızca niteliksel zemin adı (Sınıf C)"}
 
@@ -130,7 +132,7 @@ def guven_sinifi(layer: dict) -> dict:
 # ─── Stability Risk ───────────────────────────────────────────────────────────
 
 def stabilite_riski(tip: str, kohezyon: str, spt: float,
-                    yas: float, baslangic: float = 0) -> str:
+                    yas: float, baslangic: float = 0, su: float = 0) -> str:
     """
     Per-layer stability risk classification.
 
@@ -141,18 +143,80 @@ def stabilite_riski(tip: str, kohezyon: str, spt: float,
         - Sand/gravel below GWT → always high risk (borehole collapse likely).
         - Very loose cohesionless (N<10) → high risk.
         - Medium-dense cohesionless (10<=N<30) → medium risk.
+        - Fill with N<5 → high risk (very loose / uncontrolled fill).
         - Fill → medium risk (variable composition).
+        - Soft clay (su<15 kPa or N<2): EN 1536 §5.3 soil-flow limit → high risk.
+        - Soft-medium clay (su<40 kPa or N<8) → medium risk.
+        - Organik Kil, Torf → always high risk (organic soils / peat).
         - All other conditions → low risk.
     """
     C = KATSAYILAR.stabilite
     hesap_tip = zemin_hesap_tipi(tip, kohezyon)
+
+    # Granüler: Kum ve Çakıl — YAS ve gevşeklik kontrolü
     if hesap_tip in ("Kum", "Çakıl"):
         return "Yüksek" if (yas > 0 and baslangic >= yas) else "Orta"
+
+    # Kohezyonsuz (genel)
     if kohezyon == "Kohezyonsuz" and spt <= C.cok_gevsek_spt:
         return "Yüksek"
     if kohezyon == "Kohezyonsuz" and spt <= C.orta_spt:
         return "Orta"
+
+    # Organik / torf — her zaman yüksek risk
+    if hesap_tip in ("Organik Kil", "Torf"):
+        return "Yüksek"
+
+    # Kohezyonlu (Kil, Silt, Organik Kil): yumuşak kil kontrolü
+    # EN 1536:2010 §5.3: su < 15 kPa → zemin akması riski
+    if hesap_tip in ("Kil", "Silt") or kohezyon == "Kohezyonlu":
+        if su > 0 and su < 15:
+            return "Yüksek"   # EN 1536 §5.3 soil-flow limit
+        if su > 0 and su < 40:
+            return "Orta"
+        if spt > 0 and spt < 2:
+            return "Yüksek"   # çok yumuşak kil (Terzaghi sınıflaması)
+        if spt > 0 and spt < 8:
+            return "Orta"     # yumuşak-orta kil
+
+    # Dolgu: SPT bazlı değerlendirme (çok gevşek dolgu = yüksek risk)
     if hesap_tip == "Dolgu":
+        if spt > 0 and spt < 5:
+            return "Yüksek"
+        return "Orta"
+
+    return "Düşük"
+
+
+# ─── Liquefaction Screening ───────────────────────────────────────────────────
+
+def sivi_lasma_riski(tip: str, kohezyon: str, spt: float,
+                     yas: float, baslangic: float) -> str:
+    """
+    Simplified liquefaction potential screening for granular soils below GWT.
+
+    Returns: "Yüksek" | "Orta" | "Düşük" | "Yok"
+
+    Engineering basis:
+        Source: Seed & Idriss (1971); Youd et al. (2001) ASCE J. Geotech.
+        - Only applicable: cohesionless below GWT, depth < 20 m.
+        - (N1)60 < 15 → high liquefaction potential.
+        - (N1)60 < 25 → moderate liquefaction potential.
+        - Clay/rock/above GWT → "Yok" (not applicable).
+    """
+    sinif = zemin_sinifi(tip, kohezyon)
+    if sinif != "granüler":
+        return "Yok"
+    if yas <= 0 or baslangic < yas:
+        return "Yok"   # kuru veya YAS üstü
+    if baslangic > 20:
+        return "Yok"   # çok derin (sıvılaşma mekanizması geçersiz)
+    n = float(spt or 0)
+    if n == 0:
+        return "Yok"   # SPT verisi yok — değerlendirme yapılamaz
+    if n < 15:
+        return "Yüksek"
+    if n < 25:
         return "Orta"
     return "Düşük"
 
@@ -194,6 +258,32 @@ def casing_durum(layers: list, yas: float) -> dict:
         if hesap_tip == "Dolgu" and k > C.dolgu_sartli_kalinlik:
             sartli = True
             gerekce.append(f"Dolgu ({bas}–{row['bitis']} m, {k} m) — kalın dolgu, önerilir")
+
+        # Yumuşak kil squeezing: YAS altında su<25 kPa veya SPT<2 → plastik akma riski
+        # Kaynak: EN 1536:2010 §5.3; sondaj borusu kapanması (squeezing) mekanizması
+        sinif_str = zemin_sinifi(zem, koh)
+        su_val = float(row.get("su") or 0)
+        if sinif_str == "kohezyonlu" and yas > 0 and bas >= yas:
+            if (su_val > 0 and su_val < 25) or (su_val == 0 and spt > 0 and spt < 2):
+                zorunlu = True
+                param_str = f"su={su_val} kPa" if su_val > 0 else f"SPT={spt}"
+                gerekce.append(
+                    f"Yumuşak kil squeezing riski ({bas}–{row['bitis']} m): "
+                    f"{param_str}, YAS altında — EN 1536 §5.3"
+                )
+            elif su_val > 0 and su_val < 50:
+                sartli = True
+                gerekce.append(
+                    f"Orta kil squeezing olasılığı ({bas}–{row['bitis']} m): "
+                    f"su={su_val} kPa, YAS altında"
+                )
+
+        # Organik kil ve Torf: her zaman zorunlu casing
+        if hesap_tip in ("Organik Kil", "Torf"):
+            zorunlu = True
+            gerekce.append(
+                f"{hesap_tip} ({bas}–{row['bitis']} m) — organik zemin, casing zorunlu"
+            )
 
     durum = "Gerekli" if zorunlu else "Şartlı önerilir" if sartli else "Gerekmeyebilir"
     return {"durum": durum, "gerekce": gerekce, "zorunlu": zorunlu}
@@ -364,8 +454,8 @@ def gerekli_tork_aralik(layers: list, cap_mm: float,
         # K_gw: groundwater factor
         k_gw = zemin_suyu_katsayisi(sinif, baslangic, yas)
 
-        # K_depth: depth factor based on layer bottom
-        k_depth = derinlik_katsayisi(bitis)
+        # K_depth: depth factor based on layer midpoint (FHWA GEC 10 §7.4)
+        k_depth = derinlik_katsayisi(baslangic, bitis)
 
         # K_uncertainty: RQD-based variability for rock layers
         rqd_faktor = 1.0
@@ -379,10 +469,11 @@ def gerekli_tork_aralik(layers: list, cap_mm: float,
                 # No rock quality data → use worst-case RQD factor
                 rqd_faktor = K.rqd_faktor[0]
 
-        # Full torque formula: T = tau × (pi × D³ / 8) × K_app × K_method × K_gw × K_depth × K_rqd
+        # Full torque formula: T = tau × (pi × D³ / 12) × K_app × K_method × K_gw × K_depth × K_rqd
+        # FHWA GEC 10 §7.4: Kelly bucket base shear → pi*D³/12 (not /8 disk model)
         t_nominal = (
             tau_eff
-            * (math.pi * cap_m**3 / 8.0)
+            * (math.pi * cap_m**3 / 12.0)
             * K.uygulama_faktoru
             * k_method
             * k_gw
@@ -544,7 +635,8 @@ def tam_cevrim_suresi(layers: list, cap_mm: float, kazik_boyu: float,
     t_delme += uc_deg * CV.alet_degisim_saat
 
     # Depth surcharge (rod handling overhead)
-    ek_sure = (CV.derinlik_ek[30] if kazik_boyu >= 30
+    ek_sure = (CV.derinlik_ek[40] if kazik_boyu >= 40
+               else CV.derinlik_ek[30] if kazik_boyu >= 30
                else CV.derinlik_ek[20] if kazik_boyu >= 20
                else CV.derinlik_ek[0])
     t_delme += ek_sure
@@ -839,6 +931,13 @@ def makine_uygunluk(
         red.append(f"Derinlik yetersiz: {makine_max_derinlik} m < {kazik_boyu} m")
     if makine_max_cap > 0 and makine_max_cap < kazik_capi:
         red.append(f"Çap yetersiz: {makine_max_cap} mm < {kazik_capi} mm")
+    # Kelly bar uzunluk kontrolü: kelly_uzunluk > 0 ise teorik max derinliği sınırlar
+    makine_kelly = float(_get(makine, "kelly_uzunluk") or 0)
+    if makine_kelly > 0 and kazik_boyu > makine_kelly:
+        red.append(
+            f"Kelly bar uzunluğu yetersiz: {makine_kelly} m < {kazik_boyu} m — "
+            f"modüler Kelly veya geçme Kelly ile çözülebilir"
+        )
 
     # ── 3. Torque ratio (T_ratio) ────────────────────────────────────────────
     tork_oran = makine_tork / tork if tork > 0 else 999.0

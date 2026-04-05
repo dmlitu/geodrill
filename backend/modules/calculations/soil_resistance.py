@@ -26,7 +26,7 @@ from configs.geotech_coefficients import KATSAYILAR
 # ─── Soil Classification Helpers ─────────────────────────────────────────────
 
 _KAYA_TIPLERI = frozenset({"Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya"})
-_KOHEZYONLU_TIPLERI = frozenset({"Kil", "Silt"})
+_KOHEZYONLU_TIPLERI = frozenset({"Kil", "Silt", "Organik Kil", "Torf"})
 _GRANÜLER_TIPLERI = frozenset({"Kum", "Çakıl", "Dolgu"})
 
 
@@ -147,30 +147,36 @@ def zemin_suyu_katsayisi(sinif: str, baslangic: float, yas: float) -> float:
     return GW.tork_kohezyon_siz
 
 
-def derinlik_katsayisi(bitis: float) -> float:
+def derinlik_katsayisi(baslangic: float, bitis: float) -> float:
     """
-    Returns the depth factor (K_depth) based on pile bottom depth.
+    Returns the depth factor (K_depth) based on layer midpoint depth.
 
     Parameters
     ----------
+    baslangic : float
+        Layer top depth (m).
     bitis : float
-        Layer bottom depth (m) — typically the pile tip depth for the deepest layer.
+        Layer bottom depth (m).
 
     Returns
     -------
     float
         K_depth from KATSAYILAR.derinlik.derinlik_esikler.
+        Uses layer midpoint for more accurate depth representation.
         Larger depth → higher K_depth → more conservative torque estimate.
 
     Engineering basis:
         Greater drilling depths increase effective stress on the drill string,
         rod weight contribution, and frictional side resistance.
+        Using layer midpoint (not just bottom) avoids over-applying the factor
+        to the full height of thick layers that span a depth threshold.
         Source: FHWA GEC 10 §6; EN 1536 commentary; OEM data.
     """
+    midpoint = (baslangic + bitis) / 2.0
     thresholds = KATSAYILAR.derinlik.derinlik_esikler
     # Iterate from highest threshold downward
     for esik in sorted(thresholds.keys(), reverse=True):
-        if bitis >= esik:
+        if midpoint >= esik:
             return thresholds[esik]
     return 1.00
 
@@ -241,10 +247,26 @@ def direnc_indeksi(row: dict) -> dict:
 
     # ── Pathway 1: Rock (UCS-based) ──────────────────────────────────────────
     if sinif == "kaya":
-        kaya_tipleri = list(K.kaya_ucs_varsayilan.keys())
-        # Find which standard rock type applies for default UCS lookup
         from modules.calculations.engine import zemin_hesap_tipi
         hesap_tip = zemin_hesap_tipi(zem_tipi, kohezyon) or zem_tipi
+
+        # Ayrışmış Kaya özel durumu: UCS yok ama SPT var → tamamen ayrışmış kaya
+        # EN ISO 14689: WD5/WD6 sınıfı kaya zemin gibi davranır (granüler yol daha uygun)
+        if hesap_tip == "Ayrışmış Kaya" and ucs == 0 and spt > 0:
+            tau_kPa = max(spt * K.kohezyon_siz_spt, K.kohezyon_siz_tau_min)
+            notes.append(
+                f"Ayrışmış Kaya: UCS ölçümü yok, SPT={spt} mevcut → "
+                f"granüler zemin modeli uygulandı (EN ISO 14689 WD5/WD6 — tam ayrışmış). "
+                f"τ = max(N×{K.kohezyon_siz_spt}, {K.kohezyon_siz_tau_min}) = {tau_kPa:.1f} kPa. Sınıf B."
+            )
+            return {
+                "tau_kPa":    round(tau_kPa, 2),
+                "source":     "spt_granüler",
+                "confidence": "B",
+                "raw_value":  spt,
+                "raw_unit":   "blows",
+                "notes":      notes,
+            }
 
         if ucs > 0:
             ucs_eff = ucs

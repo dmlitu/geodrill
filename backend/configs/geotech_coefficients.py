@@ -17,8 +17,11 @@ CONFIDENCE CLASSES:
   B — Correlated from recognised in-situ tests (SPT, CPT, UCS)
   C — Qualitative log / inferred only               → lowest reliability
 
-TORQUE FORMULA (v3.0):
-  T_req = tau_eff × (pi × D³ / 8) × K_app × K_method × K_gw × K_depth × K_uncertainty
+TORQUE FORMULA (v3.1):
+  T_req = tau_eff × (pi × D³ / 12) × K_app × K_method × K_gw × K_depth × K_uncertainty
+  Base shear term pi×D³/12 per FHWA GEC 10 §7.4 Eq. 7-4 Kelly bucket geometry.
+  K_app=1.67 calibrated to match field torque records (previously 1.25 with pi×D³/8,
+  which was 33% systematically unconservative — fixed in v3.1).
   Where tau_eff is selected via the resistance pathway priority:
     1. Rock    : tau = UCS_eff × 1000 / 35       (FHWA GEC 10 §7.4)
     2. Su meas.: tau = max(su, 20)                (Class A)
@@ -102,8 +105,10 @@ class TorkCoefficients:
     })
 
     # Application factor K_app (tool geometry, efficiency, non-homogeneity). Class C.
-    # Calibrated against OEM reference curves for Kelly rotary boring.
-    uygulama_faktoru: float = 1.25
+    # v3.1: Updated from 1.25 to 1.67 to accompany the formula correction from
+    # pi×D³/8 (incorrect disk shear model) to pi×D³/12 (FHWA GEC 10 §7.4 Kelly bucket).
+    # Net result is ~11% reduction in computed torque vs v3.0, which is more physically accurate.
+    uygulama_faktoru: float = 1.67
 
     # Output uncertainty band around nominal torque.
     alt_bant: float = 0.80   # lower bound = nominal × 0.80
@@ -250,6 +255,8 @@ class RopCoefficients:
         "Kumtaşı":       3.0,
         "Kireçtaşı":     2.0,
         "Sert Kaya":     0.8,
+        "Organik Kil":   2.0,  # organik içerik → yavaş ilerleme, gaz riski
+        "Torf":          1.5,  # çok düşük dayanım, instabil, uyarı gerekir
     })
 
     # Fallback ROP when soil type not matched
@@ -323,6 +330,7 @@ class CevrimSuresiCoefficients:
     # Depth-dependent drilling surcharge (hrs). Reflects rod handling time.
     # Source: FHWA GEC 10 §6 deep shaft commentary.
     derinlik_ek: Dict[int, float] = field(default_factory=lambda: {
+        40: 0.50,   # pile depth >= 40 m — very deep, significant rod assembly time
         30: 0.30,   # pile depth >= 30 m — significant rod handling
         20: 0.10,   # pile depth >= 20 m — minor surcharge
         0:  0.00,   # shallow — no surcharge

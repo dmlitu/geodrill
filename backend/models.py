@@ -62,7 +62,7 @@ class SoilLayer(Base):
     formasyon = Column(String(100), default="")
     zem_tipi = Column(String(50), default="Kil")
     kohezyon = Column(String(50), default="Kohezyonlu")
-    spt = Column(Integer, default=10)
+    spt = Column(Integer, default=0)
     ucs = Column(Float, default=0.0)
     rqd = Column(Float, default=0.0)
     cpt_qc = Column(Float, default=0.0)  # CPT qc (MPa)
@@ -88,6 +88,7 @@ class Equipment(Base):
     casing = Column(String(20), default="Evet")       # Evet / Hayır / Şartlı
     dar_alan = Column(String(10), default="Hayır")    # Evet / Hayır
     yakit_sinifi = Column(String(20), default="Orta") # Düşük / Orta / Yüksek
+    kelly_uzunluk = Column(Float, default=0.0)        # Kelly bar effective length (m); 0 = unknown
     not_ = Column("not", Text, default="")
 
     owner = relationship("User", back_populates="equipment")

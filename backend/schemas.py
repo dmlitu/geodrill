@@ -34,17 +34,26 @@ class SoilLayerCreate(BaseModel):
     formasyon: str = ""
     zem_tipi: str = "Kil"
     kohezyon: str = "Kohezyonlu"
-    spt: int = Field(10, ge=0, le=300)
+    spt: int = Field(0, ge=0, le=300)
     ucs: float = Field(0.0, ge=0)
     rqd: float = Field(0.0, ge=0, le=100)
     cpt_qc: float = Field(0.0, ge=0)
     su: float = Field(0.0, ge=0)
     aciklama: str = ""
 
+    _KAYA_TIPLERI = {"Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya"}
+
     @model_validator(mode="after")
     def bitis_gt_baslangic(self):
         if self.bitis <= self.baslangic:
             raise ValueError("Bitiş derinliği başlangıç derinliğinden büyük olmalı")
+        return self
+
+    @model_validator(mode="after")
+    def kaya_spt_sifirla(self):
+        """Rock-type layers: SPT is not applicable (ASTM D1586). Zero it out."""
+        if self.zem_tipi in self._KAYA_TIPLERI:
+            self.spt = 0
         return self
 
 
@@ -107,6 +116,7 @@ class EquipmentCreate(BaseModel):
     casing: str = "Evet"
     dar_alan: str = "Hayır"
     yakit_sinifi: str = "Orta"
+    kelly_uzunluk: float = Field(0.0, ge=0)  # Kelly bar length (m); 0 = unknown
     not_: str = Field("", alias="not")
 
     model_config = {"populate_by_name": True}
@@ -125,6 +135,7 @@ class EquipmentOut(BaseModel):
     casing: str
     dar_alan: str
     yakit_sinifi: str
+    kelly_uzunluk: float = 0.0
     not_: str = Field("", alias="not")
 
     model_config = {"from_attributes": True, "populate_by_name": True}

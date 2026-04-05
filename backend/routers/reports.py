@@ -58,6 +58,7 @@ def _equipment_to_dict(m) -> dict:
         "crowd_force": getattr(m, "crowd_force", 0) or 0,
         "dar_alan": getattr(m, "dar_alan", "Hayır") or "Hayır",
         "yakit_sinifi": getattr(m, "yakit_sinifi", "Orta") or "Orta",
+        "kelly_uzunluk": getattr(m, "kelly_uzunluk", 0) or 0,
     }
 
 
@@ -94,7 +95,7 @@ def export_soil_layers_csv(
             "Kohezyon": l.kohezyon, "SPT": l.spt,
             "UCS (MPa)": l.ucs, "RQD (%)": l.rqd,
             "Aciklama": l.aciklama,
-            "Stabilite Riski": stabilite_riski(l.zem_tipi, l.kohezyon, float(l.spt or 0), project.yeralti_suyu, l.baslangic),
+            "Stabilite Riski": stabilite_riski(l.zem_tipi, l.kohezyon, float(l.spt or 0), project.yeralti_suyu, l.baslangic, float(getattr(l, "su", 0) or 0)),
         } for l in layers]
         df = pd.DataFrame(rows)
         buf = io.StringIO()
@@ -200,7 +201,7 @@ def _build_pdf_report(project, current_user, db):
         if makine_uygunluk(_equipment_to_dict(m), tork, project.kazik_boyu, project.kazik_capi, c_zorunlu, project.is_tipi, layer_dicts, yas)["karar"] in ("Uygun", "Rahat Uygun")
     ) if equipment else 0
     risk_durumu = "yüksek riskli zemin katmanları içermektedir" if any(
-        stabilite_riski(l.zem_tipi, l.kohezyon, l.spt, project.yeralti_suyu, l.baslangic) == "Yüksek" for l in layers
+        stabilite_riski(l.zem_tipi, l.kohezyon, float(l.spt or 0), project.yeralti_suyu, l.baslangic, float(getattr(l, "su", 0) or 0)) == "Yüksek" for l in layers
     ) else "genel olarak stabil zemin koşulları sunmaktadır"
     ozet_metin = (
         f"{project.proje_adi or 'Bu proje'} kapsamında {project.kazik_adedi} adet, "
@@ -285,7 +286,7 @@ def _build_pdf_report(project, current_user, db):
             [
                 str(l.baslangic), str(l.bitis), l.formasyon or "—", l.zem_tipi,
                 str(l.spt), str(l.ucs), str(l.rqd),
-                stabilite_riski(l.zem_tipi, l.kohezyon, l.spt, project.yeralti_suyu, l.baslangic),
+                stabilite_riski(l.zem_tipi, l.kohezyon, float(l.spt or 0), project.yeralti_suyu, l.baslangic, float(getattr(l, "su", 0) or 0)),
             ]
             for l in layers
         ]
@@ -303,7 +304,7 @@ def _build_pdf_report(project, current_user, db):
             ("LEFTPADDING", (0, 0), (-1, -1), 6),
         ]
         for idx, l in enumerate(layers, start=1):
-            risk = stabilite_riski(l.zem_tipi, l.kohezyon, l.spt, project.yeralti_suyu)
+            risk = stabilite_riski(l.zem_tipi, l.kohezyon, float(l.spt or 0), project.yeralti_suyu, l.baslangic, float(getattr(l, "su", 0) or 0))
             bg = risk_colors.get(risk, colors.white)
             zl_style.append(("BACKGROUND", (7, idx), (7, idx), bg))
         zl_table.setStyle(TableStyle(zl_style))
@@ -332,7 +333,9 @@ def _build_pdf_report(project, current_user, db):
             ("LEFTPADDING", (0, 0), (-1, -1), 8),
         ]
         karar_colors = {
+            "Rahat Uygun": colors.HexColor("#ECFDF5"),
             "Uygun": colors.HexColor("#F0FDF4"),
+            "Sınırda": colors.HexColor("#FFFBEB"),
             "Şartlı Uygun": colors.HexColor("#FFFBEB"),
             "Riskli": colors.HexColor("#FFFBEB"),
             "Uygun Değil": colors.HexColor("#FEF2F2"),

@@ -9,12 +9,14 @@ import { zeminHesapTipi } from "./hesaplamalar"
 const ZEMIN_TIPLERI = [
   "Dolgu", "Kil", "Silt", "Kum", "Çakıl",
   "Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya",
+  "Organik Kil", "Torf",
 ]
 const KOHEZYON_TIPLERI = ["Kohezyonlu", "Kohezyonsuz", "Kaya"]
 const KAYA_TIPLERI = ["Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya"]
 
 const ZEMIN_KOHEZYON_MAP = {
   "Kil": "Kohezyonlu", "Silt": "Kohezyonlu",
+  "Organik Kil": "Kohezyonlu", "Torf": "Kohezyonlu",
   "Kum": "Kohezyonsuz", "Çakıl": "Kohezyonsuz", "Dolgu": "Kohezyonsuz",
   "Ayrışmış Kaya": "Kaya", "Kumtaşı": "Kaya", "Kireçtaşı": "Kaya", "Sert Kaya": "Kaya",
 }
@@ -31,6 +33,8 @@ const ZEMIN_RENK = {
   "Kumtaşı":       { bg: "#C07028", light: "#FEF2E2", abbr: "Ss", pattern: "sandstone" },
   "Kireçtaşı":     { bg: "#4682B4", light: "#EDF4FC", abbr: "Ls", pattern: "limestone" },
   "Sert Kaya":     { bg: "#37474F", light: "#ECEFF1", abbr: "Hr", pattern: "hardrock" },
+  "Organik Kil":   { bg: "#4E342E", light: "#EFEBE9", abbr: "OH", pattern: "organic" },
+  "Torf":          { bg: "#2E7D32", light: "#E8F5E9", abbr: "Pt", pattern: "peat" },
 }
 const DEFAULT_RENK = { bg: "#90A4AE", light: "#ECEFF1", abbr: "??" }
 
@@ -53,6 +57,7 @@ function kivamTanimi(zemTipi, kohezyon, spt, ucs) {
     if (ucs < 100) return "Çok Sağlam"
     return "Aşırı Sağlam"
   }
+  if (["Organik Kil", "Torf"].includes(zemTipi)) return "Organik/Yüksek Plastik"
   if (!spt) return "—"
   if (kohezyon === "Kohezyonlu" || ["Kil", "Silt"].includes(zemTipi)) {
     if (spt < 2)  return "Çok Yumuşak"
@@ -75,12 +80,30 @@ const RISK_RENK = {
   "Düşük":  { bg: "#F0FDF4", color: "#16A34A", border: "#BBF7D0" },
 }
 
-function stabiliteRiski(zemTipi, kohezyon, spt, yas, baslangic = 0) {
+function stabiliteRiski(zemTipi, kohezyon, spt, yas, baslangic = 0, su = 0) {
+  // Organik kil ve torf — her zaman yüksek risk
+  if (["Organik Kil", "Torf"].includes(zemTipi)) return "Yüksek"
+  // Granüler: YAS kontrolü
   if (["Kum", "Çakıl"].includes(zemTipi))
     return (yas > 0 && baslangic >= yas) ? "Yüksek" : "Orta"
+  // Kohezyonlu: su varsa EN 1536 §5.3
+  const isKohezif = ["Kil", "Silt", "Organik Kil"].includes(zemTipi) || kohezyon === "Kohezyonlu"
+  if (isKohezif && su > 0) {
+    if (su < 15) return "Yüksek"
+    if (su < 40) return "Orta"
+    return "Düşük"
+  }
+  if (isKohezif && spt > 0) {
+    if (spt < 2) return "Yüksek"
+    if (spt < 8) return "Orta"
+    return "Düşük"
+  }
   if (kohezyon === "Kohezyonsuz" && spt <= 10) return "Yüksek"
   if (kohezyon === "Kohezyonsuz" && spt <= 30) return "Orta"
-  if (zemTipi === "Dolgu") return "Orta"
+  if (zemTipi === "Dolgu") {
+    if (spt > 0 && spt < 5) return "Yüksek"
+    return "Orta"
+  }
   return "Düşük"
 }
 
@@ -427,6 +450,9 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
     if (field === "zemTipi") {
       const autoK = ZEMIN_KOHEZYON_MAP[value]
       if (autoK) yeni = yeni.map(r => r.id === id ? { ...r, kohezyon: autoK } : r)
+      // Kaya türlerinde SPT geçersizdir (ASTM D1586) — otomatik sıfırla
+      if (KAYA_TIPLERI.includes(value))
+        yeni = yeni.map(r => r.id === id ? { ...r, spt: 0 } : r)
     }
     if (field === "bitis" && idx >= 0 && idx < satirlar.length - 1) {
       const nextId = satirlar[idx + 1].id
@@ -703,7 +729,7 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
             </thead>
             <tbody>
               {satirlar.map((row, idx) => {
-                const risk = stabiliteRiski(row.zemTipi, row.kohezyon, row.spt, yeraltiSuyu, row.baslangic)
+                const risk = stabiliteRiski(row.zemTipi, row.kohezyon, row.spt, yeraltiSuyu, row.baslangic, row.su || 0)
                 const uc = ucOneri(row.zemTipi, row.ucs)
                 const kivam = kivamTanimi(row.zemTipi, row.kohezyon, row.spt, row.ucs)
                 const renkler = RISK_RENK[risk]

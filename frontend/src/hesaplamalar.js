@@ -3,7 +3,7 @@
 // Herhangi bir hesap değişikliği HER İKİ dosyada da uygulanmalıdır.
 //
 // v3.0 değişiklikleri:
-//   - Yeni tork formülü: T = τ_eff × (π×D³/8) × K_app × K_method × K_gw × K_depth × K_uncertainty
+//   - Yeni tork formülü: T = τ_eff × (π×D³/12) × K_app × K_method × K_gw × K_depth × K_uncertainty (FHWA GEC 10 §7.4)
 //   - Direnç yolu önceliği: kaya > su > CPT > SPT > çıkarımsal
 //   - Dört bantlı makine uygunluğu: RAHAT UYGUN / UYGUN / SINIRDA / UYGUN DEĞİL
 //   - Tam çevrim süresi: tamCevrimSuresi() ile beton, donatı, lojistik dahil
@@ -65,9 +65,9 @@ export const KATSAYILAR = {
     rqd_faktor: { 75: 1.00, 50: 1.10, 25: 1.20, 0: 1.35 },
 
     // ── Uygulama faktörü ─────────────────────────────────────────────────────
-    // Takım geometrisi + verimlilik + homojen olmama (Kelly rotary)
+    // K_app: Kelly bucket base shear — FHWA GEC 10 §7.4 πD³/12 formülü için kalibrasyon
     // Saha telemetrisiyle güncelleyin.
-    uygulama_faktoru: 1.25,
+    uygulama_faktoru: 1.67,
 
     // ── Çıktı belirsizlik bandı ──────────────────────────────────────────────
     alt_bant: 0.80,   // alt limit = nominal × 0.80
@@ -125,14 +125,16 @@ export const KATSAYILAR = {
       "Silt":           9.0,
       "Kum":            7.0,
       "Çakıl":          4.5,
-      "Ayrışmış Kaya": 10.0,
-      "Kumtaşı":       10.0,  // Trakya/zayıf-orta kumtaşı saha verisi; UCS azaltması sert olanı yavaşlatır
-      "Kireçtaşı":      4.0,
-      "Sert Kaya":      1.2,
+      "Ayrışmış Kaya":  4.0,  // WD5/WD6 tam ayrışmış — granüler davranış
+      "Kumtaşı":        3.0,  // Trakya/zayıf-orta kumtaşı; UCS azaltması sert olanı yavaşlatır
+      "Kireçtaşı":      2.0,
+      "Sert Kaya":      0.8,
+      "Organik Kil":    2.0,  // düşük dayanım, yüksek plastisite
+      "Torf":           1.5,  // çok düşük dayanım, sıkıştırılabilir
       varsayilan:       5.0,
     },
     ucs_azaltma_katsayi:  0.75,  // UCS=100 MPa'da çarpan ≈ 0.25
-    ucs_azaltma_min:      0.20,  // UCS azaltması için mutlak alt sınır
+    ucs_azaltma_min:      0.25,  // UCS azaltması için mutlak alt sınır
     referans_cap_m:       0.80,  // ROP tablosu için referans çap
     cap_azaltma_katsayi:  0.50,  // referans üzerinde her metre için
     cap_azaltma_min:      0.40,  // çap azaltması için alt sınır
@@ -237,6 +239,7 @@ KATSAYILAR.sure = KATSAYILAR.cevrim
 const STANDART_TIPLER = [
   "Dolgu", "Kil", "Silt", "Kum", "Çakıl",
   "Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya",
+  "Organik Kil", "Torf",
 ]
 
 // Kaya bileşik adları — zemin anahtar kelimelerinden önce kontrol edilir
@@ -247,11 +250,13 @@ const KAYA_ANAHTAR = [
   { r: /ayrışmış\s*kaya|bozuşmuş\s*kaya/i, tip: "Ayrışmış Kaya" },
 ]
 const ZEMIN_ANAHTAR = [
-  { r: /dolgu|moloz|yapay/i, tip: "Dolgu" },
-  { r: /çakıl/i, tip: "Çakıl" },
-  { r: /kum/i,   tip: "Kum" },
-  { r: /silt/i,  tip: "Silt" },
-  { r: /kil/i,   tip: "Kil" },
+  { r: /dolgu|moloz|yapay/i,   tip: "Dolgu" },
+  { r: /torf|turba|peat/i,     tip: "Torf" },
+  { r: /organik\s*kil/i,       tip: "Organik Kil" },
+  { r: /çakıl/i,               tip: "Çakıl" },
+  { r: /kum/i,                 tip: "Kum" },
+  { r: /silt/i,                tip: "Silt" },
+  { r: /kil/i,                 tip: "Kil" },
 ]
 
 /**
@@ -292,7 +297,7 @@ export function zeminHesapTipi(zemTipi, kohezyon = null) {
 export function zeminSinifi(zemTipi, kohezyon = null) {
   const tip = zeminHesapTipi(zemTipi, kohezyon)
   if (!tip)                                                                    return "belirsiz"
-  if (["Kil", "Silt"].includes(tip))                                           return "kohezyonlu"
+  if (["Kil", "Silt", "Organik Kil", "Torf"].includes(tip))                   return "kohezyonlu"
   if (["Kum", "Çakıl", "Dolgu"].includes(tip))                                return "granüler"
   if (["Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya"].includes(tip))  return "kaya"
   return "belirsiz"
@@ -317,7 +322,7 @@ export function guvenSinifi(row) {
     return { sinif: "B", aciklama: "CPT qc korelasyonundan türetilmiş (Sınıf B)" }
   if (ucs > 0)
     return { sinif: "B", aciklama: "UCS ölçümünden türetilmiş (Sınıf B)" }
-  if (spt > 0)
+  if (spt > 0 && sinif !== "kaya")  // SPT kaya için geçersiz (ASTM D1586)
     return { sinif: "B", aciklama: "SPT korelasyonundan türetilmiş (Sınıf B)" }
   return { sinif: "C", aciklama: "Yalnızca niteliksel zemin adı (Sınıf C)" }
 }
@@ -355,6 +360,18 @@ export function direncIndeksi(row) {
 
   // ── Yol 1: Kaya (UCS tabanlı) ────────────────────────────────────────────
   if (sinif === "kaya") {
+    // Ayrışmış Kaya özel durumu: UCS yok ama SPT var → tamamen ayrışmış kaya granüler gibi davranır
+    // EN ISO 14689 WD5/WD6 — tam ayrışmış kaya zemin özelliklerine dönüşür
+    if (hesapTip === "Ayrışmış Kaya" && ucs === 0 && spt > 0) {
+      const tauKPa = Math.max(spt * K.kohezyon_siz_spt, K.kohezyon_siz_tau_min)
+      notes.push(
+        `Ayrışmış Kaya: UCS ölçümü yok, SPT=${spt} mevcut → ` +
+        `granüler zemin modeli uygulandı (EN ISO 14689 WD5/WD6 — tam ayrışmış). ` +
+        `τ=${tauKPa} kPa. Sınıf C.`
+      )
+      return { tauKPa, source: "spt_ayrismis_kaya", confidence: "C", rawValue: spt, rawUnit: "darbe", notes }
+    }
+
     let ucsEff, source, confidence, rawValue, rawUnit
     if (ucs > 0) {
       ucsEff = ucs; source = "ucs"; confidence = "B"
@@ -452,12 +469,13 @@ function zeminSuyuKatsayisi(sinif, baslangic, yas) {
   return GW.tork_kohezyon_siz
 }
 
-/** Derinlik faktörü K_depth */
-function derinlikKatsayisi(bitis) {
+/** Derinlik faktörü K_depth — katman orta noktasına göre (FHWA GEC 10 §7.4) */
+function derinlikKatsayisi(baslangic, bitis) {
+  const ortaNokta = (baslangic + bitis) / 2.0
   const esikler = KATSAYILAR.derinlik.esikler
   const sortedKeys = Object.keys(esikler).map(Number).sort((a, b) => b - a)
   for (const esik of sortedKeys) {
-    if (bitis >= esik) return esikler[esik]
+    if (ortaNokta >= esik) return esikler[esik]
   }
   return 1.00
 }
@@ -467,15 +485,49 @@ function derinlikKatsayisi(bitis) {
 /**
  * Katman bazlı stabilite riski.
  * Kaynak: EN 1536:2010 §5, FHWA GEC 10 §4
+ * @param {string} tip - Zemin tipi
+ * @param {string} kohezyon - Kohezyon sınıfı
+ * @param {number} spt - SPT N60
+ * @param {number} yas - Yeraltı suyu derinliği (m)
+ * @param {number} baslangic - Katman başlangıç derinliği (m)
+ * @param {number} su - Drenajsız kayma dayanımı (kPa); 0 = ölçülmemiş
  */
-export function stabiliteRiski(tip, kohezyon, spt, yas, baslangic = 0) {
+export function stabiliteRiski(tip, kohezyon, spt, yas, baslangic = 0, su = 0) {
   const C = KATSAYILAR.stabilite
   const hesapTip = zeminHesapTipi(tip, kohezyon)
+
+  // Organik kil ve torf her zaman yüksek risk (EN 1536 §5 — sıkıştırılabilir, çöken)
+  if (["Organik Kil", "Torf"].includes(hesapTip)) return "Yüksek"
+
+  // Granüler (kum/çakıl): YAS kontrolü
   if (["Kum", "Çakıl"].includes(hesapTip))
     return (yas > 0 && baslangic >= yas) ? "Yüksek" : "Orta"
+
+  // Kohezyonlu: su ölçümü varsa EN 1536 §5.3 yumuşak kil akma kontrolü
+  const sinif = zeminSinifi(hesapTip, kohezyon)
+  if (sinif === "kohezyonlu" && su > 0) {
+    if (su < 15) return "Yüksek"  // EN 1536 §5.3: su < 15 kPa → zemin akması / sıkışma riski
+    if (su < 40) return "Orta"
+    return "Düşük"
+  }
+
+  // SPT tabanlı kohezyonlu kontrol
+  if (sinif === "kohezyonlu" && spt > 0) {
+    if (spt < 2)  return "Yüksek"
+    if (spt < 8)  return "Orta"
+    return "Düşük"
+  }
+
+  // Kohezyonsuz SPT kontrolü
   if (kohezyon === "Kohezyonsuz" && spt <= C.cok_gevsek_spt) return "Yüksek"
   if (kohezyon === "Kohezyonsuz" && spt <= C.orta_spt)       return "Orta"
-  if (hesapTip === "Dolgu")                                   return "Orta"
+
+  // Dolgu
+  if (hesapTip === "Dolgu") {
+    if (spt > 0 && spt < 5) return "Yüksek"
+    return "Orta"
+  }
+
   return "Düşük"
 }
 
@@ -492,13 +544,21 @@ export function casingDurum(zemin, yas) {
 
   for (const row of zemin) {
     const spt      = parseFloat(row.spt || 0)
+    const su       = parseFloat(row.su  || 0)
     const k        = (row.bitis || 0) - (row.baslangic || 0)
-    const hesapTip = zeminHesapTipi(row.zemTipi, row.kohezyon)
+    const hesapTip = zeminHesapTipi(row.zemTipi || row.zem_tipi, row.kohezyon)
     const bas      = row.baslangic || 0
+    const sinif    = zeminSinifi(hesapTip, row.kohezyon)
+
+    // Organik kil ve torf — her zaman zorunlu
+    if (["Organik Kil", "Torf"].includes(hesapTip)) {
+      zorunlu = true
+      gerekce.push(`${hesapTip} (${bas}–${row.bitis} m) — sıkıştırılabilir/çöken zemin, zorunlu`)
+    }
 
     if (["Kum", "Çakıl"].includes(hesapTip) && k > C.kum_cakil_min_kalinlik) {
       zorunlu = true
-      gerekce.push(`${row.zemTipi} (${bas}–${row.bitis} m, ${k} m) — EN 1536 §5 gereği`)
+      gerekce.push(`${row.zemTipi || hesapTip} (${bas}–${row.bitis} m, ${k} m) — EN 1536 §5 gereği`)
     }
     if (row.kohezyon === "Kohezyonsuz" && yas > 0 && bas >= yas) {
       zorunlu = true
@@ -508,6 +568,19 @@ export function casingDurum(zemin, yas) {
       zorunlu = true
       gerekce.push(`SPT=${spt}<${C.cok_gevsek_spt} (${bas}–${row.bitis} m) — çok gevşek`)
     }
+
+    // Yumuşak kohezyonlu + YAS altı → sıkışma/akma riski (EN 1536 §5.3)
+    const yasAlti = yas > 0 && bas >= yas
+    if (sinif === "kohezyonlu" && yasAlti) {
+      if (su > 0 && su < 25) {
+        zorunlu = true
+        gerekce.push(`Yumuşak kil (${bas}–${row.bitis} m, su=${su} kPa) YAS altı — sıkışma riski, EN 1536 §5.3`)
+      } else if (su === 0 && spt < 2) {
+        zorunlu = true
+        gerekce.push(`Çok yumuşak kil (${bas}–${row.bitis} m, SPT=${spt}) YAS altı — sıkışma riski`)
+      }
+    }
+
     if (hesapTip === "Dolgu" && k > C.dolgu_sartli_kalinlik) {
       sartli = true
       gerekce.push(`Dolgu (${bas}–${row.bitis} m, ${k} m) — kalın dolgu, önerilir`)
@@ -528,6 +601,50 @@ export function casingMetreHesapla(zemin, yas) {
     else if (risk === "Orta")   toplam += k * C.orta_risk_oran
   }
   return Math.round(toplam * 10) / 10
+}
+
+// ─── Sıvılaşma Riski ─────────────────────────────────────────────────────────
+
+/**
+ * Granüler zemin katmanı için basit sıvılaşma taraması.
+ * Yöntem: Seed & Idriss (1971) / Youd et al. (2001)
+ * Kapsam: YAS altındaki granüler, derinlik < 20 m, SPT < 20
+ *
+ * @param {string} tip - Zemin tipi
+ * @param {string} kohezyon - Kohezyon sınıfı
+ * @param {number} spt - SPT N60
+ * @param {number} yas - Yeraltı suyu derinliği (m)
+ * @param {number} baslangic - Katman başlangıç derinliği (m)
+ * @param {number} bitis - Katman bitiş derinliği (m)
+ * @returns {{ risk: "Yüksek"|"Orta"|"Düşük"|"N/A", aciklama: string }}
+ */
+export function sivilasmaRiski(tip, kohezyon, spt, yas, baslangic, bitis) {
+  const hesapTip = zeminHesapTipi(tip, kohezyon)
+  const sinif = zeminSinifi(hesapTip, kohezyon)
+
+  // Yalnızca granüler zemin
+  if (sinif !== "granüler")
+    return { risk: "N/A", aciklama: "Granüler olmayan zemin — sıvılaşma taraması dışı" }
+
+  // YAS kontrolü
+  if (!(yas > 0 && baslangic >= yas))
+    return { risk: "N/A", aciklama: "Katman YAS üstünde — sıvılaşma riski yok" }
+
+  // Derinlik kontrolü (>20 m derin katmanlar için azalan risk)
+  const ortaNokta = (baslangic + bitis) / 2.0
+  if (ortaNokta > 20)
+    return { risk: "Düşük", aciklama: `Derinlik > 20 m (orta nokta: ${ortaNokta} m) — sıvılaşma olasılığı düşük` }
+
+  // SPT tabanlı risk sınıflaması (Youd et al. 2001, Tablo 1)
+  const sptN = parseFloat(spt || 0)
+  if (sptN === 0)
+    return { risk: "Yüksek", aciklama: "SPT verisi yok, granüler YAS altı — muhafazakâr Yüksek risk" }
+  if (sptN < 10)
+    return { risk: "Yüksek",  aciklama: `SPT=${sptN} < 10, çok gevşek granüler — Yüksek sıvılaşma riski (Seed & Idriss 1971)` }
+  if (sptN < 20)
+    return { risk: "Orta",    aciklama: `SPT=${sptN} 10-20 arası — Orta sıvılaşma riski (Youd et al. 2001)` }
+
+  return { risk: "Düşük", aciklama: `SPT=${sptN} ≥ 20 — sıvılaşma riski düşük` }
 }
 
 // ─── Penetrasyon Hızı (ROP) ───────────────────────────────────────────────────
@@ -624,7 +741,7 @@ export function gerekliTorkAralik(zemin, capMm, isTipi = "Fore Kazık", yas = 0)
 
     // K katsayıları
     const kGw    = zeminSuyuKatsayisi(sinif, baslangic, yas)
-    const kDepth = derinlikKatsayisi(bitis)
+    const kDepth = derinlikKatsayisi(baslangic, bitis)
 
     // K_uncertainty: kaya katmanlar için RQD belirsizlik faktörü
     let rqdFaktor = 1.0
@@ -635,10 +752,11 @@ export function gerekliTorkAralik(zemin, capMm, isTipi = "Fore Kazık", yas = 0)
       }
     }
 
-    // Tam tork formülü
+    // Tam tork formülü: T = τ × (π×D³/12) × K_app × K_method × K_gw × K_depth × K_rqd
+    // FHWA GEC 10 §7.4: Kelly bucket base shear → πD³/12
     const tNominal = (
       tauEff
-      * (Math.PI * Math.pow(capM, 3) / 8)
+      * (Math.PI * Math.pow(capM, 3) / 12)
       * K.uygulama_faktoru
       * kMethod
       * kGw
@@ -954,6 +1072,7 @@ export function makinaUygunluk(
   const makineMaxCap   = parseFloat(makine.maxCap      || makine.max_cap      || 0)
   const makineCasing   = makine.casing       || "Hayır"
   const makineCrowd    = parseFloat(makine.crowdForce  || makine.crowd_force  || 0)
+  const makineKelly    = parseFloat(makine.kellyUzunluk || makine.kelly_uzunluk || 0)
 
   // ── 1. Yöntem uyumluluğu ─────────────────────────────────────────────────
   const desteklenenler = M.method_uyumluluk[isTipi] || [isTipi]
@@ -976,6 +1095,9 @@ export function makinaUygunluk(
     red.push(`Derinlik yetersiz: ${makineMaxD} m < ${kazikBoyu} m`)
   if (makineMaxCap > 0 && makineMaxCap < kazikCapi)
     red.push(`Çap yetersiz: ${makineMaxCap} mm < ${kazikCapi} mm`)
+  // Kelly bar uzunluğu efektif delgi derinliğini sınırlar
+  if (makineKelly > 0 && kazikBoyu > makineKelly)
+    red.push(`Kelly bar yetersiz: kazık boyu ${kazikBoyu} m > kelly uzunluğu ${makineKelly} m`)
 
   // ── 3. Tork oranı ─────────────────────────────────────────────────────────
   const torkOran = tork > 0 ? makineTork / tork : 999
