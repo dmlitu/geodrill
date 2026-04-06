@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react"
+import { useState, useRef, useMemo, useCallback } from "react"
 import { bulkReplaceSoilLayers, fromSnakeLayer } from "./api"
 import ConfirmDialog from "./ConfirmDialog"
 import { useToast } from "./Toast"
@@ -442,32 +442,47 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
   const fileInputRef = useRef(null)
   const toast = useToast()
 
-  const satirlar = data.length > 0 ? data : [DEFAULT_ROW()]
+  const satirlar = useMemo(
+    () => data.length > 0 ? data : [DEFAULT_ROW()],
+    [data]
+  )
 
-  const updateRow = (id, field, value) => {
-    const idx = satirlar.findIndex(r => r.id === id)
-    let yeni = satirlar.map(r => r.id === id ? { ...r, [field]: value } : r)
-    if (field === "zemTipi") {
-      const autoK = ZEMIN_KOHEZYON_MAP[value]
-      if (autoK) yeni = yeni.map(r => r.id === id ? { ...r, kohezyon: autoK } : r)
-      // Kaya türlerinde SPT geçersizdir (ASTM D1586) — otomatik sıfırla
-      if (KAYA_TIPLERI.includes(value))
-        yeni = yeni.map(r => r.id === id ? { ...r, spt: 0 } : r)
-    }
-    if (field === "bitis" && idx >= 0 && idx < satirlar.length - 1) {
-      const nextId = satirlar[idx + 1].id
-      yeni = yeni.map(r => r.id === nextId ? { ...r, baslangic: value } : r)
-    }
-    onChange(yeni)
-  }
+  const updateRow = useCallback((id, field, value) => {
+    onChange(prev => {
+      const rows = prev.length > 0 ? prev : [DEFAULT_ROW()]
+      const idx = rows.findIndex(r => r.id === id)
+      let yeni = rows.map(r => r.id === id ? { ...r, [field]: value } : r)
+      if (field === "zemTipi") {
+        const autoK = ZEMIN_KOHEZYON_MAP[value]
+        if (autoK) yeni = yeni.map(r => r.id === id ? { ...r, kohezyon: autoK } : r)
+        // Kaya türlerinde SPT geçersizdir (ASTM D1586) — otomatik sıfırla
+        if (KAYA_TIPLERI.includes(value))
+          yeni = yeni.map(r => r.id === id ? { ...r, spt: 0 } : r)
+      }
+      if (field === "bitis" && idx >= 0 && idx < rows.length - 1) {
+        const nextId = rows[idx + 1].id
+        yeni = yeni.map(r => r.id === nextId ? { ...r, baslangic: value } : r)
+      }
+      return yeni
+    })
+  }, [onChange])
 
-  const addRow = () => {
-    const son = satirlar[satirlar.length - 1]
-    onChange([...satirlar, { ...DEFAULT_ROW(), baslangic: son.bitis, bitis: son.bitis + 3 }])
-  }
+  const addRow = useCallback(() => {
+    onChange(prev => {
+      const rows = prev.length > 0 ? prev : [DEFAULT_ROW()]
+      const son = rows[rows.length - 1]
+      return [...rows, { ...DEFAULT_ROW(), baslangic: son.bitis, bitis: son.bitis + 3 }]
+    })
+  }, [onChange])
 
-  const removeRow = (id) => { if (satirlar.length > 1) setSilmeOnay(id) }
-  const confirmRemove = () => { onChange(satirlar.filter(r => r.id !== silmeOnay)); setSilmeOnay(null) }
+  const removeRow = useCallback((id) => {
+    if (satirlar.length > 1) setSilmeOnay(id)
+  }, [satirlar.length])
+
+  const confirmRemove = useCallback(() => {
+    onChange(prev => prev.filter(r => r.id !== silmeOnay))
+    setSilmeOnay(null)
+  }, [onChange, silmeOnay])
 
   const kaydet = async () => {
     if (!projeId) { toast.error("Önce projeyi kaydedin."); return }
@@ -505,8 +520,18 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
     } finally { setPdfYukleniyor(false); e.target.value = "" }
   }
 
-  const uyarilar = derinlikUyarilari(satirlar)
-  const maxBitis = Math.max(...satirlar.map(r => r.bitis || 0))
+  // Memoize per-row derived values — avoids recomputing stabilite/uc/kivam for
+  // every row on every render when only one field in one row changes.
+  const satirTurev = useMemo(() => satirlar.map(row => ({
+    risk: stabiliteRiski(row.zemTipi, row.kohezyon, row.spt, yeraltiSuyu, row.baslangic, row.su || 0),
+    uc: ucOneri(row.zemTipi, row.ucs),
+    kivam: kivamTanimi(row.zemTipi, row.kohezyon, row.spt, row.ucs),
+    renk: zemRengi(row.zemTipi),
+    isKaya: KAYA_TIPLERI.includes(row.zemTipi),
+  })), [satirlar, yeraltiSuyu])
+
+  const uyarilar = useMemo(() => derinlikUyarilari(satirlar), [satirlar])
+  const maxBitis = useMemo(() => Math.max(...satirlar.map(r => r.bitis || 0)), [satirlar])
   const kapsamYuzde = kazikBoyu ? Math.min(100, Math.round((maxBitis / kazikBoyu) * 100)) : null
 
   const stats = useMemo(() => ({
@@ -729,12 +754,8 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
             </thead>
             <tbody>
               {satirlar.map((row, idx) => {
-                const risk = stabiliteRiski(row.zemTipi, row.kohezyon, row.spt, yeraltiSuyu, row.baslangic, row.su || 0)
-                const uc = ucOneri(row.zemTipi, row.ucs)
-                const kivam = kivamTanimi(row.zemTipi, row.kohezyon, row.spt, row.ucs)
+                const { risk, uc, kivam, renk, isKaya } = satirTurev[idx]
                 const renkler = RISK_RENK[risk]
-                const renk = zemRengi(row.zemTipi)
-                const isKaya = KAYA_TIPLERI.includes(row.zemTipi)
                 const rh = showHatalar ? satirHatasi(row) : {}
                 const err = (k) => rh[k] ? { borderColor: "#FCA5A5" } : {}
 

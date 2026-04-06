@@ -52,8 +52,8 @@ function PdfOnizleme({ open, onClose, onDownload, yukleniyor, proje, analiz, zem
     ["Gerekli Min. Tork", `${tork} kNm`],
     ["Muhafaza Borusu", `${casingDur} (${casingM} m)`],
     ["1 Kazık Delgi Süresi", `${sure} saat`],
-    ["Toplam Is Suresi", `${toplamGun} gun`],
-    ["Metre Basi Mazot", `${mBasi} L/m`],
+    ["Toplam İş Süresi", `${toplamGun} gün`],
+    ["Metre Başı Mazot", `${mBasi} L/m`],
     ["Toplam Mazot", `${Math.round(topMazot * proje.kazikAdedi)} L`],
   ]
 
@@ -247,7 +247,8 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     const { mBasi, toplam: topMazot } = mazotTahmini(tork, proje.kazikBoyu)
     const kritik = kritikKatman(zemin)
     const gunlukUretim = cevrim.gunlukUretimAdet
-    const toplamGun = Math.round((cevrim.tToplamCevrim * proje.kazikAdedi / 9.0) * 10) / 10
+    const kazikBasiGun = cevrim.kazikBasiGun   // days per pile (> 1 when pile takes longer than a workday)
+    const toplamGun = Math.ceil(proje.kazikAdedi / gunlukUretim)
     const ucOneri = zemin.some(r => ["Kumtaşı", "Kireçtaşı", "Sert Kaya"].includes(r.zemTipi) || r.ucs >= 25)
       ? "Kaya ucu gerekli" : zemin.some(r => r.zemTipi === "Ayrışmış Kaya" || r.ucs >= 10)
       ? "Geçiş tipi uç" : "Standart uç yeterli"
@@ -273,7 +274,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
       : { makine: null, durum: "Uygun makine yok", renk: "#DC2626", bg: "#FEF2F2" }
     const katmanCiktilar = katmanTeknikCikti(zemin, proje.kazikCapi)
     const opOneri = operasyonOnerisi(zemin, proje.yeraltiSuyu)
-    return { tork, torkAralik, casingDur, gerekce, zorunlu, casingM, sure, cevrim, guven, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri }
+    return { tork, torkAralik, casingDur, gerekce, zorunlu, casingM, sure, cevrim, guven, mBasi, topMazot, kritik, gunlukUretim, kazikBasiGun, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri }
   }, [zemin, proje, makineler])
 
   if (!zemin.length) {
@@ -297,7 +298,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     )
   }
 
-  const { tork, torkAralik, casingDur, gerekce, casingM, sure, cevrim, guven, mBasi, topMazot, kritik, gunlukUretim, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri } = analiz
+  const { tork, torkAralik, casingDur, gerekce, casingM, sure, cevrim, guven, mBasi, topMazot, kritik, gunlukUretim, kazikBasiGun, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri } = analiz
 
   return (
     <div>
@@ -496,9 +497,10 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
           oran={Math.min(100, (tork / 300) * 100)} />
         <MetrikKart baslik="Muhafaza Borusu" deger={casingDur} renk="#6366F1" alt={`${casingM} m tahmini`}
           oran={(casingM / proje.kazikBoyu) * 100} />
-        <MetrikKart baslik="1 Kazık Delgi Süresi" deger={`${sure} saat`} renk="#0891B2" alt={`~${gunlukUretim} kazık/gün`}
+        <MetrikKart baslik="1 Kazık Delgi Süresi" deger={`${sure} saat`} renk="#0891B2"
+          alt={kazikBasiGun > 1 ? `1 kazık ~${kazikBasiGun} gün` : `~${gunlukUretim} kazık/gün`}
           oran={Math.min(100, (sure / 8) * 100)} />
-        <MetrikKart baslik="Toplam Is Suresi" deger={`${toplamGun} gun`} renk="#0EA5E9" alt={`${proje.kazikAdedi} kazik`}
+        <MetrikKart baslik="Toplam İş Süresi" deger={`${toplamGun} gün`} renk="#0EA5E9" alt={`${proje.kazikAdedi} kazık`}
           oran={Math.min(100, (toplamGun / 60) * 100)} />
         <MetrikKart
           baslik="Stabilite Skoru"
@@ -535,7 +537,10 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
               <span style={{ fontWeight: "700", color: "#0C4A6E" }}>Toplam: {cevrim.tToplamCevrim} saat/kazık</span>
             </div>
             <div style={{ fontSize: "13px", color: "#475569" }}>
-              Günlük üretim: <span style={{ fontWeight: "700", color: "#0C4A6E" }}>~{gunlukUretim} kazık/gün</span>
+              {kazikBasiGun > 1
+                ? <>1 kazık: <span style={{ fontWeight: "700", color: "#D97706" }}>~{kazikBasiGun} gün</span></>
+                : <>Günlük üretim: <span style={{ fontWeight: "700", color: "#0C4A6E" }}>~{gunlukUretim} kazık/gün</span></>
+              }
             </div>
             <div style={{ fontSize: "13px", color: "#475569" }}>
               Tahmini toplam: <span style={{ fontWeight: "700", color: "#0C4A6E" }}>{toplamGun} gün</span>

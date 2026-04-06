@@ -11,7 +11,20 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models
 
-SECRET_KEY = os.getenv("SECRET_KEY", "geodrill-2025-xK9mPqR7vW3nJ5tL8yB2dF4hS6")
+_SECRET_KEY_ENV = os.getenv("SECRET_KEY")
+_SECRET_KEY_DEFAULT = "geodrill-dev-xK9mPqR7vW3nJ5tL8yB2dF4hS6"  # yalnızca local dev
+
+if _SECRET_KEY_ENV:
+    SECRET_KEY = _SECRET_KEY_ENV
+else:
+    import warnings
+    warnings.warn(
+        "SECRET_KEY ortam değişkeni ayarlı değil — yalnızca geliştirme ortamında "
+        "varsayılan anahtar kullanılıyor. Production'da SECRET_KEY mutlaka set edilmeli!",
+        stacklevel=1,
+    )
+    SECRET_KEY = _SECRET_KEY_DEFAULT
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8  # 8 saat
 

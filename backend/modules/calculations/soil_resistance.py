@@ -19,8 +19,11 @@ Source references:
   - Robertson & Campanella (1983) — CPT Nkt bearing factor
 """
 
+import logging
 from typing import Dict, Optional
 from configs.geotech_coefficients import KATSAYILAR
+
+_log = logging.getLogger(__name__)
 
 
 # ─── Soil Classification Helpers ─────────────────────────────────────────────
@@ -253,6 +256,11 @@ def direnc_indeksi(row: dict) -> dict:
         # Ayrışmış Kaya özel durumu: UCS yok ama SPT var → tamamen ayrışmış kaya
         # EN ISO 14689: WD5/WD6 sınıfı kaya zemin gibi davranır (granüler yol daha uygun)
         if hesap_tip == "Ayrışmış Kaya" and ucs == 0 and spt > 0:
+            _log.debug(
+                "direnc_indeksi: Ayrışmış Kaya SPT fallback "
+                "(%.1f–%.1f m, SPT=%d) — granüler model uygulandı",
+                baslangic, bitis, spt,
+            )
             tau_kPa = max(spt * K.kohezyon_siz_spt, K.kohezyon_siz_tau_min)
             notes.append(
                 f"Ayrışmış Kaya: UCS ölçümü yok, SPT={spt} mevcut → "
@@ -390,6 +398,11 @@ def direnc_indeksi(row: dict) -> dict:
 
     # ── Fallback: no measurable data ─────────────────────────────────────────
     # Use minimum floor based on best-guess soil class
+    _log.warning(
+        "direnc_indeksi: veri eksik fallback (%.1f–%.1f m, tip=%s, sınıf=%s) "
+        "— minimum τ kullanılıyor. SPT=%s, UCS=%s, su=%s",
+        baslangic, bitis, zem_tipi, sinif, spt or "—", ucs or "—", su or "—",
+    )
     if sinif == "kohezyonlu":
         tau_kPa = K.kohezyon_su_min
         notes.append(

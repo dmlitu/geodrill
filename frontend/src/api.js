@@ -1,4 +1,5 @@
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000"
+const REQUEST_TIMEOUT_MS = 30_000
 
 // ─── Token helpers ────────────────────────────────────────────────────────────
 
@@ -14,24 +15,53 @@ export function clearToken() {
   localStorage.removeItem("gd_token")
 }
 
+// ─── Unauthorized callback ─────────────────────────────────────────────────────
+// Register a handler from App.jsx so 401s trigger a soft React logout
+// instead of window.location.reload() which destroys all component state.
+
+let _onUnauthorized = null
+export function setOnUnauthorized(fn) {
+  _onUnauthorized = fn
+}
+
 // ─── Fetch wrapper ────────────────────────────────────────────────────────────
+
+async function _doFetch(path, options) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  try {
+    return await fetch(`${BASE}${path}`, { ...options, signal: controller.signal })
+  } catch (err) {
+    if (err.name === "AbortError") throw new Error("İstek zaman aşımına uğradı (30 s). Bağlantınızı kontrol edin.")
+    if (!navigator.onLine) throw new Error("İnternet bağlantısı yok.")
+    throw new Error("Sunucuya ulaşılamıyor. Lütfen daha sonra tekrar deneyin.")
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 async function request(path, options = {}) {
   const token = getToken()
   const headers = { "Content-Type": "application/json", ...options.headers }
   if (token) headers["Authorization"] = `Bearer ${token}`
 
-  const res = await fetch(`${BASE}${path}`, { ...options, headers })
+  let res = await _doFetch(path, { ...options, headers })
+
+  // 1 retry on transient server errors (502/503/504)
+  if (res.status >= 500) {
+    await new Promise(r => setTimeout(r, 1000))
+    res = await _doFetch(path, { ...options, headers })
+  }
 
   if (res.status === 401) {
     clearToken()
-    window.location.reload()
-    throw new Error("Oturum süresi doldu")
+    if (_onUnauthorized) _onUnauthorized()
+    throw new Error("Oturum süresi doldu. Lütfen tekrar giriş yapın.")
   }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    throw new Error(body.detail || `HTTP ${res.status}`)
+    throw new Error(body.detail || `Sunucu hatası (HTTP ${res.status})`)
   }
 
   if (res.status === 204) return null

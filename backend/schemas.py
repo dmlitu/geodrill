@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import List, Optional
-from pydantic import BaseModel, Field, model_validator
+from typing import List, Literal, Optional
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # ─── Auth ────────────────────────────────────────────────────────────────────
@@ -28,13 +28,33 @@ class UserOut(BaseModel):
 
 # ─── Soil Layer ───────────────────────────────────────────────────────────────
 
+ZEMIN_TIPLERI = {
+    "Dolgu", "Kil", "Silt", "Kum", "Çakıl",
+    "Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya",
+    "Organik Kil", "Torf",
+}
+
+KOHEZYON_TIPLERI = Literal["Kohezyonlu", "Kohezyonsuz", "Kaya"]
+IS_TIPLERI = Literal["Fore Kazık", "Ankraj", "Mini Kazık"]
+
+
 class SoilLayerCreate(BaseModel):
     baslangic: float = Field(..., ge=0)
     bitis: float = Field(..., gt=0)
     formasyon: str = ""
-    zem_tipi: str = "Kil"
-    kohezyon: str = "Kohezyonlu"
+    zem_tipi: str = Field("Kil", min_length=1, max_length=50)
+    kohezyon: KOHEZYON_TIPLERI = "Kohezyonlu"
     spt: int = Field(0, ge=0, le=300)
+
+    @field_validator("zem_tipi")
+    @classmethod
+    def zem_tipi_gecerli(cls, v: str) -> str:
+        if v not in ZEMIN_TIPLERI:
+            raise ValueError(
+                f"Geçersiz zemin tipi: '{v}'. "
+                f"Geçerli tipler: {', '.join(sorted(ZEMIN_TIPLERI))}"
+            )
+        return v
     ucs: float = Field(0.0, ge=0)
     rqd: float = Field(0.0, ge=0, le=100)
     cpt_qc: float = Field(0.0, ge=0)
@@ -71,7 +91,7 @@ class ProjectCreate(BaseModel):
     proje_kodu: str = ""
     saha_kodu: str = ""
     lokasyon: str = ""
-    is_tipi: str = "Fore Kazık"
+    is_tipi: IS_TIPLERI = "Fore Kazık"
     kazik_boyu: float = Field(18.0, gt=0, le=200)
     kazik_capi: int = Field(800, gt=0, le=5000)
     kazik_adedi: int = Field(30, gt=0)

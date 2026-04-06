@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 
 from auth import get_current_user
@@ -42,10 +42,15 @@ def get_project(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    project = db.query(models.Project).filter(
-        models.Project.id == project_id,
-        models.Project.owner_id == current_user.id,
-    ).first()
+    project = (
+        db.query(models.Project)
+        .options(joinedload(models.Project.soil_layers))
+        .filter(
+            models.Project.id == project_id,
+            models.Project.owner_id == current_user.id,
+        )
+        .first()
+    )
     if not project:
         raise HTTPException(status_code=404, detail="Proje bulunamadı")
     return project
@@ -58,10 +63,15 @@ def update_project(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    project = db.query(models.Project).filter(
-        models.Project.id == project_id,
-        models.Project.owner_id == current_user.id,
-    ).first()
+    project = (
+        db.query(models.Project)
+        .options(joinedload(models.Project.soil_layers))
+        .filter(
+            models.Project.id == project_id,
+            models.Project.owner_id == current_user.id,
+        )
+        .first()
+    )
     if not project:
         raise HTTPException(status_code=404, detail="Proje bulunamadı")
 

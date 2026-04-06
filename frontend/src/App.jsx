@@ -16,6 +16,7 @@ import {
   listProjects, getProject,
   listEquipment,
   fromSnake, fromSnakeLayer, fromSnakeMakine,
+  setOnUnauthorized,
 } from "./api"
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
@@ -766,11 +767,18 @@ export default function App() {
     setUser(username)
   }
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     localStorage.removeItem("gd_username")
     setUser(null)
     setAuthPage("landing")
-  }
+  }, [])
+
+  // Register soft-logout handler so api.js 401s go through React state,
+  // not window.location.reload() which would destroy all component state.
+  useEffect(() => {
+    setOnUnauthorized(handleLogout)
+    return () => setOnUnauthorized(null)
+  }, [handleLogout])
 
   if (user) return <ToastProvider><Dashboard username={user} onLogout={handleLogout} /></ToastProvider>
 
