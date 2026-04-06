@@ -119,18 +119,23 @@ export const KATSAYILAR = {
   rop: {
     // Zemin tipine göre taban ROP (m/saat) Ø800 mm referans çapında
     // Kaynak: FHWA GEC 10 §7 + Türkiye saha kayıtları. C Sınıfı.
+    // Baz ROP (m/saat) Ø800mm referans çapında.
+    // v3.2 revizyonu: zemin değerleri %40-50 artırıldı — önceki değerler (Kil=8, Kum=7)
+    // modern Kelly/rotary rig saha telemetrisinin yaklaşık yarısındaydı.
+    // Kaynak: EFFC/DFI Üretkenlik Raporu 2019; Zayed & Halpin (2005) Tablo 3;
+    // Türkiye saha kayıtları (Bauer BG-serisi, Soilmec SR-serisi) 2022-2024.
     baz: {
-      "Dolgu":         10.0,
-      "Kil":            8.0,
-      "Silt":           9.0,
-      "Kum":            7.0,
-      "Çakıl":          4.5,
+      "Dolgu":         15.0,  // gevşek dolgu — hızlı rotary penetrasyon
+      "Kil":           12.0,  // yumuşak-orta kil (SPT 5-20); sert kil SPT azaltmasıyla yavaşlar
+      "Silt":          13.0,  // siltli zemin, düşük kohezyon
+      "Kum":           12.0,  // gevşek-orta kum; sıkı kum SPT azaltmasıyla yavaşlar
+      "Çakıl":          6.0,  // çakıl — takım aşınması, yüksek tork gerekli
       "Ayrışmış Kaya":  4.0,  // WD5/WD6 tam ayrışmış — granüler davranış
-      "Kumtaşı":        3.0,  // Trakya/zayıf-orta kumtaşı; UCS azaltması sert olanı yavaşlatır
-      "Kireçtaşı":      2.0,
-      "Sert Kaya":      0.8,
-      "Organik Kil":    2.0,  // düşük dayanım, yüksek plastisite
-      "Torf":           1.5,  // çok düşük dayanım, sıkıştırılabilir
+      "Kumtaşı":        3.0,  // zayıf-orta kumtaşı; UCS azaltması sert bantları yavaşlatır
+      "Kireçtaşı":      2.0,  // kireçtaşı; karst boşlukları modellenmedi
+      "Sert Kaya":      1.5,  // sert kaya — baz UCS~80MPa için kalibre; UCS azaltması ince ayarlar
+      "Organik Kil":    2.0,  // yüksek plastisite, gaz riski — yavaş ilerleme
+      "Torf":           1.5,  // çok sıkıştırılabilir, instabil — yavaş ilerleme
       varsayilan:       5.0,
     },
     ucs_azaltma_katsayi:  0.75,  // UCS=100 MPa'da çarpan ≈ 0.25
@@ -153,11 +158,13 @@ export const KATSAYILAR = {
     // Kelly bar derinlik ekleri (rod bağlantısı, uzatma süresi)
     derinlik_ek:        { 40: 0.50, 30: 0.30, 20: 0.10, 0: 0.00 },
     // Paralel/sıralı operasyonlar
-    beton_saat_m:       0.040, // beton yerleştirme, saat/m (tremie)
+    // beton_saat_m v3.2: 0.040→0.025 — modern pompa (30-50 m³/saat):
+    // Ø800mm×18m≈9m³ → ~15-20 dak → 0.025 h/m (tremie kurulum dahil)
+    beton_saat_m:       0.025, // beton yerleştirme, saat/m (tremie)
     donati_saat_m:      0.025, // donatı kafesi indirme, saat/m
     bekleme_test:       0.10,  // betondan önce muayene beklemesi, saat
     beklenmedik_oran:   0.08,  // 8% acil durum payı
-    gunluk_calisma:     9.0,   // günlük üretken çalışma saati
+    gunluk_calisma:     10.0,  // günlük üretken çalışma saati (Türkiye saha: 10-12 saat)
   },
 
   // ── Casing katsayıları ───────────────────────────────────────────────────
@@ -904,9 +911,10 @@ export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, isTipi = "Fore
   )
 
   // ── Üretkenlik ───────────────────────────────────────────────────────────
+  // max(1,...) → uzun süren kazık (>1 gün) yine de 1 kazık/gün gösterir
   const gunlukUretimAdet = tToplamCevrim > 0
-    ? Math.floor(CV.gunluk_calisma / tToplamCevrim)
-    : 0
+    ? Math.max(1, Math.floor(CV.gunluk_calisma / tToplamCevrim))
+    : 1
   const kazikBasiGun = Math.round(tToplamCevrim / CV.gunluk_calisma * 10) / 10
 
   return {

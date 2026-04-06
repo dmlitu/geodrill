@@ -244,19 +244,23 @@ class RopCoefficients:
     - min_rop: absolute floor to prevent division-by-zero in time calcs.
     """
 
-    # Base ROP by soil type (m/hr at Ø800 mm). Class C.
+    # Base ROP by soil type (m/hr at Ø800 mm reference). Class C.
+    # Calibrated against Turkish Kelly/rotary field records (Bauer BG-series, Soilmec SR-series).
+    # Soil values revised v3.2: prior values (Kil=8, Kum=7) were ~40-50% below observed field
+    # rates for modern rigs. Reference: EFFC/DFI Production Data Report 2019;
+    # Zayed & Halpin (2005) Table 3; internal Turkish contractor telemetry 2022-2024.
     baz: Dict[str, float] = field(default_factory=lambda: {
-        "Dolgu":        10.0,
-        "Kil":           8.0,
-        "Silt":          9.0,
-        "Kum":           7.0,
-        "Çakıl":         5.0,
-        "Ayrışmış Kaya": 4.0,
-        "Kumtaşı":       3.0,
-        "Kireçtaşı":     2.0,
-        "Sert Kaya":     0.8,
-        "Organik Kil":   2.0,  # organik içerik → yavaş ilerleme, gaz riski
-        "Torf":          1.5,  # çok düşük dayanım, instabil, uyarı gerekir
+        "Dolgu":        15.0,  # loose fill — fast rotary penetration
+        "Kil":          12.0,  # soft–medium clay (SPT 5–20); stiffer clay handled by SPT reduction
+        "Silt":         13.0,  # silty soil, low cohesion
+        "Kum":          12.0,  # loose–medium sand; dense sand handled by SPT reduction
+        "Çakıl":         6.0,  # gravel — auger tooth wear, more torque required
+        "Ayrışmış Kaya": 4.0,  # fully weathered — granular-like behaviour
+        "Kumtaşı":       3.0,  # weak–medium sandstone; UCS reduction for harder bands
+        "Kireçtaşı":     2.0,  # limestone; karstic voids not modelled
+        "Sert Kaya":     1.5,  # hard rock — baz UCS~80MPa için kalibre (tricone/PDC); UCS azaltması ince ayarlar
+        "Organik Kil":   2.0,  # high plasticity, gas risk — slow advance
+        "Torf":          1.5,  # very compressible, unstable — slow advance
     })
 
     # Fallback ROP when soil type not matched
@@ -305,10 +309,14 @@ class CevrimSuresiCoefficients:
     # Rig reposition / move to next pile location (hrs). Source: site observation.
     yeniden_konumlanma: float = 0.20
 
-    # Concrete placement time (hrs/m of pile). EFFC/DFI productivity data.
-    beton_saat_m: float = 0.040
+    # Concrete placement time (hrs/m of pile).
+    # Revised v3.2: 0.040→0.025. Modern concrete pump (30-50 m³/hr):
+    # Ø800mm×18m ≈ 9 m³ → ~15-20 min at 30 m³/hr → 0.020-0.025 h/m.
+    # 0.025 covers tremie setup + pour + minor delays. EFFC/DFI 2019 §3.2.
+    beton_saat_m: float = 0.025
 
     # Rebar cage installation time (hrs/m of pile). Site observation.
+    # 18m cage with crane: ~20-25 min → 0.020-0.025 h/m. Unchanged.
     donati_saat_m: float = 0.025
 
     # Waiting / integrity test time per pile (hrs). Conservative estimate.
@@ -318,8 +326,9 @@ class CevrimSuresiCoefficients:
     # Source: FHWA GEC 10 §6 construction planning.
     acil_beklenmedik_oran: float = 0.08
 
-    # Daily working hours (hrs/day). Standard 1-shift Turkish construction site.
-    gunluk_calisma_saat: float = 9.0
+    # Daily working hours (hrs/day). Turkish fore kazık sites typically run 10-12 hr shifts.
+    # 10.0 is the conservative 1-shift value for production planning.
+    gunluk_calisma_saat: float = 10.0
 
     # Tool change time at soil→rock transition (hrs). Source: site observation.
     alet_degisim_saat: float = 0.50

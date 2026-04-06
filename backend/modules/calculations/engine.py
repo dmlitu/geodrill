@@ -660,7 +660,9 @@ def tam_cevrim_suresi(layers: list, cap_mm: float, kazik_boyu: float,
     )
 
     # ── Productivity ─────────────────────────────────────────────────────────
-    gunluk_uretim_adet = int(math.floor(CV.gunluk_calisma_saat / t_toplam_cevrim)) if t_toplam_cevrim > 0 else 0
+    # max(1, ...) → a pile that takes longer than a full shift is still 1/day
+    # (it spans into overtime or the following shift's start — never 0)
+    gunluk_uretim_adet = max(1, int(math.floor(CV.gunluk_calisma_saat / t_toplam_cevrim))) if t_toplam_cevrim > 0 else 1
     kazik_basi_gun = round(t_toplam_cevrim / CV.gunluk_calisma_saat * 10) / 10
 
     return {
