@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react"
-import { downloadPdfReport, downloadSoilLayersCsv } from "./api"
+import { downloadPdfReport, downloadSoilLayersCsv, saveAnalysis } from "./api"
+import { useToast } from "./Toast"
 import { ZeminProfilDiyagrami, TorkDerinlikGrafigi, GanttSemasi, SenaryoKarsilastirma } from "./Gorseller"
 import {
   gerekliTork, gerekliTorkAralik, stabiliteRiski, casingDurum, casingMetreHesapla,
@@ -221,6 +222,9 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
   const [pdfYukleniyor, setPdfYukleniyor] = useState(false)
   const [csvYukleniyor, setCsvYukleniyor] = useState(false)
   const [pdfOnizlemeAcik, setPdfOnizlemeAcik] = useState(false)
+  const [kaydetYukleniyor, setKaydetYukleniyor] = useState(false)
+  const [kaydetBasarili, setKaydetBasarili] = useState(false)
+  const toast = useToast()
 
   const handlePdf = useCallback(async () => {
     if (!projeId) return
@@ -232,6 +236,47 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     if (!projeId) return
     setCsvYukleniyor(true)
     try { await downloadSoilLayersCsv(projeId) } finally { setCsvYukleniyor(false) }
+  }
+
+  const handleKaydet = async () => {
+    if (!projeId || !analiz) return
+    setKaydetYukleniyor(true)
+    setKaydetBasarili(false)
+    try {
+      const { tork, torkAralik, casingM, sure, guven, makineUygunluklari, sistemKarari } = analiz
+      const riskOzeti = sistemKarari.durum === "Uygun" || sistemKarari.durum === "Rahat Uygun"
+        ? "Düşük" : sistemKarari.durum === "Şartlı Uygun" || sistemKarari.durum === "Sınırda"
+        ? "Orta" : "Yüksek"
+
+      await saveAnalysis(projeId, {
+        ad: `${proje.projeAdi} — ${new Date().toLocaleDateString("tr-TR")}`,
+        tork_nominal: tork,
+        tork_max: torkAralik?.max,
+        casing_m: casingM,
+        sure_saat: sure,
+        guven_seviyesi: guven?.seviye || null,
+        guven_puan: guven?.puan || null,
+        risk_ozeti: riskOzeti,
+        motor_version: "v3.1",
+        analiz_json: {
+          tork, torkAralik, casingM, sure,
+          guven, toplamGun: analiz.toplamGun,
+          makineUygunluklari: makineUygunluklari.map(m => ({
+            ad: m.ad, karar: m.karar, torkOran: m.torkOran, gerekce: m.gerekce,
+          })),
+        },
+      })
+      setKaydetBasarili(true)
+      toast.success("Analiz kaydedildi. Dashboard'dan erişebilirsiniz.")
+      setTimeout(() => setKaydetBasarili(false), 3000)
+    } catch (e) {
+      toast.error(e.message.includes("402")
+        ? "Aylık analiz limitine ulaştınız. Pro plana geçin."
+        : "Kaydetme başarısız: " + e.message
+      )
+    } finally {
+      setKaydetYukleniyor(false)
+    }
   }
 
   // useMemo: zemin veya proje değişmediğinde hesaplamalar yeniden yapılmaz
@@ -319,9 +364,25 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
             {proje.projeAdi || "Proje"} — {proje.kazikBoyu}m / Ø{proje.kazikCapi}mm / {proje.kazikAdedi} adet
           </p>
         </div>
-        <div style={{display: "flex", gap: "8px", flexShrink: 0}} className="no-print">
+        <div style={{display: "flex", gap: "8px", flexShrink: 0, flexWrap: "wrap"}} className="no-print">
           {projeId && (
             <>
+              <button
+                onClick={handleKaydet}
+                disabled={kaydetYukleniyor || kaydetBasarili}
+                style={{
+                  padding: "8px 16px", border: "none", borderRadius: "8px",
+                  background: kaydetBasarili
+                    ? "linear-gradient(135deg, #16A34A, #22C55E)"
+                    : "linear-gradient(135deg, #7C3AED, #8B5CF6)",
+                  color: "white", fontSize: "13px", fontWeight: "700",
+                  cursor: kaydetYukleniyor ? "wait" : "pointer",
+                  boxShadow: "0 2px 8px rgba(124,58,237,0.25)",
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                }}
+              >
+                {kaydetYukleniyor ? "Kaydediliyor..." : kaydetBasarili ? "✓ Kaydedildi" : "Analizi Kaydet"}
+              </button>
               <button onClick={() => analizCsvIndir(proje, tork, casingDur, casingM, sure, toplamGun, mBasi, topMazot, makineUygunluklari)}
                 style={{padding: "8px 16px", border: "1.5px solid #E2E8F0", borderRadius: "8px", background: "white", color: "#475569", fontSize: "13px", fontWeight: "600", cursor: "pointer"}}>
                 Analiz CSV

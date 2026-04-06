@@ -1,9 +1,46 @@
 from datetime import datetime
-from typing import List, Literal, Optional
-from pydantic import BaseModel, Field, field_validator, model_validator
+from typing import Any, Dict, List, Literal, Optional
+from pydantic import BaseModel, Field, field_validator, model_validator, EmailStr
 
 
-# ─── Auth ────────────────────────────────────────────────────────────────────
+# ─── Company / Subscription ───────────────────────────────────────────────────
+
+PLAN_TIPLERI = Literal["free", "pro", "enterprise"]
+
+PLAN_LIMITLER = {
+    "free": 5,
+    "pro": 100,
+    "enterprise": 0,   # 0 = unlimited
+}
+
+
+class CompanyCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=200)
+    slug: str = Field(..., min_length=2, max_length=100, pattern=r"^[a-z0-9\-]+$")
+
+
+class CompanyOut(BaseModel):
+    id: int
+    name: str
+    slug: str
+    plan: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SubscriptionOut(BaseModel):
+    id: int
+    plan: str
+    analyses_used: int
+    analyses_limit: int
+    reset_date: datetime
+    valid_until: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+# ─── Auth ─────────────────────────────────────────────────────────────────────
 
 class Token(BaseModel):
     access_token: str
@@ -15,13 +52,26 @@ class UserCreate(BaseModel):
     password: str = Field(..., min_length=8, max_length=128)
     email: Optional[str] = None
     full_name: Optional[str] = None
+    # Optional: create/join company on registration
+    company_name: Optional[str] = Field(None, max_length=200)
+    company_slug: Optional[str] = Field(None, max_length=100, pattern=r"^[a-z0-9\-]+$")
 
 
 class UserOut(BaseModel):
     id: int
     username: str
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    role: str = "member"
+    company_id: Optional[int] = None
     is_active: bool
     created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class UserWithCompany(UserOut):
+    company: Optional[CompanyOut] = None
 
     model_config = {"from_attributes": True}
 
@@ -55,6 +105,7 @@ class SoilLayerCreate(BaseModel):
                 f"Geçerli tipler: {', '.join(sorted(ZEMIN_TIPLERI))}"
             )
         return v
+
     ucs: float = Field(0.0, ge=0)
     rqd: float = Field(0.0, ge=0, le=100)
     cpt_qc: float = Field(0.0, ge=0)
@@ -71,7 +122,6 @@ class SoilLayerCreate(BaseModel):
 
     @model_validator(mode="after")
     def kaya_spt_sifirla(self):
-        """Rock-type layers: SPT is not applicable (ASTM D1586). Zero it out."""
         if self.zem_tipi in self._KAYA_TIPLERI:
             self.spt = 0
         return self
@@ -117,10 +167,70 @@ class ProjectSummary(BaseModel):
     lokasyon: str
     is_tipi: str
     kazik_adedi: int
+    kazik_boyu: float
+    kazik_capi: int
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# ─── Analysis ─────────────────────────────────────────────────────────────────
+
+class AnalysisCreate(BaseModel):
+    ad: str = Field("", max_length=200)
+    notlar: str = ""
+    analiz_json: Optional[Dict[str, Any]] = None
+    maliyet_json: Optional[Dict[str, Any]] = None
+    # Scalar summary fields (extracted from analiz_json for fast queries)
+    tork_nominal: Optional[float] = None
+    tork_max: Optional[float] = None
+    casing_m: Optional[float] = None
+    sure_saat: Optional[float] = None
+    guven_seviyesi: Optional[str] = None
+    guven_puan: Optional[int] = None
+    risk_ozeti: Optional[str] = None
+    motor_version: str = "v3.1"
+
+
+class AnalysisSummary(BaseModel):
+    id: int
+    project_id: int
+    ad: str
+    motor_version: str
+    tork_nominal: Optional[float]
+    casing_m: Optional[float]
+    sure_saat: Optional[float]
+    guven_seviyesi: Optional[str]
+    guven_puan: Optional[int]
+    risk_ozeti: Optional[str]
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AnalysisOut(AnalysisSummary):
+    user_id: int
+    tork_max: Optional[float]
+    notlar: str
+    analiz_json: Optional[Dict[str, Any]]
+    maliyet_json: Optional[Dict[str, Any]]
+
+    model_config = {"from_attributes": True}
+
+
+# ─── Dashboard ────────────────────────────────────────────────────────────────
+
+class DashboardOut(BaseModel):
+    proje_sayisi: int
+    analiz_sayisi: int
+    toplam_kazik: int
+    son_aktivite: Optional[datetime]
+    risk_dagilim: Dict[str, int]          # {"Yüksek": 2, "Orta": 5, "Düşük": 8}
+    plan: str
+    analyses_used: int
+    analyses_limit: int
+    son_projeler: List[ProjectSummary]
 
 
 # ─── Equipment ────────────────────────────────────────────────────────────────
@@ -136,7 +246,7 @@ class EquipmentCreate(BaseModel):
     casing: str = "Evet"
     dar_alan: str = "Hayır"
     yakit_sinifi: str = "Orta"
-    kelly_uzunluk: float = Field(0.0, ge=0)  # Kelly bar length (m); 0 = unknown
+    kelly_uzunluk: float = Field(0.0, ge=0)
     not_: str = Field("", alias="not")
 
     model_config = {"populate_by_name": True}

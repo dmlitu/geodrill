@@ -23,6 +23,9 @@ from routers import soil as soil_router
 from routers import equipment as equipment_router
 from routers import reports as reports_router
 from routers.soil_import import router as soil_import_router
+from routers import companies as companies_router
+from routers import analyses as analyses_router
+from routers import dashboard as dashboard_router
 
 
 def seed_default_users():
@@ -56,6 +59,13 @@ def _run_schema_migrations():
             "ALTER TABLE soil_layers ADD COLUMN su REAL DEFAULT 0.0",
             # v3.0: Crowd force makine tablosuna
             "ALTER TABLE equipment ADD COLUMN crowd_force REAL DEFAULT 0.0",
+            # v3.1 SaaS: User tablosuna yeni alanlar
+            "ALTER TABLE users ADD COLUMN email VARCHAR(255)",
+            "ALTER TABLE users ADD COLUMN full_name VARCHAR(200)",
+            "ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'member'",
+            "ALTER TABLE users ADD COLUMN company_id INTEGER",
+            # v3.1 SaaS: Equipment tablosuna kelly_uzunluk
+            "ALTER TABLE equipment ADD COLUMN kelly_uzunluk REAL DEFAULT 0.0",
         ]
         for sql in migrations:
             try:
@@ -122,8 +132,16 @@ app.include_router(soil_router.router)
 app.include_router(equipment_router.router)
 app.include_router(reports_router.router)
 app.include_router(soil_import_router, tags=["soil-import"])
+app.include_router(companies_router.router)
+app.include_router(analyses_router.router)
+app.include_router(dashboard_router.router)
 
 
 @app.get("/")
 def root():
-    return {"status": "ok", "message": "GeoDrill API v0.1.0"}
+    return {"status": "ok", "message": "GeoDrill API v3.1.0"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "healthy", "version": "3.1.0"}

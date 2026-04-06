@@ -285,6 +285,24 @@ class RopCoefficients:
     # Absolute ROP floor (m/hr) — even hardest rock has measurable advance
     min_rop: float = 0.20
 
+    # ── Power-law UCS–ROP model for rock (replaces linear decay) ────────────
+    # Engineering basis: Warren (1987) "Penetration Rate Performance of Roller
+    # Cone Bits", Winters et al. (1987), Zijsling (1987) PDC bit performance.
+    # ROP_factor = (ucs_referans_mpa / max(UCS, ucs_referans_mpa)) ^ ucs_kuvvet_ussu
+    # Applied ONLY to sinif == "kaya" layers (UCS-controlled drilling).
+    # Soil layers keep the legacy linear path (SPT/density reduction).
+    #
+    # ucs_kuvvet_ussu = 0.65: conservative geometric mean across Kelly drag-bit
+    #   and roller-cone boring (literature range 0.50–0.80). Class B.
+    # ucs_referans_mpa = 20.0 MPa: lower boundary of "hard rock" in Turkish boring
+    #   context (Kumtaşı lower end, Kireçtaşı lower end). At UCS <= UCS_ref,
+    #   factor = 1.0 (baz rate applies without penalty).
+    # ucs_kuvvet_min = 0.15: floor factor at extreme hardness (UCS > 200 MPa);
+    #   ensures physically bounded output even for uncharacterised granite.
+    ucs_kuvvet_ussu: float = 0.65     # power-law exponent (dimensionless)
+    ucs_referans_mpa: float = 20.0    # reference UCS for normalisation (MPa)
+    ucs_kuvvet_min: float = 0.15      # minimum ROP factor for rock
+
 
 @dataclass(frozen=True)
 class CevrimSuresiCoefficients:
@@ -396,6 +414,18 @@ class StabiliteCoefficients:
     cok_gevsek_spt: int = 10   # N < 10 cohesionless → Yüksek
     orta_spt: int = 30         # N < 30 cohesionless → Orta
 
+    # ── Bjerrum & Eide (1956) basal heave stability numbers ─────────────────
+    # Applicable to cohesive soils where measured su is available.
+    # Nc = gamma_soil × H / su  (dimensionless stability factor).
+    # H = depth to bottom of open bore (bitis of layer being evaluated).
+    # When Nc ≥ 5.14 (Prandtl bearing capacity factor for round borehole base),
+    # basal heave is theoretically possible — mandatory casing/support.
+    # Source: Bjerrum & Eide (1956) ASCE JSMFD §3;
+    #         EN 1997-1 §11 deep excavation analogy.
+    bjerrum_gamma_kNm3: float = 18.0   # saturated unit weight of soft-medium clay (kN/m³)
+    bjerrum_nc_uyari: float = 4.0      # Nc ≥ 4 → stability warning (Orta risk)
+    bjerrum_nc_yuksek: float = 5.14    # Nc ≥ 5.14 → high risk (Prandtl limit, round bore)
+
 
 @dataclass(frozen=True)
 class MakineUygunlukBantlari:
@@ -453,6 +483,24 @@ class MakineCoefficients:
     # Backward-compatible old thresholds (kept for legacy callers)
     tork_min_oran: float = 0.85    # replaces old 0.80
     tork_uygun_oran: float = 1.00  # kept for backward compat
+
+    # ── RPM adequacy check (Class C) ─────────────────────────────────────────
+    # Derives required RPM from avg ROP and tool advance per revolution.
+    # Compared against typical Kelly rig RPM range to flag RPM-limited scenarios.
+    # Machine model has no max_rpm field → compare against fixed OEM range.
+    # Source: OEM application guides (Bauer, Soilmec, Liebherr); FHWA GEC 10 §6.
+    #
+    # rpm_advance_soil_mrev: Kelly bucket advance per rev in soil (m/rev).
+    #   Median of OEM-reported 0.020–0.050 m/rev range (cutting depth per pass).
+    # rpm_advance_rock_mrev: Drag-bit face advance per rev in rock (m/rev).
+    #   Median of 0.005–0.020 m/rev range (slower due to tool-rock contact limits).
+    # rpm_kelly_min/max: Typical continuous rotation range for Kelly rigs.
+    #   Mini-rotary anchoring rigs can reach 60–80 rpm but those are excluded
+    #   from this check which targets fore kazık (Kelly boring).
+    rpm_advance_soil_mrev: float = 0.035   # m/rev in soil (Kelly bucket)
+    rpm_advance_rock_mrev: float = 0.012   # m/rev in rock (drag-bit / core bit)
+    rpm_kelly_min: float = 15.0            # minimum typical Kelly rig RPM
+    rpm_kelly_max: float = 40.0            # maximum typical Kelly rig RPM
 
 
 @dataclass(frozen=True)

@@ -2,14 +2,20 @@ import { useState } from "react"
 import { register, login } from "./api"
 
 export default function RegisterPage({ onLogin, onGoLogin }) {
-  const [form, setForm] = useState({ fullName: "", username: "", email: "", password: "", password2: "" })
+  const [form, setForm] = useState({
+    fullName: "", username: "", email: "",
+    password: "", password2: "",
+    companyName: "",
+  })
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
   const set = (key) => (e) => setForm(prev => ({ ...prev, [key]: e.target.value }))
 
+  const makeSlug = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80)
+
   const handleSubmit = async () => {
-    const { fullName, username, email, password, password2 } = form
+    const { fullName, username, email, password, password2, companyName } = form
     if (!username || !password) { setError("Kullanıcı adı ve şifre zorunludur."); return }
     if (password !== password2) { setError("Şifreler eşleşmiyor."); return }
     if (password.length < 8) { setError("Şifre en az 8 karakter olmalı."); return }
@@ -17,7 +23,19 @@ export default function RegisterPage({ onLogin, onGoLogin }) {
     setLoading(true)
     setError("")
     try {
-      await register(username, email, fullName, password)
+      const body = { username, email, full_name: fullName, password }
+      if (companyName.trim()) {
+        body.company_name = companyName.trim()
+        body.company_slug = makeSlug(companyName)
+      }
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/auth/register`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+      )
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.detail || "Kayıt başarısız")
+      }
       await login(username, password)
       onLogin(username)
     } catch (e) {
@@ -66,6 +84,11 @@ export default function RegisterPage({ onLogin, onGoLogin }) {
 
             <Field label="E-posta" type="email" placeholder="ornek@firma.com"
               value={form.email} onChange={set("email")} />
+
+            <Field label="Şirket / Firma Adı" placeholder="Örn: ABC Geoteknik (opsiyonel)"
+              value={form.companyName} onChange={set("companyName")} />
+
+            <div style={{ height: "1px", background: "#E2E8F0" }} />
 
             <Field label="Şifre *" type="password" placeholder="••••••••"
               value={form.password} onChange={set("password")} />

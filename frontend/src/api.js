@@ -107,6 +107,10 @@ export async function getMe() {
   return request("/auth/me")
 }
 
+export async function getMeFull() {
+  return request("/auth/me/full")
+}
+
 // ─── Projects ─────────────────────────────────────────────────────────────────
 
 export async function listProjects() {
@@ -231,6 +235,54 @@ export async function downloadExcelReport(proje, zemin, analizSonuclari, projeKo
 
   const dosyaAdi = `geodrill_${projeKodu || "rapor"}.xlsx`
   XLSX.writeFile(wb, dosyaAdi)
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+export async function getDashboard() {
+  return request("/dashboard")
+}
+
+// ─── Companies ────────────────────────────────────────────────────────────────
+
+export async function createCompany(name, slug) {
+  return request("/companies", {
+    method: "POST",
+    body: JSON.stringify({ name, slug }),
+  })
+}
+
+export async function getMyCompany() {
+  return request("/companies/me")
+}
+
+export async function joinCompany(slug) {
+  return request(`/companies/me/join/${slug}`, { method: "POST" })
+}
+
+// ─── Analyses ─────────────────────────────────────────────────────────────────
+
+export async function listAnalyses(projectId) {
+  return request(`/projects/${projectId}/analyses`)
+}
+
+export async function saveAnalysis(projectId, payload) {
+  return request(`/projects/${projectId}/analyses`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function getAnalysis(projectId, analysisId) {
+  return request(`/projects/${projectId}/analyses/${analysisId}`)
+}
+
+export async function deleteAnalysis(projectId, analysisId) {
+  return request(`/projects/${projectId}/analyses/${analysisId}`, { method: "DELETE" })
+}
+
+export async function getRecentAnalyses(limit = 20) {
+  return request(`/analyses/recent?limit=${limit}`)
 }
 
 // ─── Field name mapping (camelCase ↔ snake_case) ──────────────────────────────

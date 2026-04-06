@@ -132,7 +132,8 @@ def guven_sinifi(layer: dict) -> dict:
 # ─── Stability Risk ───────────────────────────────────────────────────────────
 
 def stabilite_riski(tip: str, kohezyon: str, spt: float,
-                    yas: float, baslangic: float = 0, su: float = 0) -> str:
+                    yas: float, baslangic: float = 0, su: float = 0,
+                    bitis: float = 0) -> str:
     """
     Per-layer stability risk classification.
 
@@ -221,6 +222,126 @@ def sivi_lasma_riski(tip: str, kohezyon: str, spt: float,
     return "Düşük"
 
 
+# ─── Basal Heave Check (Bjerrum & Eide 1956) ─────────────────────────────────
+
+def baz_kararsizlik_riski(bitis: float, su: float, yas: float) -> dict:
+    """
+    Basal heave / plug failure risk for cohesive soils (Bjerrum & Eide 1956).
+
+    Nc = gamma_soil × H / su  (dimensionless stability factor)
+    H = bitis (depth to bottom of open bore section being assessed)
+
+    Applicable conditions:
+      - Caller must confirm sinif == "kohezyonlu"
+      - su > 0 (measured undrained shear strength required)
+      - bitis > 0
+      - Layer is at or below GWT (yas > 0 and bitis >= yas)
+
+    Returns
+    -------
+    dict  {nc: float|None, risk: str, aciklama: str}
+
+    Source: Bjerrum & Eide (1956) ASCE JSMFD; EN 1997-1 §11 deep excavation analogy.
+    """
+    C = KATSAYILAR.stabilite
+    if su <= 0 or bitis <= 0:
+        return {"nc": None, "risk": "Uygulanamaz",
+                "aciklama": "su veya derinlik verisi yok — basal heave değerlendirilemedi."}
+    if yas > 0 and bitis < yas:
+        return {"nc": None, "risk": "Uygulanamaz",
+                "aciklama": "YAS üstünde — doygun koşul varsayımı geçersiz."}
+
+    nc = (C.bjerrum_gamma_kNm3 * bitis) / su
+    if nc >= C.bjerrum_nc_yuksek:
+        risk = "Yüksek"
+        aciklama = (
+            f"BAZ KARIŞ./HEAVE RİSKİ YÜKSEK: Nc = γH/su = "
+            f"{C.bjerrum_gamma_kNm3:.0f}×{bitis:.1f}/{su:.1f} = {nc:.2f} "
+            f"≥ {C.bjerrum_nc_yuksek} (Prandtl sınırı, yuvarlak sondaj tabanı). "
+            f"Fore kazık tabanında zemin akması / heave riski var. "
+            f"Casing veya stabilizatör çamur ZORUNLU. "
+            f"Kaynak: Bjerrum & Eide (1956)."
+        )
+    elif nc >= C.bjerrum_nc_uyari:
+        risk = "Orta"
+        aciklama = (
+            f"Baz kararsızlık uyarısı: Nc = {nc:.2f} "
+            f"({C.bjerrum_nc_uyari:.1f}–{C.bjerrum_nc_yuksek:.2f}). "
+            f"Casing veya polimer/bentonit destek sıvısı değerlendirin. "
+            f"Kaynak: Bjerrum & Eide (1956)."
+        )
+    else:
+        risk = "Düşük"
+        aciklama = (
+            f"Nc = {nc:.2f} < {C.bjerrum_nc_uyari:.1f} — baz kararsızlık riski düşük."
+        )
+    return {"nc": round(nc, 2), "risk": risk, "aciklama": aciklama}
+
+
+# ─── Hydraulic Piping / Heave Check (Terzaghi 1943) ─────────────────────────
+
+def hidrolik_kabarma_riski(row: dict, yas: float) -> dict:
+    """
+    Hydraulic gradient / piping check for open-bore drilling in granular soils below GWT.
+
+    In an unsupported borehole below the water table, the upward seepage
+    gradient at the bore base is: i_eff = (bitis − yas) / bitis
+    Critical hydraulic gradient (Terzaghi 1943): i_c ≈ 1.0 for clean sand
+    (i_c = γ'/γ_w = (G_s − 1)/(1 + e) ≈ 0.9–1.1; conservative i_c = 1.0 used).
+
+    When i_eff ≥ i_c: effective stress → 0, granular matrix can liquefy under
+    seepage, borehole walls and base become unstable (piping / quicksand).
+    When i_eff ≥ 0.7 × i_c: partial destabilisation; warning threshold.
+
+    Applicable only to granular layers (Kum, Çakıl, Dolgu) below GWT.
+
+    Parameters
+    ----------
+    row : dict   Layer dict (keys: zem_tipi, kohezyon, baslangic, bitis)
+    yas : float  Groundwater table depth (m); 0 = unknown
+
+    Returns
+    -------
+    dict  {risk: str, i_eff: float|None, i_c: float|None, aciklama: str}
+
+    Source: Terzaghi (1943) "Theoretical Soil Mechanics" §7;
+            FHWA GEC 10 §7.3 seepage forces; EN 1536:2010 §5.
+    """
+    bitis   = float(row.get("bitis", 0))
+    bas     = float(row.get("baslangic", 0))
+    sinif_r = zemin_sinifi(row.get("zem_tipi", ""), row.get("kohezyon", ""))
+
+    if sinif_r != "granüler" or yas <= 0 or bitis <= yas:
+        return {"risk": "Uygulanamaz", "i_eff": None, "i_c": None,
+                "aciklama": "Granüler zemin değil veya YAS altında değil — kontrol geçersiz."}
+
+    i_c = 1.0          # Terzaghi (1943) critical gradient for clean sand
+    h = bitis - yas    # hydraulic head acting upward at bore base (m)
+    i_eff = h / bitis if bitis > 0 else 0.0
+
+    if i_eff >= i_c:
+        risk = "Yüksek"
+        aciklama = (
+            f"HİDROLİK KABARMA/PİPİNG RİSKİ YÜKSEK: i_eff = h/H = "
+            f"{h:.1f}/{bitis:.1f} = {i_eff:.2f} ≥ i_c = {i_c:.2f}. "
+            f"Efektif gerilme → 0 olabilir; kum/çakıl tabakası akıcı zemin davranışı gösterebilir. "
+            f"Casing ZORUNLU. Kaynak: Terzaghi (1943); FHWA GEC 10 §7.3."
+        )
+    elif i_eff >= 0.7 * i_c:
+        risk = "Orta"
+        aciklama = (
+            f"Hidrolik kabarma uyarısı: i_eff = {i_eff:.2f} (eşik i_c = {i_c:.2f}). "
+            f"Sondaj çamuru veya casing ile borehole basıncı dengelenmeli. "
+            f"Kaynak: FHWA GEC 10 §7.3."
+        )
+    else:
+        risk = "Düşük"
+        aciklama = (
+            f"i_eff = {i_eff:.2f} < 0.70 × i_c — hidrolik kabarma riski düşük."
+        )
+    return {"risk": risk, "i_eff": round(i_eff, 3), "i_c": i_c, "aciklama": aciklama}
+
+
 # ─── Casing Decision ──────────────────────────────────────────────────────────
 
 def casing_durum(layers: list, yas: float) -> dict:
@@ -283,6 +404,22 @@ def casing_durum(layers: list, yas: float) -> dict:
             zorunlu = True
             gerekce.append(
                 f"{hesap_tip} ({bas}–{row['bitis']} m) — organik zemin, casing zorunlu"
+            )
+
+        # Hydraulic piping / heave check for granular layers below GWT
+        # Source: Terzaghi (1943); FHWA GEC 10 §7.3
+        hr = hidrolik_kabarma_riski(row, yas)
+        if hr["risk"] == "Yüksek":
+            zorunlu = True
+            gerekce.append(
+                f"Hidrolik kabarma: {zem} ({bas}–{row.get('bitis')} m) — "
+                f"i_eff={hr['i_eff']:.2f} ≥ i_c={hr['i_c']:.2f} (Terzaghi 1943)"
+            )
+        elif hr["risk"] == "Orta":
+            sartli = True
+            gerekce.append(
+                f"Hidrolik kabarma uyarısı: {zem} ({bas}–{row.get('bitis')} m) — "
+                f"i_eff={hr['i_eff']:.2f}, destek sıvısı değerlendirin"
             )
 
     durum = "Gerekli" if zorunlu else "Şartlı önerilir" if sartli else "Gerekmeyebilir"
@@ -350,9 +487,20 @@ def rop_hesapla(tip: str, ucs: float, cap_mm: float, kohezyon: str = "",
     hesap_tip = zemin_hesap_tipi(tip, kohezyon)
     baz = R.baz.get(hesap_tip, R.varsayilan)
 
-    # UCS reduction for rock
+    # UCS reduction
     if ucs > 0:
-        baz *= max(R.ucs_azaltma_min, 1.0 - (ucs / 100.0) * R.ucs_azaltma_katsayi)
+        sinif_rop = zemin_sinifi(tip, kohezyon)
+        if sinif_rop == "kaya":
+            # Power-law model: Warren (1987), Winters et al. (1987), Zijsling (1987).
+            # ROP_factor = (UCS_ref / max(UCS, UCS_ref)) ^ n, n = 0.65.
+            # Physically correct: rock cutting energy scales nonlinearly with UCS.
+            # Linear reduction (old code) significantly over-predicts ROP at 30–80 MPa.
+            ucs_eff = max(ucs, R.ucs_referans_mpa)
+            rop_factor = (R.ucs_referans_mpa / ucs_eff) ** R.ucs_kuvvet_ussu
+            baz *= max(R.ucs_kuvvet_min, rop_factor)
+        else:
+            # Non-rock layer with UCS recorded (edge case): keep legacy linear path.
+            baz *= max(R.ucs_azaltma_min, 1.0 - (ucs / 100.0) * R.ucs_azaltma_katsayi)
 
     # Diameter penalty
     baz *= max(R.cap_azaltma_min, 1.0 - (cap_m - R.referans_cap_m) * R.cap_azaltma_katsayi)
@@ -842,6 +990,207 @@ def guven_analizi(layers: list, yas: float, kazik_boyu: float) -> dict:
     }
 
 
+# ─── Output Validation ────────────────────────────────────────────────────────
+
+def cikti_dogrulama(
+    tork_nominal: float,
+    tork_max: float,
+    rop_ortalama: float,
+    casing_m: float,
+    kazik_boyu: float,
+    guven_seviye: str,
+    layers: list,
+) -> dict:
+    """
+    Physical bounds validation on calculated outputs.
+
+    Flags results that are numerically valid but physically implausible,
+    catching data-entry errors (e.g. UCS in kPa instead of MPa) before
+    they produce unreasonable engineering decisions.
+
+    Returns
+    -------
+    dict  {gecerli: bool, uyarilar: [str], hatalar: [str]}
+
+    Bounds rationale:
+    - T > 400 kNm: exceeds all current standard Kelly rigs (Bauer BG 40 = 400 kNm).
+      If T > 400, UCS likely entered in kPa not MPa, or diameter in cm not mm.
+    - T < 5 kNm: implausibly low for any pile > Ø400 mm with real soil.
+    - ROP_avg < 0.20 m/hr: at this rate a 10 m pile takes 50 hrs — check rock params.
+    - ROP_avg > 40 m/hr: faster than any documented Kelly boring — UCS = 0 in rock?
+    - casing_m > kazik_boyu: geometrically impossible.
+    - Layer depth errors: bitis ≤ baslangic.
+    - UCS > 0 in a non-rock layer: likely classification mismatch.
+    """
+    uyarilar: List[str] = []
+    hatalar: List[str] = []
+
+    # ── Torque bounds ─────────────────────────────────────────────────────────
+    if tork_nominal > 400:
+        uyarilar.append(
+            f"TORK UYARISI: {tork_nominal:.0f} kNm > 400 kNm (standart Kelly rig sınırı). "
+            f"UCS girişinin MPa cinsinden (kPa değil) ve çapın mm cinsinden girildiğini doğrulayın."
+        )
+    if 0 < tork_nominal < 5:
+        uyarilar.append(
+            f"TORK UYARISI: {tork_nominal:.1f} kNm olağandışı düşük — zemin direnç verileri eksik mi?"
+        )
+
+    # ── ROP bounds ────────────────────────────────────────────────────────────
+    if 0 < rop_ortalama < 0.20:
+        uyarilar.append(
+            f"ROP UYARISI: Ort. delgi hızı {rop_ortalama:.2f} m/saat < 0.20 m/saat. "
+            f"Kaya katmanlarında UCS/RQD değerlerini kontrol edin."
+        )
+    if rop_ortalama > 40:
+        uyarilar.append(
+            f"ROP UYARISI: Ort. delgi hızı {rop_ortalama:.1f} m/saat > 40 m/saat — "
+            f"fiziksel üst sınırın üzerinde. Kaya katmanlarında UCS girildi mi?"
+        )
+
+    # ── Casing bounds ────────────────────────────────────────────────────────
+    if casing_m > kazik_boyu:
+        hatalar.append(
+            f"CASING HATASI: Hesaplanan casing {casing_m:.1f} m > kazık boyu {kazik_boyu:.1f} m. "
+            f"Zemin logu veya derinlik girdilerini kontrol edin."
+        )
+    if casing_m < 0:
+        hatalar.append(f"CASING HATASI: Casing uzunluğu negatif ({casing_m:.1f} m).")
+
+    # ── Layer-level consistency ───────────────────────────────────────────────
+    for row in layers:
+        ucs_r = float(row.get("ucs") or 0)
+        sinif_r = zemin_sinifi(row.get("zem_tipi", ""), row.get("kohezyon", ""))
+        bas_r = float(row.get("baslangic") or 0)
+        bit_r = float(row.get("bitis") or 0)
+        zem_r = row.get("zem_tipi", "?")
+        if bit_r <= bas_r:
+            hatalar.append(
+                f"KATMAN HATASI: {zem_r} ({bas_r}–{bit_r} m) — "
+                f"bitis ≤ baslangic, zemin logu sıralamasını kontrol edin."
+            )
+        if ucs_r > 0 and sinif_r != "kaya":
+            uyarilar.append(
+                f"VERİ TUTARSIZLIĞI: {zem_r} ({bas_r}–{bit_r} m) zemin sınıfı '{sinif_r}' "
+                f"ancak UCS={ucs_r} MPa girilmiş. Bu katman kaya mı? zem_tipi/kohezyon doğrulayın."
+            )
+
+    gecerli = len(hatalar) == 0
+    return {"gecerli": gecerli, "uyarilar": uyarilar, "hatalar": hatalar}
+
+
+# ─── Sensitivity Analysis ─────────────────────────────────────────────────────
+
+def duyarlilik_analizi(
+    layers: list,
+    cap_mm: float,
+    is_tipi: str = "Fore Kazık",
+    yas: float = 0,
+    degisim_orani: float = 0.20,
+) -> dict:
+    """
+    Parametric ±20% sensitivity analysis on torque and average ROP.
+
+    For each key input parameter (UCS, su, SPT, RQD, cap_mm), perturbs the
+    entire layer set by ±degisim_orani and reports the delta torque and delta ROP.
+    Identifies which parameter the result is most sensitive to, guiding
+    decisions about which additional laboratory or in-situ tests are worthwhile.
+
+    Parameters
+    ----------
+    layers : list
+        Soil layer dicts (same format as gerekli_tork_aralik).
+    cap_mm : float
+        Pile diameter (mm).
+    is_tipi : str
+        Work type for torque calculation.
+    yas : float
+        Groundwater depth (m).
+    degisim_orani : float
+        Fractional perturbation (default 0.20 = ±20%).
+
+    Returns
+    -------
+    dict
+        {tork_baz_kNm, rop_baz_mhr, degisim_orani, parametreler, yonetici_parametre}
+        parametreler: list of {parametre, tork_artis_kNm, tork_azalis_kNm,
+                                tork_artis_yuzde, tork_azalis_yuzde,
+                                rop_artis_mhr, rop_azalis_mhr}
+
+    Source: Standard parametric sensitivity method; general engineering practice.
+    Class C output — use for decision support and test prioritisation only.
+    """
+    import copy
+
+    baz_tork = gerekli_tork_aralik(layers, cap_mm, is_tipi, yas)["nominal"]
+
+    def _avg_rop(lrs: list, cap: float) -> float:
+        tot_k = sum(float(r.get("bitis", 0)) - float(r.get("baslangic", 0)) for r in lrs)
+        if tot_k <= 0:
+            return 0.0
+        return sum(
+            (float(r.get("bitis", 0)) - float(r.get("baslangic", 0)))
+            * rop_hesapla(
+                r.get("zem_tipi", ""), float(r.get("ucs") or 0), cap,
+                r.get("kohezyon", ""), float(r.get("spt") or 0),
+                yas, float(r.get("baslangic") or 0),
+            )
+            for r in lrs
+        ) / tot_k
+
+    baz_rop = _avg_rop(layers, cap_mm)
+
+    def _perturb(field: str, mult: float) -> list:
+        lrs = copy.deepcopy(layers)
+        for r in lrs:
+            v = float(r.get(field) or 0)
+            if v > 0:
+                r[field] = v * mult
+        return lrs
+
+    sonuclar = []
+    for parametre in ("ucs", "su", "spt", "rqd"):
+        l_up   = _perturb(parametre, 1.0 + degisim_orani)
+        l_down = _perturb(parametre, 1.0 - degisim_orani)
+        t_up   = gerekli_tork_aralik(l_up,   cap_mm, is_tipi, yas)["nominal"]
+        t_down = gerekli_tork_aralik(l_down, cap_mm, is_tipi, yas)["nominal"]
+        sonuclar.append({
+            "parametre":          parametre,
+            "tork_artis_kNm":     round(t_up   - baz_tork, 1),
+            "tork_azalis_kNm":    round(t_down - baz_tork, 1),
+            "tork_artis_yuzde":   round((t_up   / baz_tork - 1) * 100, 1) if baz_tork else 0.0,
+            "tork_azalis_yuzde":  round((t_down / baz_tork - 1) * 100, 1) if baz_tork else 0.0,
+            "rop_artis_mhr":      round(_avg_rop(l_up,   cap_mm) - baz_rop, 2),
+            "rop_azalis_mhr":     round(_avg_rop(l_down, cap_mm) - baz_rop, 2),
+        })
+
+    # Cap diameter sensitivity
+    cap_up   = cap_mm * (1.0 + degisim_orani)
+    cap_down = cap_mm * (1.0 - degisim_orani)
+    t_cup    = gerekli_tork_aralik(layers, cap_up,   is_tipi, yas)["nominal"]
+    t_cdown  = gerekli_tork_aralik(layers, cap_down, is_tipi, yas)["nominal"]
+    sonuclar.append({
+        "parametre":          "cap_mm",
+        "tork_artis_kNm":     round(t_cup   - baz_tork, 1),
+        "tork_azalis_kNm":    round(t_cdown - baz_tork, 1),
+        "tork_artis_yuzde":   round((t_cup   / baz_tork - 1) * 100, 1) if baz_tork else 0.0,
+        "tork_azalis_yuzde":  round((t_cdown / baz_tork - 1) * 100, 1) if baz_tork else 0.0,
+        "rop_artis_mhr":      round(_avg_rop(layers, cap_up)   - baz_rop, 2),
+        "rop_azalis_mhr":     round(_avg_rop(layers, cap_down) - baz_rop, 2),
+    })
+
+    # Governing parameter = highest absolute torque sensitivity (upward perturbation)
+    yonetici = max(sonuclar, key=lambda x: abs(x["tork_artis_kNm"]))
+
+    return {
+        "tork_baz_kNm":          round(baz_tork, 1),
+        "rop_baz_mhr":           round(baz_rop, 2),
+        "degisim_orani":         degisim_orani,
+        "parametreler":          sonuclar,
+        "yonetici_parametre":    yonetici["parametre"],
+    }
+
+
 # ─── Machine Suitability ──────────────────────────────────────────────────────
 
 def makine_uygunluk(
@@ -1019,7 +1368,44 @@ def makine_uygunluk(
                 f"(T×{M.crowd_force_katsayi}/D, Sınıf C)"
             )
 
-    # ── 7. Four-band decision ─────────────────────────────────────────────────
+    # ── 7. RPM adequacy check (Kelly boring only) ────────────────────────────
+    # Required RPM = ROP_m_per_min / advance_per_rev.
+    # If required RPM exceeds max Kelly RPM, rotation speed will be the
+    # bottleneck and actual productivity will be lower than estimated.
+    # Source: FHWA GEC 10 §6; OEM application guides (Bauer, Soilmec).
+    rpm_ok = True
+    if is_tipi == "Fore Kazık" and zemin:
+        for row in zemin:
+            tip_row = row.get("zem_tipi", "")
+            sinif_row = zemin_sinifi(tip_row, row.get("kohezyon", ""))
+            rop_row = rop_hesapla(
+                tip_row,
+                float(row.get("ucs") or 0),
+                kazik_capi,
+                row.get("kohezyon", ""),
+                float(row.get("spt") or 0),
+                yas,
+                float(row.get("baslangic") or 0),
+            )
+            if rop_row <= 0:
+                continue
+            rop_m_per_min = rop_row / 60.0
+            adv = (
+                M.rpm_advance_rock_mrev if sinif_row == "kaya"
+                else M.rpm_advance_soil_mrev
+            )
+            rpm_req = rop_m_per_min / adv
+            if rpm_req > M.rpm_kelly_max:
+                rpm_ok = False
+                uyarilar.append(
+                    f"RPM sınırı: {row.get('zem_tipi','')} ({row.get('baslangic')}–"
+                    f"{row.get('bitis')} m) ROP={round(rop_row,1)} m/sa için "
+                    f"gerekli ≈{round(rpm_req)} RPM > Kelly maks {round(M.rpm_kelly_max)} RPM — "
+                    f"gerçek ilerleme yavaşlayacak (FHWA GEC 10 §6)"
+                )
+                break  # one warning per machine is enough
+
+    # ── 8. Four-band decision ─────────────────────────────────────────────────
     if tork_oran >= B.rahat_esigi:
         karar = "Rahat Uygun"
         karar_bant = "RAHAT UYGUN"
@@ -1095,9 +1481,11 @@ def aciklama_uret(
     is_tipi: str,
     zemin: Optional[list] = None,
     yas: float = 0,
+    katman_detaylari: Optional[list] = None,
+    duyarlilik: Optional[dict] = None,
 ) -> str:
     """
-    Generates a 2–3 sentence professional Turkish geotechnical assessment
+    Generates a 2–4 sentence professional Turkish geotechnical assessment
     for a machine suitability decision.
 
     Parameters
@@ -1119,11 +1507,17 @@ def aciklama_uret(
         Soil layers for contextual notes.
     yas : float
         Groundwater depth (m).
+    katman_detaylari : list or None
+        Per-layer torque detail list from gerekli_tork_aralik().
+        When provided, the quantitative governing-layer values are included.
+    duyarlilik : dict or None
+        Sensitivity analysis result from duyarlilik_analizi().
+        When provided, the governing sensitivity parameter is mentioned.
 
     Returns
     -------
     str
-        Professional Turkish assessment text (2–3 sentences).
+        Professional Turkish assessment text (2–4 sentences).
     """
     # Part 1: Decision statement
     oran_str = f"%{round(tork_oran * 100)}"
@@ -1189,7 +1583,35 @@ def aciklama_uret(
             "kullanılmalı ve kesin tasarım öncesi kapsamlı zemin araştırması yapılmalıdır."
         )
 
-    parts = [p for p in (c1, c2, c3) if p]
+    # Part 4 (optional): quantitative governing layer + sensitivity note
+    c4 = ""
+    if katman_detaylari:
+        # Find the layer that produced the maximum torque
+        try:
+            gov = max(katman_detaylari, key=lambda x: x.get("tork", 0))
+            gov_tork = round(gov.get("tork", 0), 1)
+            gov_tip = gov.get("tip", "")
+            gov_bas = gov.get("baslangic", "?")
+            gov_bit = gov.get("bitis", "?")
+            if gov_tork > 0:
+                c4 = (
+                    f"Yönetici katman {gov_bas}–{gov_bit} m arası {gov_tip} olup "
+                    f"hesaplanan kesme torku {gov_tork} kNm'dir."
+                )
+        except Exception:
+            pass
+
+    c5 = ""
+    if duyarlilik:
+        yonetici = duyarlilik.get("yonetici_parametre", "")
+        degisim = round(duyarlilik.get("degisim_orani", 0.20) * 100)
+        if yonetici:
+            c5 = (
+                f"Duyarlılık analizinde ±%{degisim} parametre değişimine en hassas "
+                f"girdi '{yonetici}' olarak belirlenmiştir."
+            )
+
+    parts = [p for p in (c1, c2, c3, c4, c5) if p]
     return " ".join(parts)
 
 
@@ -1202,6 +1624,8 @@ def tam_analiz(proje: dict, layers: list) -> dict:
 
     Backward-compatible with v2.0 — all existing keys are preserved.
     v3.0 additions: guven_analizi, tam_cevrim_suresi fields included.
+    v3.1 additions: baz_kararsizlik_riski, hidrolik_kabarma_riski,
+                    cikti_dogrulama, duyarlilik_analizi, rop_ortalama.
     """
     cap_mm = float(proje.get("kazik_capi", 800))
     kazik_boyu = float(proje.get("kazik_boyu", 18))
@@ -1239,6 +1663,61 @@ def tam_analiz(proje: dict, layers: list) -> dict:
     guven = guven_analizi(layers, yas, kazik_boyu)
     krit = kritik_katman(layers)
 
+    # ── v3.1: Average ROP across all layers ──────────────────────────────────
+    rop_ortalama = 0.0
+    if layers:
+        rop_degerler = [
+            rop_hesapla(
+                r.get("zem_tipi", ""), float(r.get("ucs") or 0), cap_mm,
+                float(r.get("spt") or 0), float(r.get("rqd") or 0),
+                float(r.get("kohezyon") or 0),
+            )
+            for r in layers
+        ]
+        valid = [v for v in rop_degerler if v > 0]
+        rop_ortalama = round(sum(valid) / len(valid), 2) if valid else 0.0
+
+    # ── v3.1: Basal stability risk (cohesive layers) ──────────────────────────
+    baz_risk_sonuclari = []
+    for r in layers:
+        su_val = float(r.get("kohezyon") or 0)
+        bitis_val = float(r.get("bitis") or 0)
+        sinif = zemin_sinifi(r.get("zem_tipi", ""), r.get("kohezyon", ""))
+        if sinif == "kohezyonlu" and su_val > 0 and bitis_val > 0:
+            res = baz_kararsizlik_riski(bitis_val, su_val, yas)
+            if res["risk"] != "Yok":
+                baz_risk_sonuclari.append({
+                    "katman": f"{r.get('baslangic')}–{bitis_val} m",
+                    **res,
+                })
+
+    # ── v3.1: Hydraulic heave/piping risk (granular layers below GWT) ─────────
+    hidrolik_risk_sonuclari = []
+    for r in layers:
+        sinif = zemin_sinifi(r.get("zem_tipi", ""), r.get("kohezyon", ""))
+        if sinif == "granüler":
+            res = hidrolik_kabarma_riski(r, yas)
+            if res["risk"] != "Yok":
+                hidrolik_risk_sonuclari.append({
+                    "katman": f"{r.get('baslangic')}–{r.get('bitis')} m",
+                    **res,
+                })
+
+    # ── v3.1: Sensitivity analysis ────────────────────────────────────────────
+    duyarlilik = None
+    if layers:
+        try:
+            duyarlilik = duyarlilik_analizi(layers, cap_mm, is_tipi, yas)
+        except Exception:
+            duyarlilik = None
+
+    # ── v3.1: Output validation ───────────────────────────────────────────────
+    guven_seviye = guven.get("seviye", "LOW")
+    dogrulama = cikti_dogrulama(
+        tork, tork_aralik["max"], rop_ortalama, casing_m, kazik_boyu,
+        guven_seviye, layers,
+    )
+
     return {
         # ── v2 fields (backward compat) ──────────────────────────────────────
         "tork_nominal":    tork,
@@ -1261,4 +1740,10 @@ def tam_analiz(proje: dict, layers: list) -> dict:
         "guven_analizi":   guven,
         "kritik_katman":   krit,
         "katman_detaylari": tork_aralik.get("katman_detaylari", []),
+        # ── v3.1 additions ───────────────────────────────────────────────────
+        "rop_ortalama":            rop_ortalama,
+        "baz_risk_sonuclari":      baz_risk_sonuclari,
+        "hidrolik_risk_sonuclari": hidrolik_risk_sonuclari,
+        "duyarlilik":              duyarlilik,
+        "dogrulama":               dogrulama,
     }

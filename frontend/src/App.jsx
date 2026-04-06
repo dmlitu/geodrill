@@ -10,6 +10,7 @@ import { DEMO_PROJE, DEMO_ZEMIN, DEMO_MAKINELER } from "./DemoProje"
 import FiyatAnalizi from "./FiyatAnalizi"
 import OncekiAnalizler from "./OncekiAnalizler"
 import Ayarlar from "./Ayarlar"
+import DashboardPage from "./Dashboard"
 import { downloadExcelReport } from "./api"
 import {
   login, logout, getToken,
@@ -681,15 +682,16 @@ function Dashboard({ username, onLogout }) {
         <main style={{flex: 1, padding: "32px 28px", background: "var(--bg-base)", overflowY: "auto"}}>
           <div key={activePage} style={{ animation: "fadeUp 0.3s ease" }}>
             {activePage === "dashboard" && (
-              <HomeDashboard
+              <DashboardPage
                 username={username}
-                proje={proje}
-                projeId={projeId}
-                zemin={zemin}
                 onYeniAnaliz={handleYeniAnaliz}
-                onOnceki={() => setActivePage("onceki")}
-                onRaporlar={() => setActivePage("raporlar")}
-                onGuncel={() => setActivePage("guncel")}
+                onProjeAc={(idOrPage) => {
+                  if (typeof idOrPage === "number") {
+                    handleDuzenle(idOrPage)
+                  } else {
+                    setActivePage(idOrPage || "onceki")
+                  }
+                }}
               />
             )}
             {activePage === "guncel" && (
