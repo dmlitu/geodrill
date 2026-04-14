@@ -257,8 +257,8 @@ class RopCoefficients:
         "Silt":         13.0,  # silty soil, low cohesion
         "Kum":          12.0,  # loose–medium sand; dense sand handled by SPT reduction
         "Çakıl":         6.0,  # gravel — auger tooth wear, more torque required
-        "Ayrışmış Kaya": 5.0,  # fully weathered — granular-like; UCS typically <15 MPa (no penalty)
-        "Kumtaşı":       4.0,  # weak–medium sandstone; UCS power-law adjusts for harder bands
+        "Ayrışmış Kaya": 7.0,  # fully weathered — granular-like; 6–8 m/hr field range, UCS <15 MPa (no penalty)
+        "Kumtaşı":       5.0,  # weak–medium sandstone; UCS power-law adjusts for harder bands
         "Kireçtaşı":     2.5,  # limestone; karstic voids not modelled
         "Sert Kaya":     2.0,  # hard rock — base for no-UCS case; power-law reduces for measured UCS
         "Organik Kil":   2.0,  # high plasticity, gas risk — slow advance
@@ -287,6 +287,11 @@ class RopCoefficients:
 
     # Absolute ROP floor (m/hr) — even hardest rock has measurable advance
     min_rop: float = 0.20
+
+    # Rock layer minimum ROP factor: final ROP cannot fall below BAZ_ROP × this value.
+    # Prevents UCS + RQD reductions from compounding into unrealistic slow rates.
+    # Applied after all reductions, using the raw lookup-table base value as reference.
+    minimum_rop_factor: float = 0.40
 
     # ── Power-law UCS–ROP model for rock ────────────────────────────────────
     # Engineering basis: Warren (1987), Winters et al. (1987), Zijsling (1987).

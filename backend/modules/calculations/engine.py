@@ -489,7 +489,8 @@ def rop_hesapla(tip: str, ucs: float, cap_mm: float, kohezyon: str = "",
     cap_m = cap_mm / 1000.0
     hesap_tip = zemin_hesap_tipi(tip, kohezyon)
     sinif = zemin_sinifi(tip, kohezyon)
-    baz = R.baz.get(hesap_tip, R.varsayilan)
+    baz_tablo = R.baz.get(hesap_tip, R.varsayilan)  # ham tablo değeri (alt sınır için referans)
+    baz = baz_tablo
 
     # UCS reduction
     if ucs > 0:
@@ -526,6 +527,11 @@ def rop_hesapla(tip: str, ucs: float, cap_mm: float, kohezyon: str = "",
             baz *= GW.rop_kohezyon_siz
         elif sinif == "kaya":
             baz *= GW.rop_kaya
+
+    # Kaya katmanı alt sınırı: tüm azaltmalar sonrası ROP, BAZ_ROP × minimum_rop_factor'ın altına düşemez.
+    # UCS + RQD birleşik etkisinin aşırı düşük sonuç üretmesini engeller.
+    if sinif == "kaya":
+        baz = max(baz, baz_tablo * R.minimum_rop_factor)
 
     return max(baz, R.min_rop)
 

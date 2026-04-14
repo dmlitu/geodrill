@@ -131,8 +131,8 @@ export const KATSAYILAR = {
       "Silt":          13.0,  // siltli zemin, düşük kohezyon
       "Kum":           12.0,  // gevşek-orta kum; sıkı kum SPT azaltmasıyla yavaşlar
       "Çakıl":          6.0,  // çakıl — takım aşınması, yüksek tork gerekli
-      "Ayrışmış Kaya":  5.0,  // tam ayrışmış; UCS tipik <15 MPa → referans altında, ceza yok
-      "Kumtaşı":        4.0,  // zayıf-orta kumtaşı; UCS power-law sert bantları ayarlar
+      "Ayrışmış Kaya":  7.0,  // tam ayrışmış; 6–8 m/saat saha aralığı, UCS tipik <15 MPa → ceza yok
+      "Kumtaşı":        5.0,  // zayıf-orta kumtaşı; UCS power-law sert bantları ayarlar
       "Kireçtaşı":      2.5,  // kireçtaşı; karst boşlukları modellenmedi
       "Sert Kaya":      2.0,  // sert kaya — UCS verisi yokken baz; power-law ölçülen UCS için azaltır
       "Organik Kil":    2.0,  // yüksek plastisite, gaz riski — yavaş ilerleme
@@ -169,6 +169,10 @@ export const KATSAYILAR = {
     rqd_azaltma_min:      0.60,  // RQD'den max %40 azaltma
 
     min_rop:              0.20,  // mutlak alt sınır (çok sert kaya), m/saat
+
+    // Kaya katmanı alt sınır faktörü: tüm azaltmalar sonrası ROP, BAZ_ROP × bu değerin altına inemez.
+    // UCS + RQD birleşik etkisinin aşırı düşük sonuç üretmesini engeller.
+    minimum_rop_factor:   0.40,
   },
 
   // ── Tam çevrim süresi katsayıları ────────────────────────────────────────
@@ -697,11 +701,12 @@ export function sivilasmaRiski(tip, kohezyon, spt, yas, baslangic, bitis) {
  * @param {number} rqd       - Rock Quality Designation (0-100); 0 = ölçülmemiş → ceza yok
  */
 export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, baslangic = 0, rqd = 0) {
-  const R      = KATSAYILAR.rop
-  const capM   = capMm / 1000
+  const R        = KATSAYILAR.rop
+  const capM     = capMm / 1000
   const hesapTip = zeminHesapTipi(tip, kohezyon)
-  const sinif  = zeminSinifi(tip, kohezyon)
-  let baz      = (hesapTip && R.baz[hesapTip] !== undefined) ? R.baz[hesapTip] : R.baz.varsayilan
+  const sinif    = zeminSinifi(tip, kohezyon)
+  const bazTablo = (hesapTip && R.baz[hesapTip] !== undefined) ? R.baz[hesapTip] : R.baz.varsayilan
+  let baz        = bazTablo  // ham tablo değeri (alt sınır için referans)
 
   // UCS azaltması
   if (ucs > 0) {
@@ -740,6 +745,10 @@ export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, b
     else if (sinif === "granüler")   baz *= GW.rop_kohezyon_siz
     else if (sinif === "kaya")       baz *= GW.rop_kaya
   }
+
+  // Kaya alt sınırı: tüm azaltmalar sonrası ROP, BAZ_ROP × minimum_rop_factor'ın altına inemez
+  if (sinif === "kaya")
+    baz = Math.max(baz, bazTablo * R.minimum_rop_factor)
 
   return Math.max(baz, R.min_rop)
 }
