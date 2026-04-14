@@ -28,6 +28,9 @@
 // Tüm mühendislik sabitleri kaynak notlarıyla burada merkezileştirilmiştir.
 // Kalibrasyon için yalnızca bu dosyayı güncelleyin; sihirli sayı yasaktır.
 
+/** Değeri [min, max] aralığına sıkıştırır. */
+const clamp = (x, lo, hi) => Math.min(Math.max(x, lo), hi)
+
 export const KATSAYILAR = {
 
   tork: {
@@ -700,7 +703,7 @@ export function sivilasmaRiski(tip, kohezyon, spt, yas, baslangic, bitis) {
  * @param {number} baslangic - Katman başlangıç derinliği (m)
  * @param {number} rqd       - Rock Quality Designation (0-100); 0 = ölçülmemiş → ceza yok
  */
-export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, baslangic = 0, rqd = 0, kalibrasyon = null) {
+export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, baslangic = 0, rqd = 0, kalibrasyon = null, makineTorku = 0, gerekliTork = 0) {
   const R        = KATSAYILAR.rop
   const capM     = capMm / 1000
   const hesapTip = zeminHesapTipi(tip, kohezyon)
@@ -751,6 +754,14 @@ export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, b
     baz = Math.max(baz, bazTablo * R.minimum_rop_factor)
 
   let rop = Math.max(baz, R.min_rop)
+
+  // Makine gücü etkisi: gerekli tork / makine torku oranından ROP düzeltmesi
+  // F_makine = clamp(0.85 + 0.3 × (güç_oranı − 1), 0.85, 1.20)
+  if (gerekliTork > 0 && makineTorku > 0) {
+    const gucOrani = makineTorku / gerekliTork
+    const fMakine  = clamp(0.85 + 0.3 * (gucOrani - 1), 0.85, 1.20)
+    rop *= fMakine
+  }
 
   // Proje kalibrasyonu: saha ölçüm verisinden türetilmiş çarpan
   if (kalibrasyon?.aktif && kalibrasyon.katsayi > 0)
@@ -918,7 +929,7 @@ export function kritikKatman(zemin) {
  * @returns {{ tDelme, tBeton, tDonati, tCasingOps, tKurulum, tRekonumlama,
  *             tBeklenmedik, tToplamCevrim, kazikBasiGun, gunlukUretimAdet }}
  */
-export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, isTipi = "Fore Kazık", kalibrasyon = null) {
+export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, isTipi = "Fore Kazık", kalibrasyon = null, makineTorku = 0, gerekliTork = 0) {
   const CV = KATSAYILAR.cevrim
   // Alet değişimi yalnızca sert formasyon geçişlerinde
   const KAYA_TIPLERI          = ["Kireçtaşı", "Sert Kaya"]
@@ -935,7 +946,7 @@ export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, isTipi = "Fore
     const hesapTip = zeminHesapTipi(row.zemTipi, row.kohezyon)
     const rop      = ropHesapla(
       row.zemTipi, row.ucs || 0, capMm, row.kohezyon,
-      row.spt || 0, 0, row.baslangic || 0, row.rqd || 0, kalibrasyon
+      row.spt || 0, 0, row.baslangic || 0, row.rqd || 0, kalibrasyon, makineTorku, gerekliTork
     )
     katmanlar.push({
       k, rop, hesapTip,
@@ -1033,8 +1044,8 @@ export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, isTipi = "Fore
  * Geriye dönük uyumlu: yalnızca delme süresini döndürür.
  * Beton, donatı ve lojistik dahil tam çevrim için tamCevrimSuresi() kullanın.
  */
-export function kazikSuresi(zemin, capMm, kazikBoyu, casingM, kalibrasyon = null) {
-  const cs = tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, "Fore Kazık", kalibrasyon)
+export function kazikSuresi(zemin, capMm, kazikBoyu, casingM, kalibrasyon = null, makineTorku = 0, gerekliTork = 0) {
+  const cs = tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, "Fore Kazık", kalibrasyon, makineTorku, gerekliTork)
   return Math.round((cs.tDelme + cs.tCasingOps) * 10) / 10
 }
 

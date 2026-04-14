@@ -24,6 +24,11 @@ from typing import Dict, List, Optional
 from configs.geotech_coefficients import KATSAYILAR
 
 
+def clamp(x: float, lo: float, hi: float) -> float:
+    """Değeri [lo, hi] aralığına sıkıştırır."""
+    return min(max(x, lo), hi)
+
+
 # ─── Soil Classification ──────────────────────────────────────────────────────
 
 _STANDART = {
@@ -451,7 +456,7 @@ def casing_metre(layers: list, yas: float) -> float:
 
 def rop_hesapla(tip: str, ucs: float, cap_mm: float, kohezyon: str = "",
                 spt: float = 0, yas: float = 0, baslangic: float = 0,
-                rqd: float = 0) -> float:
+                rqd: float = 0, makine_torku: float = 0, gerekli_tork: float = 0) -> float:
     """
     Estimated penetration rate (m/hr). Class C.
 
@@ -533,7 +538,16 @@ def rop_hesapla(tip: str, ucs: float, cap_mm: float, kohezyon: str = "",
     if sinif == "kaya":
         baz = max(baz, baz_tablo * R.minimum_rop_factor)
 
-    return max(baz, R.min_rop)
+    rop = max(baz, R.min_rop)
+
+    # Makine gücü etkisi: gerekli tork / makine torku oranından ROP düzeltmesi
+    # F_makine = clamp(0.85 + 0.3 × (güç_oranı − 1), 0.85, 1.20)
+    if gerekli_tork > 0 and makine_torku > 0:
+        guc_orani = makine_torku / gerekli_tork
+        f_makine  = clamp(0.85 + 0.3 * (guc_orani - 1.0), 0.85, 1.20)
+        rop *= f_makine
+
+    return rop
 
 
 # ─── Required Torque — Range Output ──────────────────────────────────────────
@@ -731,7 +745,8 @@ def kritik_katman(layers: list) -> Optional[dict]:
 # ─── Full Cycle Time ──────────────────────────────────────────────────────────
 
 def tam_cevrim_suresi(layers: list, cap_mm: float, kazik_boyu: float,
-                      casing_m: float, is_tipi: str = "Fore Kazık") -> dict:
+                      casing_m: float, is_tipi: str = "Fore Kazık",
+                      makine_torku: float = 0, gerekli_tork: float = 0) -> dict:
     """
     Full pile cycle time calculation.
 
@@ -786,7 +801,8 @@ def tam_cevrim_suresi(layers: list, cap_mm: float, kazik_boyu: float,
         hesap_tip = zemin_hesap_tipi(row.get("zem_tipi", ""), koh_row)
         rop = rop_hesapla(
             row.get("zem_tipi", ""), ucs_row, cap_mm, koh_row,
-            spt=spt_row, yas=0, baslangic=bas_row, rqd=rqd_row
+            spt=spt_row, yas=0, baslangic=bas_row, rqd=rqd_row,
+            makine_torku=makine_torku, gerekli_tork=gerekli_tork
         )
         katmanlar.append({
             "k": k, "rop": rop, "hesap_tip": hesap_tip,
