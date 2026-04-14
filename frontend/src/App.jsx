@@ -11,6 +11,7 @@ import FiyatAnalizi from "./FiyatAnalizi"
 import OncekiAnalizler from "./OncekiAnalizler"
 import Ayarlar from "./Ayarlar"
 import DashboardPage from "./Dashboard"
+import OnboardingWizard from "./Onboarding"
 import { downloadExcelReport } from "./api"
 import {
   login, logout, getToken,
@@ -556,7 +557,7 @@ function Dashboard({ username, onLogout }) {
   const [zemin, setZemin] = useState([])
   const [makineler, setMakineler] = useState([])
   const [yukleniyor, setYukleniyor] = useState(true)
-  const [welcomeModal, setWelcomeModal] = useState(false)
+  const [onboarding, setOnboarding] = useState(false)
   const [dark, setDark] = useState(() => localStorage.getItem("gd_theme") === "dark")
 
   const toggleDark = useCallback(() => {
@@ -588,9 +589,9 @@ function Dashboard({ username, onLogout }) {
           setProje(fromSnake(sonPraje))
           setZemin((sonPraje.soil_layers || []).map(fromSnakeLayer))
         } else {
-          // İlk kez giriş — welcome modal göster
-          const daha_once = localStorage.getItem("gd_welcomed")
-          if (!daha_once) setWelcomeModal(true)
+          // İlk kez giriş — onboarding wizard göster
+          const onboarded = localStorage.getItem("gd_onboarded")
+          if (!onboarded) setOnboarding(true)
         }
 
         if (ekipmanlar.length > 0) {
@@ -598,8 +599,8 @@ function Dashboard({ username, onLogout }) {
         }
       } catch {
         // İlk açılışta hata olursa boş başla
-        const daha_once = localStorage.getItem("gd_welcomed")
-        if (!daha_once) setWelcomeModal(true)
+        const onboarded = localStorage.getItem("gd_onboarded")
+        if (!onboarded) setOnboarding(true)
       } finally {
         setYukleniyor(false)
       }
@@ -616,13 +617,6 @@ function Dashboard({ username, onLogout }) {
     setZemin(DEMO_ZEMIN)
     setMakineler(DEMO_MAKINELER)
     setProjeId(null)
-    localStorage.setItem("gd_welcomed", "1")
-    setWelcomeModal(false)
-  }
-
-  const handleWelcomeKapat = () => {
-    localStorage.setItem("gd_welcomed", "1")
-    setWelcomeModal(false)
   }
 
   const handleLogout = () => {
@@ -675,7 +669,13 @@ function Dashboard({ username, onLogout }) {
 
   return (
     <div style={{display: "flex", minHeight: "100vh"}}>
-      {welcomeModal && <WelcomeModal onDemoYukle={handleDemoYukle} onKapat={handleWelcomeKapat} />}
+      {onboarding && (
+        <OnboardingWizard
+          username={username}
+          onDemoYukle={handleDemoYukle}
+          onComplete={() => { setOnboarding(false); setActivePage("guncel") }}
+        />
+      )}
       <Sidebar active={activePage} onNav={handleNav} open={sidebarOpen} onClose={() => setSidebarOpen(false)} projeAdi={proje.projeAdi} />
       <div style={{flex: 1, display: "flex", flexDirection: "column", minWidth: 0}}>
         <Header username={username} onLogout={handleLogout} onMenuOpen={() => setSidebarOpen(true)} dark={dark} onToggleDark={toggleDark} />
@@ -728,7 +728,7 @@ function Dashboard({ username, onLogout }) {
                 )}
                 {wizardTab === "wizardFiyat" && (
                   <ErrorBoundary>
-                    <FiyatAnalizi proje={proje} zemin={zemin} />
+                    <FiyatAnalizi proje={proje} zemin={zemin} projeId={projeId} />
                   </ErrorBoundary>
                 )}
               </>
