@@ -920,14 +920,15 @@ export function kritikKatman(zemin) {
  */
 export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, isTipi = "Fore Kazık", kalibrasyon = null) {
   const CV = KATSAYILAR.cevrim
-  // Alet değişimi (Kelly kova → kaya kesici) yalnızca sert formasyon geçişlerinde
-  const KAYA_TIPLERI = ["Kireçtaşı", "Sert Kaya"]
+  // Alet değişimi yalnızca sert formasyon geçişlerinde
+  const KAYA_TIPLERI          = ["Kireçtaşı", "Sert Kaya"]
+  // Ortalama hız düzeltmesi uygulanacak kaya tipleri
+  const KAYA_DUZELTME_TIPLERI = ["Kumtaşı", "Kireçtaşı", "Sert Kaya", "Ayrışmış Kaya"]
 
-  // ── Delme süresi ──────────────────────────────────────────────────────────
-  let tDelme = 0
-  let ucDeg  = 0
+  // ── 1. Geçiş: ham ROP ve katman sürelerini hesapla ───────────────────────
+  let ucDeg     = 0
   let oncekiTip = null
-  const katmanRopDetaylari = []
+  const katmanlar = []
 
   for (const row of zemin) {
     const k        = (row.bitis || 0) - (row.baslangic || 0)
@@ -936,20 +937,47 @@ export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, isTipi = "Fore
       row.zemTipi, row.ucs || 0, capMm, row.kohezyon,
       row.spt || 0, 0, row.baslangic || 0, row.rqd || 0, kalibrasyon
     )
-    const sureKatman = k / rop
-    tDelme += sureKatman
-
-    katmanRopDetaylari.push({
-      baslangic:  row.baslangic || 0,
-      bitis:      row.bitis     || 0,
-      zemTipi:    row.zemTipi   || "",
-      ropMhr:     Math.round(rop * 10) / 10,
-      sureSaat:   Math.round(sureKatman * 100) / 100,
+    katmanlar.push({
+      k, rop, hesapTip,
+      zemTipi:   row.zemTipi   || "",
+      baslangic: row.baslangic || 0,
+      bitis:     row.bitis     || 0,
     })
 
     if (KAYA_TIPLERI.includes(hesapTip) && oncekiTip !== null && !KAYA_TIPLERI.includes(oncekiTip))
       ucDeg++
     oncekiTip = hesapTip
+  }
+
+  // ── Ortalama ROP (alet değişimi ve derinlik eki öncesi saf delme) ─────────
+  const toplamDerinlik = katmanlar.reduce((s, m) => s + m.k, 0)
+  const tDelmePure     = katmanlar.reduce((s, m) => s + m.k / m.rop, 0)
+  const ropAvg         = tDelmePure > 0 ? toplamDerinlik / tDelmePure : 0
+
+  // ── 2. Geçiş: kaya katmanlarında ortalama hız düzeltmesi ─────────────────
+  // Bir kaya katmanının ROP'u, ortalama ROP'un %60'ından düşükse
+  // efektif ROP = ROP_avg × 0.60 olarak yukarı çekilir.
+  const esik = ropAvg * 0.60
+  let tDelme = 0
+  const katmanRopDetaylari = []
+
+  for (const m of katmanlar) {
+    let ropEff    = m.rop
+    let duzeltildi = false
+    if (KAYA_DUZELTME_TIPLERI.includes(m.hesapTip) && ropAvg > 0 && m.rop < esik) {
+      ropEff     = esik
+      duzeltildi = true
+    }
+    const sureKatman = m.k / ropEff
+    tDelme += sureKatman
+    katmanRopDetaylari.push({
+      baslangic:  m.baslangic,
+      bitis:      m.bitis,
+      zemTipi:    m.zemTipi,
+      ropMhr:     Math.round(ropEff * 10) / 10,
+      sureSaat:   Math.round(sureKatman * 100) / 100,
+      duzeltildi,
+    })
   }
 
   tDelme += ucDeg * CV.alet_degisim

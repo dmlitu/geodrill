@@ -767,14 +767,17 @@ def tam_cevrim_suresi(layers: list, cap_mm: float, kazik_boyu: float,
     CV = KATSAYILAR.cevrim
     S = KATSAYILAR.sure  # backward-compat alias
 
-    # ── Drilling time (t_delme) ──────────────────────────────────────────────
-    t_delme = 0.0
+    KAYA_TIPLERI          = ("Kumtaşı", "Kireçtaşı", "Sert Kaya", "Ayrışmış Kaya")
+    KAYA_DUZELTME_TIPLERI = ("Kumtaşı", "Kireçtaşı", "Sert Kaya", "Ayrışmış Kaya")
+    ALET_DEG_TIPLERI      = ("Kumtaşı", "Kireçtaşı", "Sert Kaya", "Ayrışmış Kaya")
+
+    # ── 1. Geçiş: ham ROP ve katman sürelerini hesapla ──────────────────────
     uc_deg = 0
     onceki_tip = None
-    katman_rop_detaylari = []
+    katmanlar = []
 
     for row in layers:
-        k = float(row.get("bitis", 0)) - float(row.get("baslangic", 0))
+        k       = float(row.get("bitis", 0)) - float(row.get("baslangic", 0))
         koh_row = row.get("kohezyon", "")
         ucs_row = float(row.get("ucs") or 0)
         spt_row = float(row.get("spt") or 0)
@@ -785,23 +788,47 @@ def tam_cevrim_suresi(layers: list, cap_mm: float, kazik_boyu: float,
             row.get("zem_tipi", ""), ucs_row, cap_mm, koh_row,
             spt=spt_row, yas=0, baslangic=bas_row, rqd=rqd_row
         )
-        sure_katman = k / rop if rop > 0 else 0
-        t_delme += sure_katman
-
-        katman_rop_detaylari.append({
+        katmanlar.append({
+            "k": k, "rop": rop, "hesap_tip": hesap_tip,
+            "zem_tipi":  row.get("zem_tipi", ""),
             "baslangic": bas_row,
             "bitis":     float(row.get("bitis") or 0),
-            "zem_tipi":  row.get("zem_tipi", ""),
-            "rop_mhr":   round(rop * 10) / 10,
-            "sure_saat": round(sure_katman * 100) / 100,
         })
 
-        kaya_tipleri = ("Kumtaşı", "Kireçtaşı", "Sert Kaya", "Ayrışmış Kaya")
-        if (hesap_tip in kaya_tipleri
+        if (hesap_tip in ALET_DEG_TIPLERI
                 and onceki_tip is not None
-                and onceki_tip not in kaya_tipleri):
+                and onceki_tip not in ALET_DEG_TIPLERI):
             uc_deg += 1
         onceki_tip = hesap_tip
+
+    # ── Ortalama ROP (saf delme, alet değişimi öncesi) ───────────────────────
+    toplam_derinlik = sum(m["k"] for m in katmanlar)
+    t_delme_pure    = sum(m["k"] / m["rop"] for m in katmanlar if m["rop"] > 0)
+    rop_avg = toplam_derinlik / t_delme_pure if t_delme_pure > 0 else 0.0
+
+    # ── 2. Geçiş: kaya katmanlarında ortalama hız düzeltmesi ─────────────────
+    # Kaya katmanı ROP'u ortalama ROP'un %60'ından düşükse yukarı çekilir.
+    esik = rop_avg * 0.60
+    t_delme = 0.0
+    katman_rop_detaylari = []
+
+    for m in katmanlar:
+        rop_eff    = m["rop"]
+        duzeltildi = False
+        if (m["hesap_tip"] in KAYA_DUZELTME_TIPLERI
+                and rop_avg > 0 and m["rop"] < esik):
+            rop_eff    = esik
+            duzeltildi = True
+        sure_katman = m["k"] / rop_eff if rop_eff > 0 else 0
+        t_delme += sure_katman
+        katman_rop_detaylari.append({
+            "baslangic":  m["baslangic"],
+            "bitis":      m["bitis"],
+            "zem_tipi":   m["zem_tipi"],
+            "rop_mhr":    round(rop_eff * 10) / 10,
+            "sure_saat":  round(sure_katman * 100) / 100,
+            "duzeltildi": duzeltildi,
+        })
 
     t_delme += uc_deg * CV.alet_degisim_saat
 
