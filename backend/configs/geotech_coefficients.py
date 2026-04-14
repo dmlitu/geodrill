@@ -258,7 +258,7 @@ class RopCoefficients:
         "Kum":          12.0,  # loose–medium sand; dense sand handled by SPT reduction
         "Çakıl":         6.0,  # gravel — auger tooth wear, more torque required
         "Ayrışmış Kaya": 7.0,  # fully weathered — granular-like; 6–8 m/hr field range, UCS <15 MPa (no penalty)
-        "Kumtaşı":       5.0,  # weak–medium sandstone; UCS power-law adjusts for harder bands
+        "Kumtaşı":       5.5,  # weak–medium sandstone; UCS power-law adjusts for harder bands
         "Kireçtaşı":     2.5,  # limestone; karstic voids not modelled
         "Sert Kaya":     2.0,  # hard rock — base for no-UCS case; power-law reduces for measured UCS
         "Organik Kil":   2.0,  # high plasticity, gas risk — slow advance
@@ -291,7 +291,7 @@ class RopCoefficients:
     # Rock layer minimum ROP factor: final ROP cannot fall below BAZ_ROP × this value.
     # Prevents UCS + RQD reductions from compounding into unrealistic slow rates.
     # Applied after all reductions, using the raw lookup-table base value as reference.
-    minimum_rop_factor: float = 0.40
+    minimum_rop_factor: float = 0.55
 
     # ── Power-law UCS–ROP model for rock ────────────────────────────────────
     # Engineering basis: Warren (1987), Winters et al. (1987), Zijsling (1987).
@@ -303,7 +303,7 @@ class RopCoefficients:
     #   ucs_kuvvet_ussu:  0.65 → 0.55  — less steep reduction curve (closer to field scatter)
     #   ucs_kuvvet_min:   0.15 → 0.20  — less aggressive floor for extreme hardness
     # Net effect: ~30–50% faster computed ROP for measured UCS values, matching saha production.
-    ucs_kuvvet_ussu: float = 0.55     # power-law exponent (dimensionless)
+    ucs_kuvvet_ussu: float = 0.40     # power-law exponent (dimensionless)
     ucs_referans_mpa: float = 40.0    # reference UCS — at UCS ≤ ref, no penalty applied
     ucs_kuvvet_min: float = 0.20      # minimum ROP factor for rock (floor at very high UCS)
 

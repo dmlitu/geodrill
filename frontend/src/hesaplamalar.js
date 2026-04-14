@@ -132,7 +132,7 @@ export const KATSAYILAR = {
       "Kum":           12.0,  // gevşek-orta kum; sıkı kum SPT azaltmasıyla yavaşlar
       "Çakıl":          6.0,  // çakıl — takım aşınması, yüksek tork gerekli
       "Ayrışmış Kaya":  7.0,  // tam ayrışmış; 6–8 m/saat saha aralığı, UCS tipik <15 MPa → ceza yok
-      "Kumtaşı":        5.0,  // zayıf-orta kumtaşı; UCS power-law sert bantları ayarlar
+      "Kumtaşı":        5.5,  // zayıf-orta kumtaşı; UCS power-law sert bantları ayarlar
       "Kireçtaşı":      2.5,  // kireçtaşı; karst boşlukları modellenmedi
       "Sert Kaya":      2.0,  // sert kaya — UCS verisi yokken baz; power-law ölçülen UCS için azaltır
       "Organik Kil":    2.0,  // yüksek plastisite, gaz riski — yavaş ilerleme
@@ -145,7 +145,7 @@ export const KATSAYILAR = {
     // v3.3: referans 20→40 MPa, üs 0.65→0.55 — saha üretimine %30-50 yaklaşım.
     // Kaynak: Warren (1987); Winters et al. (1987); Zijsling (1987).
     ucs_kuvvet_referans:  40.0,  // MPa — bu değerin altında UCS cezası uygulanmaz
-    ucs_kuvvet_ussu:       0.55,  // power-law üssü (boyutsuz)
+    ucs_kuvvet_ussu:       0.40,  // power-law üssü (boyutsuz)
     ucs_kuvvet_min:        0.20,  // kaya için min ROP faktörü (çok yüksek UCS tabanı)
 
     // Kaya olmayan katman için eski doğrusal UCS azaltması (kenar durum)
@@ -172,7 +172,7 @@ export const KATSAYILAR = {
 
     // Kaya katmanı alt sınır faktörü: tüm azaltmalar sonrası ROP, BAZ_ROP × bu değerin altına inemez.
     // UCS + RQD birleşik etkisinin aşırı düşük sonuç üretmesini engeller.
-    minimum_rop_factor:   0.40,
+    minimum_rop_factor:   0.55,
   },
 
   // ── Tam çevrim süresi katsayıları ────────────────────────────────────────
