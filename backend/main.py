@@ -26,6 +26,7 @@ from routers.soil_import import router as soil_import_router
 from routers import companies as companies_router
 from routers import analyses as analyses_router
 from routers import dashboard as dashboard_router
+from routers import cost as cost_router
 
 
 def seed_default_users():
@@ -50,28 +51,37 @@ def seed_default_users():
 
 
 def _run_schema_migrations():
-    """ADD COLUMN migrations for existing tables — safe to re-run (IF NOT EXISTS / try/except)."""
+    """ADD COLUMN migrations for existing tables.
+
+    Her migration ayrı transaction'da çalışır.
+    PostgreSQL'de tek transaction içinde bir ALTER TABLE başarısız olunca
+    transaction "aborted" durumuna geçer ve sonraki tüm komutlar sessizce
+    atlanır — bu, kolonların hiç eklenmemesine neden olurdu.
+
+    Çözüm: her ALTER TABLE kendi engine.begin() bloğunda; IF NOT EXISTS
+    ile idempotent yapıldığından yeniden çalıştırma güvenlidir.
+    """
     from sqlalchemy import text
-    with engine.begin() as conn:
-        migrations = [
-            # v3.0: CPT ve Su alanları zemin katmanlarına
-            "ALTER TABLE soil_layers ADD COLUMN cpt_qc REAL DEFAULT 0.0",
-            "ALTER TABLE soil_layers ADD COLUMN su REAL DEFAULT 0.0",
-            # v3.0: Crowd force makine tablosuna
-            "ALTER TABLE equipment ADD COLUMN crowd_force REAL DEFAULT 0.0",
-            # v3.1 SaaS: User tablosuna yeni alanlar
-            "ALTER TABLE users ADD COLUMN email VARCHAR(255)",
-            "ALTER TABLE users ADD COLUMN full_name VARCHAR(200)",
-            "ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'member'",
-            "ALTER TABLE users ADD COLUMN company_id INTEGER",
-            # v3.1 SaaS: Equipment tablosuna kelly_uzunluk
-            "ALTER TABLE equipment ADD COLUMN kelly_uzunluk REAL DEFAULT 0.0",
-        ]
-        for sql in migrations:
-            try:
+    migrations = [
+        # v3.0: CPT ve Su alanları zemin katmanlarına
+        "ALTER TABLE soil_layers ADD COLUMN IF NOT EXISTS cpt_qc REAL DEFAULT 0.0",
+        "ALTER TABLE soil_layers ADD COLUMN IF NOT EXISTS su REAL DEFAULT 0.0",
+        # v3.0: Crowd force makine tablosuna
+        "ALTER TABLE equipment ADD COLUMN IF NOT EXISTS crowd_force REAL DEFAULT 0.0",
+        # v3.1 SaaS: User tablosuna yeni alanlar
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(200)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'member'",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INTEGER",
+        # v3.1 SaaS: Equipment tablosuna kelly_uzunluk
+        "ALTER TABLE equipment ADD COLUMN IF NOT EXISTS kelly_uzunluk REAL DEFAULT 0.0",
+    ]
+    for sql in migrations:
+        try:
+            with engine.begin() as conn:   # her migration kendi transaction'ı
                 conn.execute(text(sql))
-            except Exception:
-                pass  # Kolon zaten mevcutsa yok say
+        except Exception:
+            pass  # SQLite eski sürüm uyumu veya beklenmedik hata
 
 
 @asynccontextmanager
@@ -135,6 +145,7 @@ app.include_router(soil_import_router, tags=["soil-import"])
 app.include_router(companies_router.router)
 app.include_router(analyses_router.router)
 app.include_router(dashboard_router.router)
+app.include_router(cost_router.router)
 
 
 @app.get("/")
