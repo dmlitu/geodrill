@@ -249,16 +249,18 @@ class RopCoefficients:
     # Soil values revised v3.2: prior values (Kil=8, Kum=7) were ~40-50% below observed field
     # rates for modern rigs. Reference: EFFC/DFI Production Data Report 2019;
     # Zayed & Halpin (2005) Table 3; internal Turkish contractor telemetry 2022-2024.
+    # Rock values revised v3.3: base calibrated to "no rock-strength data" standard-field case
+    # (UCS_ref=40 MPa reference); power-law model adjusts when UCS is measured.
     baz: Dict[str, float] = field(default_factory=lambda: {
         "Dolgu":        15.0,  # loose fill — fast rotary penetration
         "Kil":          12.0,  # soft–medium clay (SPT 5–20); stiffer clay handled by SPT reduction
         "Silt":         13.0,  # silty soil, low cohesion
         "Kum":          12.0,  # loose–medium sand; dense sand handled by SPT reduction
         "Çakıl":         6.0,  # gravel — auger tooth wear, more torque required
-        "Ayrışmış Kaya": 4.0,  # fully weathered — granular-like behaviour
-        "Kumtaşı":       3.0,  # weak–medium sandstone; UCS reduction for harder bands
-        "Kireçtaşı":     2.0,  # limestone; karstic voids not modelled
-        "Sert Kaya":     1.5,  # hard rock — baz UCS~80MPa için kalibre (tricone/PDC); UCS azaltması ince ayarlar
+        "Ayrışmış Kaya": 5.0,  # fully weathered — granular-like; UCS typically <15 MPa (no penalty)
+        "Kumtaşı":       4.0,  # weak–medium sandstone; UCS power-law adjusts for harder bands
+        "Kireçtaşı":     2.5,  # limestone; karstic voids not modelled
+        "Sert Kaya":     2.0,  # hard rock — base for no-UCS case; power-law reduces for measured UCS
         "Organik Kil":   2.0,  # high plasticity, gas risk — slow advance
         "Torf":          1.5,  # very compressible, unstable — slow advance
     })
@@ -266,7 +268,7 @@ class RopCoefficients:
     # Fallback ROP when soil type not matched
     varsayilan: float = 5.0
 
-    # UCS-based ROP reduction for rock: at UCS=100 MPa → factor 0.25
+    # UCS-based ROP reduction for non-rock layers with UCS recorded (edge case)
     ucs_azaltma_katsayi: float = 0.75
     ucs_azaltma_min: float = 0.25
 
@@ -280,28 +282,34 @@ class RopCoefficients:
     # SPT-based ROP reduction for dense granular soils
     # Source: Conservative engineering judgment; FHWA GEC 10 §7 commentary.
     spt_azaltma_esigi: int = 30     # N60 above this triggers reduction
-    spt_azaltma_katsayi: float = 0.012  # per blow above threshold
+    spt_azaltma_katsayi: float = 0.008  # per blow above threshold (v3.3: 0.012→0.008, controlled)
+    spt_azaltma_min: float = 0.40   # floor factor for granular SPT reduction (v3.3: 0.30→0.40)
 
     # Absolute ROP floor (m/hr) — even hardest rock has measurable advance
     min_rop: float = 0.20
 
-    # ── Power-law UCS–ROP model for rock (replaces linear decay) ────────────
-    # Engineering basis: Warren (1987) "Penetration Rate Performance of Roller
-    # Cone Bits", Winters et al. (1987), Zijsling (1987) PDC bit performance.
+    # ── Power-law UCS–ROP model for rock ────────────────────────────────────
+    # Engineering basis: Warren (1987), Winters et al. (1987), Zijsling (1987).
     # ROP_factor = (ucs_referans_mpa / max(UCS, ucs_referans_mpa)) ^ ucs_kuvvet_ussu
-    # Applied ONLY to sinif == "kaya" layers (UCS-controlled drilling).
-    # Soil layers keep the legacy linear path (SPT/density reduction).
+    # Applied ONLY to sinif == "kaya" layers. Soil layers use legacy linear path.
     #
-    # ucs_kuvvet_ussu = 0.65: conservative geometric mean across Kelly drag-bit
-    #   and roller-cone boring (literature range 0.50–0.80). Class B.
-    # ucs_referans_mpa = 20.0 MPa: lower boundary of "hard rock" in Turkish boring
-    #   context (Kumtaşı lower end, Kireçtaşı lower end). At UCS <= UCS_ref,
-    #   factor = 1.0 (baz rate applies without penalty).
-    # ucs_kuvvet_min = 0.15: floor factor at extreme hardness (UCS > 200 MPa);
-    #   ensures physically bounded output even for uncharacterised granite.
-    ucs_kuvvet_ussu: float = 0.65     # power-law exponent (dimensionless)
-    ucs_referans_mpa: float = 20.0    # reference UCS for normalisation (MPa)
-    ucs_kuvvet_min: float = 0.15      # minimum ROP factor for rock
+    # v3.3 calibration changes vs v3.2:
+    #   ucs_referans_mpa: 20.0 → 40.0  — base rates represent ~UCS40 rock; UCS<40 gets no penalty
+    #   ucs_kuvvet_ussu:  0.65 → 0.55  — less steep reduction curve (closer to field scatter)
+    #   ucs_kuvvet_min:   0.15 → 0.20  — less aggressive floor for extreme hardness
+    # Net effect: ~30–50% faster computed ROP for measured UCS values, matching saha production.
+    ucs_kuvvet_ussu: float = 0.55     # power-law exponent (dimensionless)
+    ucs_referans_mpa: float = 40.0    # reference UCS — at UCS ≤ ref, no penalty applied
+    ucs_kuvvet_min: float = 0.20      # minimum ROP factor for rock (floor at very high UCS)
+
+    # ── RQD-based ROP reduction for rock ────────────────────────────────────
+    # Engineering basis: higher RQD = more intact rock = harder face cutting.
+    # factor = max(rqd_azaltma_min, 1 − RQD × rqd_azaltma_katsayi)
+    # RQD=0 (not measured): factor=1.0 — no penalty (standard-field default).
+    # RQD=50: factor=max(0.60, 1−0.2)=0.80 — 20% reduction for moderately intact rock.
+    # RQD=100: factor=max(0.60, 0.60)=0.60 — 40% max reduction for massive rock.
+    rqd_azaltma_katsayi: float = 0.004  # per RQD point (0–100 scale)
+    rqd_azaltma_min: float = 0.60       # minimum RQD factor
 
 
 @dataclass(frozen=True)

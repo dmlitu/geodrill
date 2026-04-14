@@ -116,35 +116,58 @@ export const KATSAYILAR = {
   },
 
   // ── ROP katsayıları ──────────────────────────────────────────────────────
+  // Kaynak: FHWA GEC 10 §7 + Türkiye saha kayıtları. C Sınıfı.
+  // Kalibrasyon notu: ileride saha verisiyle güncellemek için tüm katsayılar burada toplanmıştır.
   rop: {
-    // Zemin tipine göre taban ROP (m/saat) Ø800 mm referans çapında
-    // Kaynak: FHWA GEC 10 §7 + Türkiye saha kayıtları. C Sınıfı.
-    // Baz ROP (m/saat) Ø800mm referans çapında.
-    // v3.2 revizyonu: zemin değerleri %40-50 artırıldı — önceki değerler (Kil=8, Kum=7)
-    // modern Kelly/rotary rig saha telemetrisinin yaklaşık yarısındaydı.
+    // Taban ROP (m/saat) Ø800 mm referans çapında.
+    // Zemin birimleri: standart saha üretimi (v3.2'de Kil/Kum için ~%40-50 artış).
+    // Kaya birimleri (v3.3): "UCS verisi yok" standart saha durumu; UCS girilince
+    //   power-law modeli baz değerden azaltır.
     // Kaynak: EFFC/DFI Üretkenlik Raporu 2019; Zayed & Halpin (2005) Tablo 3;
-    // Türkiye saha kayıtları (Bauer BG-serisi, Soilmec SR-serisi) 2022-2024.
+    //   Türkiye saha kayıtları (Bauer BG-serisi, Soilmec SR-serisi) 2022-2024.
     baz: {
       "Dolgu":         15.0,  // gevşek dolgu — hızlı rotary penetrasyon
       "Kil":           12.0,  // yumuşak-orta kil (SPT 5-20); sert kil SPT azaltmasıyla yavaşlar
       "Silt":          13.0,  // siltli zemin, düşük kohezyon
       "Kum":           12.0,  // gevşek-orta kum; sıkı kum SPT azaltmasıyla yavaşlar
       "Çakıl":          6.0,  // çakıl — takım aşınması, yüksek tork gerekli
-      "Ayrışmış Kaya":  4.0,  // WD5/WD6 tam ayrışmış — granüler davranış
-      "Kumtaşı":        3.0,  // zayıf-orta kumtaşı; UCS azaltması sert bantları yavaşlatır
-      "Kireçtaşı":      2.0,  // kireçtaşı; karst boşlukları modellenmedi
-      "Sert Kaya":      1.5,  // sert kaya — baz UCS~80MPa için kalibre; UCS azaltması ince ayarlar
+      "Ayrışmış Kaya":  5.0,  // tam ayrışmış; UCS tipik <15 MPa → referans altında, ceza yok
+      "Kumtaşı":        4.0,  // zayıf-orta kumtaşı; UCS power-law sert bantları ayarlar
+      "Kireçtaşı":      2.5,  // kireçtaşı; karst boşlukları modellenmedi
+      "Sert Kaya":      2.0,  // sert kaya — UCS verisi yokken baz; power-law ölçülen UCS için azaltır
       "Organik Kil":    2.0,  // yüksek plastisite, gaz riski — yavaş ilerleme
       "Torf":           1.5,  // çok sıkıştırılabilir, instabil — yavaş ilerleme
       varsayilan:       5.0,
     },
-    ucs_azaltma_katsayi:  0.75,  // UCS=100 MPa'da çarpan ≈ 0.25
-    ucs_azaltma_min:      0.25,  // UCS azaltması için mutlak alt sınır
-    referans_cap_m:       0.80,  // ROP tablosu için referans çap
-    cap_azaltma_katsayi:  0.50,  // referans üzerinde her metre için
-    cap_azaltma_min:      0.40,  // çap azaltması için alt sınır
-    spt_azaltma_esigi:    30,    // SPT N > bu eşik → yoğunluk azaltması uygula
-    spt_azaltma_katsayi:  0.012, // eşik üzerinde her darbe için
+
+    // ── UCS power-law modeli (kaya katmanları için) ─────────────────────────
+    // ROP_faktör = (ucs_kuvvet_referans / max(UCS, ucs_kuvvet_referans)) ^ ucs_kuvvet_ussu
+    // v3.3: referans 20→40 MPa, üs 0.65→0.55 — saha üretimine %30-50 yaklaşım.
+    // Kaynak: Warren (1987); Winters et al. (1987); Zijsling (1987).
+    ucs_kuvvet_referans:  40.0,  // MPa — bu değerin altında UCS cezası uygulanmaz
+    ucs_kuvvet_ussu:       0.55,  // power-law üssü (boyutsuz)
+    ucs_kuvvet_min:        0.20,  // kaya için min ROP faktörü (çok yüksek UCS tabanı)
+
+    // Kaya olmayan katman için eski doğrusal UCS azaltması (kenar durum)
+    ucs_azaltma_katsayi:  0.75,
+    ucs_azaltma_min:      0.25,
+
+    // ── Çap cezası ──────────────────────────────────────────────────────────
+    referans_cap_m:       0.80,  // ROP tablosu referans çapı
+    cap_azaltma_katsayi:  0.50,  // referans üzerindeki her metre için
+    cap_azaltma_min:      0.40,  // çap azaltma faktörü alt sınırı
+
+    // ── SPT bazlı granüler azaltma ──────────────────────────────────────────
+    spt_azaltma_esigi:    30,    // SPT N > bu eşik → yoğunluk azaltması
+    spt_azaltma_katsayi:  0.008, // eşik üzerinde darbe başına (v3.3: 0.012→0.008)
+    spt_azaltma_min:      0.40,  // granüler SPT azaltması tabanı (v3.3: 0.30→0.40)
+
+    // ── RQD azaltması (kaya katmanları için) ────────────────────────────────
+    // Yüksek RQD = sağlam kaya = yüzey kesmesi daha yavaş.
+    // RQD=0 (ölçülmemiş) → faktör=1.0 (standart saha varsayımı, ceza yok).
+    rqd_azaltma_katsayi:  0.004, // RQD puanı başına (0-100 ölçeği)
+    rqd_azaltma_min:      0.60,  // RQD'den max %40 azaltma
+
     min_rop:              0.20,  // mutlak alt sınır (çok sert kaya), m/saat
   },
 
@@ -657,35 +680,56 @@ export function sivilasmaRiski(tip, kohezyon, spt, yas, baslangic, bitis) {
 // ─── Penetrasyon Hızı (ROP) ───────────────────────────────────────────────────
 
 /**
- * Tahmini penetrasyon hızı (m/saat).
- * v3.0 eklemeleri: SPT bazlı yoğun granüler azaltma, YAS ROP düzeltmesi.
- * Kaynak: FHWA GEC 10 §7; Zayed & Halpin (2005); Türkiye saha verisi. C Sınıfı.
+ * Tahmini penetrasyon hızı (m/saat). C Sınıfı.
  *
- * @param {string} tip - Zemin tipi etiketi
- * @param {number} ucs - UCS (MPa), kaya değilse veya ölçülmemişse 0
- * @param {number} capMm - Kazık çapı (mm)
- * @param {string} kohezyon - Kohezyon sınıfı
- * @param {number} spt - SPT N60
- * @param {number} yas - Yeraltı suyu derinliği (m), 0 = veri yok
+ * v3.0: SPT bazlı yoğun granüler azaltma, YAS ROP düzeltmesi.
+ * v3.3: Kaya için power-law UCS modeli (ucs_ref=40 MPa, n=0.55);
+ *       RQD bazlı kaya azaltması; SPT azaltma tabanı yapılandırılabilir hale getirildi.
+ *       Kaynak: FHWA GEC 10 §7; Zayed & Halpin (2005); Türkiye saha verisi.
+ *
+ * @param {string} tip       - Zemin tipi etiketi
+ * @param {number} ucs       - UCS (MPa), ölçülmemişse 0
+ * @param {number} capMm     - Kazık çapı (mm)
+ * @param {string} kohezyon  - Kohezyon sınıfı
+ * @param {number} spt       - SPT N60
+ * @param {number} yas       - Yeraltı suyu derinliği (m), 0 = veri yok
  * @param {number} baslangic - Katman başlangıç derinliği (m)
+ * @param {number} rqd       - Rock Quality Designation (0-100); 0 = ölçülmemiş → ceza yok
  */
-export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, baslangic = 0) {
-  const R       = KATSAYILAR.rop
-  const capM    = capMm / 1000
+export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, baslangic = 0, rqd = 0) {
+  const R      = KATSAYILAR.rop
+  const capM   = capMm / 1000
   const hesapTip = zeminHesapTipi(tip, kohezyon)
-  let baz       = (hesapTip && R.baz[hesapTip] !== undefined) ? R.baz[hesapTip] : R.baz.varsayilan
+  const sinif  = zeminSinifi(tip, kohezyon)
+  let baz      = (hesapTip && R.baz[hesapTip] !== undefined) ? R.baz[hesapTip] : R.baz.varsayilan
 
-  // UCS azaltması kaya için
-  if (ucs > 0)
-    baz *= Math.max(R.ucs_azaltma_min, 1 - (ucs / 100) * R.ucs_azaltma_katsayi)
+  // UCS azaltması
+  if (ucs > 0) {
+    if (sinif === "kaya") {
+      // Power-law modeli: ROP_faktör = (ref / max(UCS, ref)) ^ n
+      // UCS < ref → ceza yok (baz zaten bu koşul için kalibre).
+      const ucsEff = Math.max(ucs, R.ucs_kuvvet_referans)
+      const ropFactor = Math.pow(R.ucs_kuvvet_referans / ucsEff, R.ucs_kuvvet_ussu)
+      baz *= Math.max(R.ucs_kuvvet_min, ropFactor)
+    } else {
+      // Kaya olmayan katman, UCS kaydı var (kenar durum): eski doğrusal yol
+      baz *= Math.max(R.ucs_azaltma_min, 1 - (ucs / 100) * R.ucs_azaltma_katsayi)
+    }
+  }
+
+  // RQD azaltması — yalnızca kaya katmanları ve RQD ölçülmüşse
+  // Yüksek RQD = sağlam kaya yüzeyi = daha yavaş kesme
+  if (sinif === "kaya" && rqd > 0) {
+    const rqdFaktor = Math.max(R.rqd_azaltma_min, 1 - rqd * R.rqd_azaltma_katsayi)
+    baz *= rqdFaktor
+  }
 
   // Çap cezası
   baz *= Math.max(R.cap_azaltma_min, 1 - (capM - R.referans_cap_m) * R.cap_azaltma_katsayi)
 
   // SPT bazlı yoğun granüler azaltma
-  const sinif = zeminSinifi(tip, kohezyon)
   if (sinif === "granüler" && spt > R.spt_azaltma_esigi) {
-    const sptFaktor = Math.max(0.30, 1 - (spt - R.spt_azaltma_esigi) * R.spt_azaltma_katsayi)
+    const sptFaktor = Math.max(R.spt_azaltma_min, 1 - (spt - R.spt_azaltma_esigi) * R.spt_azaltma_katsayi)
     baz *= sptFaktor
   }
 
@@ -868,15 +912,25 @@ export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, isTipi = "Fore
   let tDelme = 0
   let ucDeg  = 0
   let oncekiTip = null
+  const katmanRopDetaylari = []
 
   for (const row of zemin) {
-    const k       = (row.bitis || 0) - (row.baslangic || 0)
+    const k        = (row.bitis || 0) - (row.baslangic || 0)
     const hesapTip = zeminHesapTipi(row.zemTipi, row.kohezyon)
-    const rop     = ropHesapla(
+    const rop      = ropHesapla(
       row.zemTipi, row.ucs || 0, capMm, row.kohezyon,
-      row.spt || 0, 0, row.baslangic || 0
+      row.spt || 0, 0, row.baslangic || 0, row.rqd || 0
     )
-    tDelme += k / rop
+    const sureKatman = k / rop
+    tDelme += sureKatman
+
+    katmanRopDetaylari.push({
+      baslangic:  row.baslangic || 0,
+      bitis:      row.bitis     || 0,
+      zemTipi:    row.zemTipi   || "",
+      ropMhr:     Math.round(rop * 10) / 10,
+      sureSaat:   Math.round(sureKatman * 100) / 100,
+    })
 
     if (KAYA_TIPLERI.includes(hesapTip) && oncekiTip !== null && !KAYA_TIPLERI.includes(oncekiTip))
       ucDeg++
@@ -918,16 +972,17 @@ export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, isTipi = "Fore
   const kazikBasiGun = Math.round(tToplamCevrim / CV.gunluk_calisma * 10) / 10
 
   return {
-    tDelme:           Math.round(tDelme * 10) / 10,
-    tBeton:           Math.round(tBeton * 10) / 10,
-    tDonati:          Math.round(tDonati * 10) / 10,
-    tCasingOps:       Math.round(tCasingOps * 10) / 10,
-    tKurulum:         Math.round(tKurulum * 10) / 10,
-    tRekonumlama:     Math.round(tRekonumlama * 10) / 10,
-    tBeklenmedik:     Math.round(tBeklenmedik * 10) / 10,
-    tToplamCevrim:    Math.round(tToplamCevrim * 10) / 10,
+    tDelme:              Math.round(tDelme * 10) / 10,
+    tBeton:              Math.round(tBeton * 10) / 10,
+    tDonati:             Math.round(tDonati * 10) / 10,
+    tCasingOps:          Math.round(tCasingOps * 10) / 10,
+    tKurulum:            Math.round(tKurulum * 10) / 10,
+    tRekonumlama:        Math.round(tRekonumlama * 10) / 10,
+    tBeklenmedik:        Math.round(tBeklenmedik * 10) / 10,
+    tToplamCevrim:       Math.round(tToplamCevrim * 10) / 10,
     kazikBasiGun,
     gunlukUretimAdet,
+    katmanRopDetaylari,  // katman bazlı ROP ve süre katkısı
   }
 }
 
@@ -1292,6 +1347,7 @@ export function katmanTeknikCikti(zemin, capMm, isTipi = "Fore Kazık", yas = 0)
     const ucs       = parseFloat(row.ucs       || 0)
     const rqd       = parseFloat(row.rqd       || 0)
     const sinif     = zeminSinifi(row.zemTipi, row.kohezyon)
+    const kalinlik  = bitis - baslangic
 
     const direnc = direncIndeksi(row)
     const tauEff = direnc.tauKPa
@@ -1311,6 +1367,11 @@ export function katmanTeknikCikti(zemin, capMm, isTipi = "Fore Kazık", yas = 0)
       * kMethod * kGw * kDepth * rqdFaktor * 10
     ) / 10
 
+    // ROP ve süre katkısı
+    const rop         = ropHesapla(row.zemTipi, ucs, capMm, row.kohezyon,
+                          row.spt || 0, 0, baslangic, rqd)
+    const surKatkisi  = kalinlik > 0 ? Math.round(kalinlik / rop * 100) / 100 : 0
+
     const hesapTip = zeminHesapTipi(row.zemTipi, row.kohezyon)
     const uc = ["Kumtaşı", "Kireçtaşı", "Sert Kaya"].includes(hesapTip) || ucs >= 25
       ? "Kaya ucu"
@@ -1323,6 +1384,8 @@ export function katmanTeknikCikti(zemin, capMm, isTipi = "Fore Kazık", yas = 0)
       ...row, katmanTork, uc,
       guven: gs.sinif, guvenAciklama: gs.aciklama,
       direnc: direnc.source, tauEff, kGw, kDepth,
+      rop: Math.round(rop * 10) / 10,   // m/saat
+      surKatkisi,                        // saat
     }
   })
 }

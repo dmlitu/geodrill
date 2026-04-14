@@ -450,13 +450,14 @@ def casing_metre(layers: list, yas: float) -> float:
 # ─── Rate of Penetration ─────────────────────────────────────────────────────
 
 def rop_hesapla(tip: str, ucs: float, cap_mm: float, kohezyon: str = "",
-                spt: float = 0, yas: float = 0, baslangic: float = 0) -> float:
+                spt: float = 0, yas: float = 0, baslangic: float = 0,
+                rqd: float = 0) -> float:
     """
     Estimated penetration rate (m/hr). Class C.
 
-    v3.0 additions:
-    - SPT-based ROP reduction for dense granular soils.
-    - Groundwater ROP correction.
+    v3.0 additions: SPT-based ROP reduction for dense granular soils; GWT correction.
+    v3.3 additions: RQD-based reduction for rock; recalibrated power-law (ucs_ref=40, n=0.55);
+                    configurable SPT floor; base ROP values updated for standard-field rates.
 
     Parameters
     ----------
@@ -474,6 +475,8 @@ def rop_hesapla(tip: str, ucs: float, cap_mm: float, kohezyon: str = "",
         Groundwater depth (m). 0 = no GWT data.
     baslangic : float
         Layer start depth (m) for GWT comparison.
+    rqd : float
+        Rock Quality Designation (0–100). 0 = not measured (no penalty applied).
 
     Returns
     -------
@@ -485,30 +488,33 @@ def rop_hesapla(tip: str, ucs: float, cap_mm: float, kohezyon: str = "",
     R = KATSAYILAR.rop
     cap_m = cap_mm / 1000.0
     hesap_tip = zemin_hesap_tipi(tip, kohezyon)
+    sinif = zemin_sinifi(tip, kohezyon)
     baz = R.baz.get(hesap_tip, R.varsayilan)
 
     # UCS reduction
     if ucs > 0:
-        sinif_rop = zemin_sinifi(tip, kohezyon)
-        if sinif_rop == "kaya":
-            # Power-law model: Warren (1987), Winters et al. (1987), Zijsling (1987).
-            # ROP_factor = (UCS_ref / max(UCS, UCS_ref)) ^ n, n = 0.65.
-            # Physically correct: rock cutting energy scales nonlinearly with UCS.
-            # Linear reduction (old code) significantly over-predicts ROP at 30–80 MPa.
+        if sinif == "kaya":
+            # Power-law model: ROP_factor = (UCS_ref / max(UCS, UCS_ref)) ^ n
+            # v3.3: ucs_ref=40 MPa, n=0.55 — calibrated to standard Turkish saha production.
             ucs_eff = max(ucs, R.ucs_referans_mpa)
             rop_factor = (R.ucs_referans_mpa / ucs_eff) ** R.ucs_kuvvet_ussu
             baz *= max(R.ucs_kuvvet_min, rop_factor)
         else:
-            # Non-rock layer with UCS recorded (edge case): keep legacy linear path.
+            # Non-rock layer with UCS recorded (edge case): legacy linear path.
             baz *= max(R.ucs_azaltma_min, 1.0 - (ucs / 100.0) * R.ucs_azaltma_katsayi)
+
+    # RQD-based reduction for rock (only when RQD is measured, i.e. > 0)
+    # Higher RQD = more intact rock = slower face cutting.
+    if sinif == "kaya" and rqd > 0:
+        rqd_faktor = max(R.rqd_azaltma_min, 1.0 - rqd * R.rqd_azaltma_katsayi)
+        baz *= rqd_faktor
 
     # Diameter penalty
     baz *= max(R.cap_azaltma_min, 1.0 - (cap_m - R.referans_cap_m) * R.cap_azaltma_katsayi)
 
     # SPT-based reduction for dense granular layers
-    sinif = zemin_sinifi(tip, kohezyon)
     if sinif == "granüler" and spt > R.spt_azaltma_esigi:
-        spt_faktor = max(0.30, 1.0 - (spt - R.spt_azaltma_esigi) * R.spt_azaltma_katsayi)
+        spt_faktor = max(R.spt_azaltma_min, 1.0 - (spt - R.spt_azaltma_esigi) * R.spt_azaltma_katsayi)
         baz *= spt_faktor
 
     # Groundwater ROP correction
@@ -759,19 +765,30 @@ def tam_cevrim_suresi(layers: list, cap_mm: float, kazik_boyu: float,
     t_delme = 0.0
     uc_deg = 0
     onceki_tip = None
+    katman_rop_detaylari = []
 
     for row in layers:
         k = float(row.get("bitis", 0)) - float(row.get("baslangic", 0))
         koh_row = row.get("kohezyon", "")
         ucs_row = float(row.get("ucs") or 0)
         spt_row = float(row.get("spt") or 0)
+        rqd_row = float(row.get("rqd") or 0)
         bas_row = float(row.get("baslangic") or 0)
         hesap_tip = zemin_hesap_tipi(row.get("zem_tipi", ""), koh_row)
         rop = rop_hesapla(
             row.get("zem_tipi", ""), ucs_row, cap_mm, koh_row,
-            spt=spt_row, yas=0, baslangic=bas_row
+            spt=spt_row, yas=0, baslangic=bas_row, rqd=rqd_row
         )
-        t_delme += k / rop
+        sure_katman = k / rop if rop > 0 else 0
+        t_delme += sure_katman
+
+        katman_rop_detaylari.append({
+            "baslangic": bas_row,
+            "bitis":     float(row.get("bitis") or 0),
+            "zem_tipi":  row.get("zem_tipi", ""),
+            "rop_mhr":   round(rop * 10) / 10,
+            "sure_saat": round(sure_katman * 100) / 100,
+        })
 
         kaya_tipleri = ("Kumtaşı", "Kireçtaşı", "Sert Kaya", "Ayrışmış Kaya")
         if (hesap_tip in kaya_tipleri
@@ -814,16 +831,17 @@ def tam_cevrim_suresi(layers: list, cap_mm: float, kazik_boyu: float,
     kazik_basi_gun = round(t_toplam_cevrim / CV.gunluk_calisma_saat * 10) / 10
 
     return {
-        "t_delme":            round(t_delme * 10) / 10,
-        "t_beton":            round(t_beton * 10) / 10,
-        "t_donati":           round(t_donati * 10) / 10,
-        "t_casing_ops":       round(t_casing_ops * 10) / 10,
-        "t_kurulum":          round(t_kurulum * 10) / 10,
-        "t_rekonumlama":      round(t_rekonumlama * 10) / 10,
-        "t_beklenmedik":      round(t_beklenmedik * 10) / 10,
-        "t_toplam_cevrim":    round(t_toplam_cevrim * 10) / 10,
-        "kazik_basi_gun":     kazik_basi_gun,
-        "gunluk_uretim_adet": gunluk_uretim_adet,
+        "t_delme":              round(t_delme * 10) / 10,
+        "t_beton":              round(t_beton * 10) / 10,
+        "t_donati":             round(t_donati * 10) / 10,
+        "t_casing_ops":         round(t_casing_ops * 10) / 10,
+        "t_kurulum":            round(t_kurulum * 10) / 10,
+        "t_rekonumlama":        round(t_rekonumlama * 10) / 10,
+        "t_beklenmedik":        round(t_beklenmedik * 10) / 10,
+        "t_toplam_cevrim":      round(t_toplam_cevrim * 10) / 10,
+        "kazik_basi_gun":       kazik_basi_gun,
+        "gunluk_uretim_adet":   gunluk_uretim_adet,
+        "katman_rop_detaylari": katman_rop_detaylari,
     }
 
 

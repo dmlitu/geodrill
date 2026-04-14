@@ -694,7 +694,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
           <table className="data-table" style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "var(--badge-muted-bg)", borderBottom: "2px solid var(--input-border)" }}>
-                {["Derinlik (m)", "Zemin Tipi", "SPT", "UCS (MPa)", "Beklenen Tork (kNm)", "Önerilen Uç"].map(h => (
+                {["Derinlik (m)", "Zemin Tipi", "SPT", "UCS (MPa)", "Beklenen Tork (kNm)", "Delgi Hızı (m/saat)", "Süre Katkısı (saat)", "Önerilen Uç"].map(h => (
                   <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", fontWeight: "700", color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
@@ -710,6 +710,15 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
                     <span style={{ fontSize: "13px", fontWeight: "700", color: row.katmanTork > tork * 0.8 ? "#DC2626" : row.katmanTork > tork * 0.5 ? "#D97706" : "#0369A1" }}>
                       {row.katmanTork} kNm
                     </span>
+                  </td>
+                  <td style={{ padding: "9px 14px" }}>
+                    <span style={{ fontSize: "13px", fontWeight: "700",
+                      color: row.rop < 1 ? "#DC2626" : row.rop < 4 ? "#D97706" : "#16A34A" }}>
+                      {row.rop} m/saat
+                    </span>
+                  </td>
+                  <td style={{ padding: "9px 14px", fontSize: "13px", color: "var(--text-secondary)" }}>
+                    {row.surKatkisi} saat
                   </td>
                   <td style={{ padding: "9px 14px" }}>
                     <span style={{ padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "600",
