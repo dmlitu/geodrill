@@ -700,7 +700,7 @@ export function sivilasmaRiski(tip, kohezyon, spt, yas, baslangic, bitis) {
  * @param {number} baslangic - Katman başlangıç derinliği (m)
  * @param {number} rqd       - Rock Quality Designation (0-100); 0 = ölçülmemiş → ceza yok
  */
-export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, baslangic = 0, rqd = 0) {
+export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, baslangic = 0, rqd = 0, kalibrasyon = null) {
   const R        = KATSAYILAR.rop
   const capM     = capMm / 1000
   const hesapTip = zeminHesapTipi(tip, kohezyon)
@@ -750,7 +750,13 @@ export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, b
   if (sinif === "kaya")
     baz = Math.max(baz, bazTablo * R.minimum_rop_factor)
 
-  return Math.max(baz, R.min_rop)
+  let rop = Math.max(baz, R.min_rop)
+
+  // Proje kalibrasyonu: saha ölçüm verisinden türetilmiş çarpan
+  if (kalibrasyon?.aktif && kalibrasyon.katsayi > 0)
+    rop = Math.max(rop * kalibrasyon.katsayi, R.min_rop)
+
+  return rop
 }
 
 // ─── Gerekli Tork — Aralık Çıktısı ──────────────────────────────────────────
@@ -912,7 +918,7 @@ export function kritikKatman(zemin) {
  * @returns {{ tDelme, tBeton, tDonati, tCasingOps, tKurulum, tRekonumlama,
  *             tBeklenmedik, tToplamCevrim, kazikBasiGun, gunlukUretimAdet }}
  */
-export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, isTipi = "Fore Kazık") {
+export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, isTipi = "Fore Kazık", kalibrasyon = null) {
   const CV = KATSAYILAR.cevrim
   // Alet değişimi (Kelly kova → kaya kesici) yalnızca sert formasyon geçişlerinde
   const KAYA_TIPLERI = ["Kireçtaşı", "Sert Kaya"]
@@ -928,7 +934,7 @@ export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, isTipi = "Fore
     const hesapTip = zeminHesapTipi(row.zemTipi, row.kohezyon)
     const rop      = ropHesapla(
       row.zemTipi, row.ucs || 0, capMm, row.kohezyon,
-      row.spt || 0, 0, row.baslangic || 0, row.rqd || 0
+      row.spt || 0, 0, row.baslangic || 0, row.rqd || 0, kalibrasyon
     )
     const sureKatman = k / rop
     tDelme += sureKatman
@@ -999,8 +1005,8 @@ export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, isTipi = "Fore
  * Geriye dönük uyumlu: yalnızca delme süresini döndürür.
  * Beton, donatı ve lojistik dahil tam çevrim için tamCevrimSuresi() kullanın.
  */
-export function kazikSuresi(zemin, capMm, kazikBoyu, casingM) {
-  const cs = tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM)
+export function kazikSuresi(zemin, capMm, kazikBoyu, casingM, kalibrasyon = null) {
+  const cs = tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, "Fore Kazık", kalibrasyon)
   return Math.round((cs.tDelme + cs.tCasingOps) * 10) / 10
 }
 

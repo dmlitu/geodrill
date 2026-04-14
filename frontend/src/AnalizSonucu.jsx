@@ -218,7 +218,7 @@ function analizCsvIndir(proje, tork, casingDur, casingM, sure, toplamGun, mBasi,
 }
 
 // ── Ana bileşen ─────────────────────────────────────────
-export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
+export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibrasyon = null }) {
   const [pdfYukleniyor, setPdfYukleniyor] = useState(false)
   const [csvYukleniyor, setCsvYukleniyor] = useState(false)
   const [pdfOnizlemeAcik, setPdfOnizlemeAcik] = useState(false)
@@ -286,8 +286,8 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     const tork = torkAralik.nominal
     const { durum: casingDur, gerekce, zorunlu } = casingDurum(zemin, proje.yeraltiSuyu)
     const casingM = casingMetreHesapla(zemin, proje.yeraltiSuyu)
-    const sure = kazikSuresi(zemin, proje.kazikCapi, proje.kazikBoyu, casingM)
-    const cevrim = tamCevrimSuresi(zemin, proje.kazikCapi, proje.kazikBoyu, casingM, proje.isTipi)
+    const sure = kazikSuresi(zemin, proje.kazikCapi, proje.kazikBoyu, casingM, kalibrasyon)
+    const cevrim = tamCevrimSuresi(zemin, proje.kazikCapi, proje.kazikBoyu, casingM, proje.isTipi, kalibrasyon)
     const guven = guvenAnalizi(zemin, proje.yeraltiSuyu, proje.kazikBoyu)
     const { mBasi, toplam: topMazot } = mazotTahmini(tork, proje.kazikBoyu)
     const kritik = kritikKatman(zemin)
@@ -320,7 +320,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
     const katmanCiktilar = katmanTeknikCikti(zemin, proje.kazikCapi)
     const opOneri = operasyonOnerisi(zemin, proje.yeraltiSuyu)
     return { tork, torkAralik, casingDur, gerekce, zorunlu, casingM, sure, cevrim, guven, mBasi, topMazot, kritik, gunlukUretim, kazikBasiGun, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri }
-  }, [zemin, proje, makineler])
+  }, [zemin, proje, makineler, kalibrasyon])
 
   if (!zemin.length) {
     return (
@@ -357,6 +357,18 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId }) {
         zemin={zemin}
         makineUygunluklari={makineUygunluklari}
       />
+      {kalibrasyon?.aktif && (
+        <div style={{
+          background: "#F0FDF4", border: "1.5px solid #86EFAC", borderRadius: "10px",
+          padding: "10px 16px", marginBottom: "18px",
+          display: "flex", alignItems: "center", gap: "10px", fontSize: "13px",
+        }}>
+          <span>🎯</span>
+          <span style={{ color: "#166534", fontWeight: "600" }}>
+            Kalibrasyon aktif (katsayı: {kalibrasyon.katsayi.toFixed(4)}) — delgi süreleri sahaya göre düzeltildi.
+          </span>
+        </div>
+      )}
       <div style={{marginBottom: "24px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "12px"}}>
         <div>
           <h2 style={{color: "var(--heading)", fontSize: "22px", fontWeight: "700"}}>Analiz Sonucu</h2>

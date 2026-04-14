@@ -8,6 +8,7 @@ import RegisterPage from "./RegisterPage"
 import { ToastProvider } from "./Toast"
 import { DEMO_PROJE, DEMO_ZEMIN, DEMO_MAKINELER } from "./DemoProje"
 import FiyatAnalizi from "./FiyatAnalizi"
+import ProjeKalibrasyonu from "./ProjeKalibrasyonu"
 import OncekiAnalizler from "./OncekiAnalizler"
 import Ayarlar from "./Ayarlar"
 import DashboardPage from "./Dashboard"
@@ -121,6 +122,7 @@ const WIZARD_TABS = [
   { id: "makine", label: "Makine", icon: "⚙️" },
   { id: "analiz", label: "Analiz", icon: "📊" },
   { id: "wizardFiyat", label: "Fiyat", icon: "💰" },
+  { id: "kalibrasyon", label: "Kalibrasyon", icon: "🎯" },
 ]
 
 const BOS_PROJE = {
@@ -559,6 +561,7 @@ function Dashboard({ username, onLogout }) {
   const [yukleniyor, setYukleniyor] = useState(true)
   const [onboarding, setOnboarding] = useState(false)
   const [dark, setDark] = useState(() => localStorage.getItem("gd_theme") === "dark")
+  const [kalibrasyon, setKalibrasyon] = useState({ aktif: false, katsayi: 1.0 })
 
   const toggleDark = useCallback(() => {
     setDark(prev => {
@@ -628,6 +631,7 @@ function Dashboard({ username, onLogout }) {
     setProje(BOS_PROJE)
     setZemin([])
     setProjeId(null)
+    setKalibrasyon({ aktif: false, katsayi: 1.0 })
     setWizardTab("proje")
     setActivePage("guncel")
   }
@@ -638,6 +642,7 @@ function Dashboard({ username, onLogout }) {
       setProjeId(p.id)
       setProje(fromSnake(p))
       setZemin((p.soil_layers || []).map(fromSnakeLayer))
+      setKalibrasyon({ aktif: false, katsayi: 1.0 })
       setWizardTab("proje")
       setActivePage("guncel")
     } catch (e) {
@@ -723,12 +728,17 @@ function Dashboard({ username, onLogout }) {
                 )}
                 {wizardTab === "analiz" && (
                   <ErrorBoundary>
-                    <AnalizSonucu proje={proje} zemin={zemin} makineler={makineler} projeId={projeId} />
+                    <AnalizSonucu proje={proje} zemin={zemin} makineler={makineler} projeId={projeId} kalibrasyon={kalibrasyon} />
                   </ErrorBoundary>
                 )}
                 {wizardTab === "wizardFiyat" && (
                   <ErrorBoundary>
                     <FiyatAnalizi proje={proje} zemin={zemin} projeId={projeId} />
+                  </ErrorBoundary>
+                )}
+                {wizardTab === "kalibrasyon" && (
+                  <ErrorBoundary>
+                    <ProjeKalibrasyonu proje={proje} zemin={zemin} kalibrasyon={kalibrasyon} onKalibrasyon={setKalibrasyon} />
                   </ErrorBoundary>
                 )}
               </>
