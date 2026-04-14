@@ -1687,8 +1687,8 @@ def tam_analiz(proje: dict, layers: list) -> dict:
         rop_degerler = [
             rop_hesapla(
                 r.get("zem_tipi", ""), float(r.get("ucs") or 0), cap_mm,
-                float(r.get("spt") or 0), float(r.get("rqd") or 0),
-                float(r.get("kohezyon") or 0),
+                r.get("kohezyon", ""), float(r.get("spt") or 0),
+                yas, float(r.get("baslangic") or 0), float(r.get("rqd") or 0),
             )
             for r in layers
         ]
