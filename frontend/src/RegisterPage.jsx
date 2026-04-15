@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { register, login } from "./api"
+import { useLang } from "./LangContext"
 
 export default function RegisterPage({ onLogin, onGoLogin }) {
   const [form, setForm] = useState({
@@ -9,6 +10,7 @@ export default function RegisterPage({ onLogin, onGoLogin }) {
   })
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const { t } = useLang()
 
   const set = (key) => (e) => setForm(prev => ({ ...prev, [key]: e.target.value }))
 
@@ -70,30 +72,30 @@ export default function RegisterPage({ onLogin, onGoLogin }) {
               — INSIGHT —
             </div>
             <p style={{ color: "#94A3B8", fontSize: "14px", marginTop: "10px", marginBottom: 0 }}>
-              Yeni hesap oluşturun
+              {t("createAccount")}
             </p>
           </div>
 
           {/* Alanlar */}
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            <Field label="Ad Soyad" placeholder="Ahmet Yılmaz"
+            <Field label={t("fullNameLabel")} placeholder="Ahmet Yılmaz"
               value={form.fullName} onChange={set("fullName")} />
 
-            <Field label="Kullanıcı Adı *" placeholder="kullanici_adi"
+            <Field label={t("usernameReqLabel")} placeholder="kullanici_adi"
               value={form.username} onChange={set("username")} />
 
-            <Field label="E-posta" type="email" placeholder="ornek@firma.com"
+            <Field label={t("emailLabel")} type="email" placeholder="ornek@firma.com"
               value={form.email} onChange={set("email")} />
 
-            <Field label="Şirket / Firma Adı" placeholder="Örn: ABC Geoteknik (opsiyonel)"
+            <Field label={t("companyLabel")} placeholder="Örn: ABC Geoteknik (opsiyonel)"
               value={form.companyName} onChange={set("companyName")} />
 
             <div style={{ height: "1px", background: "#E2E8F0" }} />
 
-            <Field label="Şifre *" type="password" placeholder="••••••••"
+            <Field label={t("passwordReqLabel")} type="password" placeholder="••••••••"
               value={form.password} onChange={set("password")} />
 
-            <Field label="Şifre Tekrar *" type="password" placeholder="••••••••"
+            <Field label={t("passwordRepLabel")} type="password" placeholder="••••••••"
               value={form.password2} onChange={set("password2")}
               onKeyDown={e => e.key === "Enter" && handleSubmit()} />
           </div>
@@ -116,16 +118,16 @@ export default function RegisterPage({ onLogin, onGoLogin }) {
             color: "white", fontSize: "15px", fontWeight: "600",
             cursor: loading ? "not-allowed" : "pointer"
           }}>
-            {loading ? "Kaydediliyor..." : "Kayıt Ol"}
+            {loading ? t("registering") : t("registerBtn")}
           </button>
 
           <p style={{ textAlign: "center", marginTop: "20px", fontSize: "14px", color: "#64748B" }}>
-            Zaten hesabınız var mı?{" "}
+            {t("alreadyAccount")}{" "}
             <button onClick={onGoLogin} style={{
               background: "none", border: "none", color: "#0EA5E9",
               fontWeight: "600", cursor: "pointer", fontSize: "14px", padding: 0
             }}>
-              Giriş Yap
+              {t("loginLink")}
             </button>
           </p>
         </div>

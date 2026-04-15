@@ -3,6 +3,7 @@ import { bulkReplaceEquipment, fromSnakeMakine } from "./api"
 import ConfirmDialog from "./ConfirmDialog"
 import { useToast } from "./Toast"
 import { MAKINE_KATALOGU } from "./MakineKatalogu"
+import { useLang } from "./LangContext"
 
 const MAKINE_TIPLERI = ["Fore Kazık", "Ankraj", "Mini Kazık"]
 const CASING_SECENEKLER = ["Evet", "Hayır", "Şartlı"]
@@ -49,6 +50,7 @@ function makineHatasi(m) {
 
 function KatalogModal({ onClose, onEkle, mevcutAdlar }) {
   const [secili, setSecili] = useState(new Set())
+  const { t } = useLang()
   const toggle = (i) => setSecili(prev => { const s = new Set(prev); s.has(i) ? s.delete(i) : s.add(i); return s })
   const ekleSecilenleri = () => { onEkle(MAKINE_KATALOGU.filter((_, i) => secili.has(i))); onClose() }
   return (
@@ -56,8 +58,8 @@ function KatalogModal({ onClose, onEkle, mevcutAdlar }) {
       <div onClick={e => e.stopPropagation()} style={{ background: "var(--bg-surface)", borderRadius: "16px", width: "100%", maxWidth: "640px", maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,0.2)" }}>
         <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)" }}>Makine Kataloğu</h3>
-            <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>Eklemek istediğiniz makineleri seçin</p>
+            <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)" }}>{t("catalogTitle")}</h3>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{t("catalogDesc")}</p>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: "20px" }}>×</button>
         </div>
@@ -77,7 +79,7 @@ function KatalogModal({ onClose, onEkle, mevcutAdlar }) {
                   {aktif && <span style={{ color: "white", fontSize: "11px", fontWeight: "700" }}>✓</span>}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)" }}>{m.ad} {zatenVar && <span style={{ fontSize: "11px", color: "#94A3B8" }}>(zaten var)</span>}</div>
+                  <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)" }}>{m.ad} {zatenVar && <span style={{ fontSize: "11px", color: "#94A3B8" }}>{t("alreadyExists")}</span>}</div>
                   <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{m.tip} — {m.tork} kNm — Maks {m.maxDerinlik}m / Ø{m.maxCap}mm — {m.not}</div>
                 </div>
               </div>
@@ -85,9 +87,9 @@ function KatalogModal({ onClose, onEkle, mevcutAdlar }) {
           })}
         </div>
         <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border-subtle)", display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-          <button onClick={onClose} style={{ padding: "9px 20px", border: "1px solid var(--input-border)", borderRadius: "8px", background: "var(--bg-surface)", color: "var(--text-secondary)", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>İptal</button>
+          <button onClick={onClose} style={{ padding: "9px 20px", border: "1px solid var(--input-border)", borderRadius: "8px", background: "var(--bg-surface)", color: "var(--text-secondary)", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>{t("cancel")}</button>
           <button onClick={ekleSecilenleri} disabled={secili.size === 0} style={{ padding: "9px 22px", border: "none", borderRadius: "8px", background: secili.size === 0 ? "#94A3B8" : "linear-gradient(135deg, #0284C7, #0EA5E9)", color: "white", fontSize: "13px", fontWeight: "600", cursor: secili.size === 0 ? "not-allowed" : "pointer" }}>
-            Ekle ({secili.size})
+            {t("addSelected")} ({secili.size})
           </button>
         </div>
       </div>
@@ -101,6 +103,7 @@ export default function MakinePark({ data, onChange }) {
   const [silmeOnay, setSilmeOnay] = useState(null)
   const [katalogAcik, setKatalogAcik] = useState(false)
   const toast = useToast()
+  const { t } = useLang()
 
   const makineler = data.length > 0 ? data : DEFAULT_MAKINELER
 
@@ -157,18 +160,18 @@ export default function MakinePark({ data, onChange }) {
       )}
       <ConfirmDialog
         open={silmeOnay !== null}
-        title="Makine Silinsin mi?"
-        message="Bu makineyi silmek istediginize emin misiniz? Bu islem geri alinamaz."
+        title={t("delete") + "?"}
+        message={t("deleteConfirm")}
         onConfirm={confirmRemove}
         onCancel={() => setSilmeOnay(null)}
       />
       <div style={{ marginBottom: "24px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <div>
           <h2 style={{ color: "var(--heading)", fontSize: "22px", fontWeight: "700" }}>
-            Makine Parkı
+            {t("machineFleetTitle")}
           </h2>
           <p style={{ color: "var(--text-muted)", fontSize: "14px", marginTop: "4px" }}>
-            Bu projede kullanılabilecek makineleri düzenleyin
+            {t("machineFleetDesc")}
           </p>
         </div>
         <div style={{display: "flex", alignItems: "center", gap: "12px", flexShrink: 0}}>
@@ -181,7 +184,7 @@ export default function MakinePark({ data, onChange }) {
               fontSize: "14px", fontWeight: "600", cursor: "pointer"
             }}
           >
-            Katalogdan Ekle
+            {t("addFromCatalog")}
           </button>
           <button
             onClick={kaydet}
@@ -194,7 +197,7 @@ export default function MakinePark({ data, onChange }) {
               cursor: kayitDurumu === "loading" ? "not-allowed" : "pointer"
             }}
           >
-            {kayitDurumu === "loading" ? "Kaydediliyor..." : "Kaydet"}
+            {kayitDurumu === "loading" ? t("saving") : t("save")}
           </button>
         </div>
       </div>
@@ -209,15 +212,15 @@ export default function MakinePark({ data, onChange }) {
           <table className="data-table" style={{ width: "100%", borderCollapse: "collapse", minWidth: "1000px" }}>
             <thead>
               <tr style={{ background: "var(--badge-muted-bg)", borderBottom: "2px solid var(--input-border)" }}>
-                <th style={thStyle}>Firma Adı</th>
-                <th style={thStyle}>Tip</th>
-                <th style={thStyle}>Marka/Model</th>
-                <th style={thStyle}>Max Derinlik (m)</th>
-                <th style={thStyle}>Max Çap (mm)</th>
-                <th style={thStyle}>Tork (kNm)</th>
+                <th style={thStyle}>{t("colMachineName")}</th>
+                <th style={thStyle}>{t("colMachineType")}</th>
+                <th style={thStyle}>{t("colBrand")}</th>
+                <th style={thStyle}>{t("colMaxDepth")}</th>
+                <th style={thStyle}>{t("colMaxDiam")}</th>
+                <th style={thStyle}>{t("colTorque")}</th>
                 <th style={thStyle}>Crowd (kN)</th>
-                <th style={thStyle}>Casing</th>
-                <th style={thStyle}>Not</th>
+                <th style={thStyle}>{t("colCasing")}</th>
+                <th style={thStyle}>{t("colNote")}</th>
                 <th style={thStyle}></th>
               </tr>
             </thead>
@@ -297,7 +300,7 @@ export default function MakinePark({ data, onChange }) {
             border: "1.5px solid #BAE6FD", borderRadius: "8px",
             fontSize: "13px", fontWeight: "600", cursor: "pointer"
           }}>
-            + Makine Ekle
+            {t("addMachine")}
           </button>
         </div>
       </div>

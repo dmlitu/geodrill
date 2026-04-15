@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { createProject, updateProject } from "./api"
 import { useToast } from "./Toast"
+import { useLang } from "./LangContext"
 
 const inputStyle = {
   width: "100%", padding: "10px 14px",
@@ -48,12 +49,12 @@ function Card({ title, children }) {
   )
 }
 
-function dogrula(data) {
+function dogrula(data, t) {
   const hatalar = {}
-  if (!data.projeAdi || !data.projeAdi.trim()) hatalar.projeAdi = "Proje adı zorunlu"
-  if (!(Number(data.kazikBoyu) > 0)) hatalar.kazikBoyu = "0'dan büyük olmalı"
-  if (!(Number(data.kazikCapi) > 0)) hatalar.kazikCapi = "0'dan büyük olmalı"
-  if (!(Number(data.kazikAdedi) > 0)) hatalar.kazikAdedi = "0'dan büyük olmalı"
+  if (!data.projeAdi || !data.projeAdi.trim()) hatalar.projeAdi = t("validProjectName")
+  if (!(Number(data.kazikBoyu) > 0)) hatalar.kazikBoyu = t("validPositive")
+  if (!(Number(data.kazikCapi) > 0)) hatalar.kazikCapi = t("validPositive")
+  if (!(Number(data.kazikAdedi) > 0)) hatalar.kazikAdedi = t("validPositive")
   return hatalar
 }
 
@@ -61,12 +62,13 @@ export default function ProjeForm({ data, onChange, projeId, onProjeIdChange }) 
   const [kayitDurumu, setKayitDurumu] = useState(null)
   const [hatalar, setHatalar] = useState({})
   const toast = useToast()
+  const { t } = useLang()
 
   const kaydet = async () => {
-    const dogrulamaHatalari = dogrula(data)
+    const dogrulamaHatalari = dogrula(data, t)
     if (Object.keys(dogrulamaHatalari).length > 0) {
       setHatalar(dogrulamaHatalari)
-      toast.error("Zorunlu alanları doldurun.")
+      toast.error(t("fillRequired"))
       return
     }
     setHatalar({})
@@ -79,7 +81,7 @@ export default function ProjeForm({ data, onChange, projeId, onProjeIdChange }) 
         onProjeIdChange(yeni.id)
       }
       setKayitDurumu(null)
-      toast.success("Proje kaydedildi.")
+      toast.success(t("projectSaved"))
     } catch (e) {
       setKayitDurumu(null)
       toast.error(e.message)
@@ -91,10 +93,10 @@ export default function ProjeForm({ data, onChange, projeId, onProjeIdChange }) 
       <div style={{marginBottom: "24px", display: "flex", alignItems: "flex-start", justifyContent: "space-between"}}>
         <div>
           <h2 style={{color: "var(--heading)", fontSize: "22px", fontWeight: "700"}}>
-            Proje Bilgileri
+            {t("projectInfoTitle")}
           </h2>
           <p style={{color: "var(--text-muted)", fontSize: "14px", marginTop: "4px"}}>
-            Proje, saha ve kazık parametrelerini girin
+            {t("projectInfoDesc")}
           </p>
         </div>
         <div style={{display: "flex", alignItems: "center", gap: "12px", flexShrink: 0}}>
@@ -109,35 +111,35 @@ export default function ProjeForm({ data, onChange, projeId, onProjeIdChange }) 
               cursor: kayitDurumu === "loading" ? "not-allowed" : "pointer"
             }}
           >
-            {kayitDurumu === "loading" ? "Kaydediliyor..." : projeId ? "Güncelle" : "Kaydet"}
+            {kayitDurumu === "loading" ? t("saving") : projeId ? t("update") : t("save")}
           </button>
         </div>
       </div>
 
-      <Card title="📋 Proje Tanımı">
-        <Field label="Proje Adı *" hata={hatalar.projeAdi}>
+      <Card title={t("cardProjectDef")}>
+        <Field label={t("fieldProjectName")} hata={hatalar.projeAdi}>
           <input
             style={{ ...inputStyle, borderColor: hatalar.projeAdi ? "#FCA5A5" : undefined }}
             value={data.projeAdi}
             onChange={e => { onChange("projeAdi", e.target.value); setHatalar(h => ({ ...h, projeAdi: "" })) }}
             placeholder="Örnek Kazık Projesi" />
         </Field>
-        <Field label="Proje Kodu">
+        <Field label={t("fieldProjectCode")}>
           <input style={inputStyle} value={data.projeKodu}
             onChange={e => onChange("projeKodu", e.target.value)}
             placeholder="PRJ-001" />
         </Field>
-        <Field label="Saha Kodu">
+        <Field label={t("fieldSiteCode")}>
           <input style={inputStyle} value={data.sahaKodu}
             onChange={e => onChange("sahaKodu", e.target.value)}
             placeholder="SH-01" />
         </Field>
-        <Field label="Lokasyon">
+        <Field label={t("fieldLocation")}>
           <input style={inputStyle} value={data.lokasyon}
             onChange={e => onChange("lokasyon", e.target.value)}
             placeholder="İstanbul" />
         </Field>
-        <Field label="İş Tipi">
+        <Field label={t("fieldJobType")}>
           <select style={selectStyle} value={data.isTipi}
             onChange={e => onChange("isTipi", e.target.value)}>
             <option>Fore Kazık</option>
@@ -147,50 +149,50 @@ export default function ProjeForm({ data, onChange, projeId, onProjeIdChange }) 
         </Field>
       </Card>
 
-      <Card title="⚙️ Kazık Parametreleri">
-        <Field label="Kazık Boyu (m) *" hata={hatalar.kazikBoyu}>
+      <Card title={t("cardPileParams")}>
+        <Field label={t("fieldPileLength")} hata={hatalar.kazikBoyu}>
           <input
             style={{ ...inputStyle, borderColor: hatalar.kazikBoyu ? "#FCA5A5" : undefined }}
             type="number" value={data.kazikBoyu}
             onChange={e => { onChange("kazikBoyu", parseFloat(e.target.value)); setHatalar(h => ({ ...h, kazikBoyu: "" })) }}
             min="1" step="0.5" />
         </Field>
-        <Field label="Kazık Çapı (mm) *" hata={hatalar.kazikCapi}>
+        <Field label={t("fieldPileDiam")} hata={hatalar.kazikCapi}>
           <input
             style={{ ...inputStyle, borderColor: hatalar.kazikCapi ? "#FCA5A5" : undefined }}
             type="number" value={data.kazikCapi}
             onChange={e => { onChange("kazikCapi", parseInt(e.target.value)); setHatalar(h => ({ ...h, kazikCapi: "" })) }}
             min="100" step="50" />
         </Field>
-        <Field label="Kazık Adedi *" hata={hatalar.kazikAdedi}>
+        <Field label={t("fieldPileCount")} hata={hatalar.kazikAdedi}>
           <input
             style={{ ...inputStyle, borderColor: hatalar.kazikAdedi ? "#FCA5A5" : undefined }}
             type="number" value={data.kazikAdedi}
             onChange={e => { onChange("kazikAdedi", parseInt(e.target.value)); setHatalar(h => ({ ...h, kazikAdedi: "" })) }}
             min="1" />
         </Field>
-        <Field label="Yeraltı Suyu Seviyesi (m)">
+        <Field label={t("fieldGroundwater")}>
           <input style={inputStyle} type="number" value={data.yeraltiSuyu}
             onChange={e => onChange("yeraltiSuyu", parseFloat(e.target.value))}
             min="0" step="0.5" />
         </Field>
       </Card>
 
-      <Card title="📝 Notlar">
+      <Card title={t("cardNotes")}>
         <div style={{gridColumn: "1 / -1"}}>
-          <Field label="Proje Notu">
+          <Field label={t("fieldProjectNote")}>
             <textarea style={{...inputStyle, height: "80px", resize: "vertical"}}
               value={data.projeNotu}
               onChange={e => onChange("projeNotu", e.target.value)}
-              placeholder="Şantiye koşulları, özel durumlar..." />
+              placeholder={t("placeholderProjectNote")} />
           </Field>
         </div>
         <div style={{gridColumn: "1 / -1"}}>
-          <Field label="Teklif Notu">
+          <Field label={t("fieldOfferNote")}>
             <textarea style={{...inputStyle, height: "80px", resize: "vertical"}}
               value={data.teklifNotu}
               onChange={e => onChange("teklifNotu", e.target.value)}
-              placeholder="Teklif açıklamaları..." />
+              placeholder={t("placeholderOfferNote")} />
           </Field>
         </div>
       </Card>

@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from "react"
 import { downloadPdfReport, downloadSoilLayersCsv, saveAnalysis } from "./api"
 import { useToast } from "./Toast"
+import { useLang } from "./LangContext"
 import { ZeminProfilDiyagrami, TorkDerinlikGrafigi, GanttSemasi, SenaryoKarsilastirma } from "./Gorseller"
 import {
   gerekliTork, gerekliTorkAralik, stabiliteRiski, casingDurum, casingMetreHesapla,
@@ -40,22 +41,23 @@ function MetrikKart({ baslik, deger, renk, alt, oran }) {
 
 // ── PDF Önizleme Modal ──────────────────────────────────
 function PdfOnizleme({ open, onClose, onDownload, yukleniyor, proje, analiz, zemin, makineUygunluklari }) {
+  const { t } = useLang()
   if (!open || !analiz) return null
   const { tork, casingDur, casingM, sure, mBasi, topMazot, toplamGun } = analiz
 
   const rows = [
-    ["Proje Adi", proje.projeAdi || "—"],
-    ["Lokasyon", proje.lokasyon || "—"],
-    ["Is Tipi", proje.isTipi],
-    ["Kazik", `${proje.kazikBoyu}m / Ø${proje.kazikCapi}mm / ${proje.kazikAdedi} adet`],
+    [t("pdfProjectName"), proje.projeAdi || "—"],
+    [t("pdfLocation"), proje.lokasyon || "—"],
+    [t("pdfJobType"), proje.isTipi],
+    [t("pdfPile"), `${proje.kazikBoyu}m / Ø${proje.kazikCapi}mm / ${proje.kazikAdedi}`],
   ]
   const metrikler = [
-    ["Gerekli Min. Tork", `${tork} kNm`],
-    ["Muhafaza Borusu", `${casingDur} (${casingM} m)`],
-    ["1 Kazık Delgi Süresi", `${sure} saat`],
-    ["Toplam İş Süresi", `${toplamGun} gün`],
-    ["Metre Başı Mazot", `${mBasi} L/m`],
-    ["Toplam Mazot", `${Math.round(topMazot * proje.kazikAdedi)} L`],
+    [t("pdfMinTorque"), `${tork} kNm`],
+    [t("pdfCasing"), `${casingDur} (${casingM} m)`],
+    [t("pdfDrillTime"), `${sure} h`],
+    [t("pdfTotalDuration"), `${toplamGun} d`],
+    [t("pdfFuelPerMeter"), `${mBasi} L/m`],
+    [t("pdfTotalFuel"), `${Math.round(topMazot * proje.kazikAdedi)} L`],
   ]
 
   return (
@@ -84,8 +86,8 @@ function PdfOnizleme({ open, onClose, onDownload, yukleniyor, proje, analiz, zem
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
           <div>
-            <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)" }}>PDF Rapor Onizleme</h3>
-            <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>Rapor icerigi asagidaki gibi olusturulacak</p>
+            <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)" }}>{t("pdfPreviewTitle")}</h3>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{t("pdfPreviewDesc")}</p>
           </div>
           <button onClick={onClose} style={{
             background: "none", border: "none", cursor: "pointer",
@@ -103,7 +105,7 @@ function PdfOnizleme({ open, onClose, onDownload, yukleniyor, proje, analiz, zem
           }}>
             <div style={{ textAlign: "center", marginBottom: "16px", paddingBottom: "12px", borderBottom: "2px solid #0284C7" }}>
               <div style={{ fontFamily: "'Fraunces', serif", fontSize: "16px", fontWeight: "800", color: "#0C4A6E" }}>
-                GeoDrill — Analiz Raporu
+                {t("pdfAnalysisReport")}
               </div>
               <div style={{ fontSize: "10px", color: "#64748B", marginTop: "4px" }}>
                 {proje.projeAdi} | {proje.lokasyon} | {new Date().toLocaleDateString("tr-TR")}
@@ -111,7 +113,7 @@ function PdfOnizleme({ open, onClose, onDownload, yukleniyor, proje, analiz, zem
             </div>
 
             <div style={{ marginBottom: "14px" }}>
-              <div style={{ fontSize: "11px", fontWeight: "700", color: "#0369A1", marginBottom: "6px" }}>Proje Bilgileri</div>
+              <div style={{ fontSize: "11px", fontWeight: "700", color: "#0369A1", marginBottom: "6px" }}>{t("pdfProjectInfo")}</div>
               {rows.map(([k, v]) => (
                 <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #F1F5F9" }}>
                   <span style={{ color: "#64748B" }}>{k}</span>
@@ -121,7 +123,7 @@ function PdfOnizleme({ open, onClose, onDownload, yukleniyor, proje, analiz, zem
             </div>
 
             <div style={{ marginBottom: "14px" }}>
-              <div style={{ fontSize: "11px", fontWeight: "700", color: "#0369A1", marginBottom: "6px" }}>Analiz Sonuclari</div>
+              <div style={{ fontSize: "11px", fontWeight: "700", color: "#0369A1", marginBottom: "6px" }}>{t("pdfAnalysisResults")}</div>
               {metrikler.map(([k, v]) => (
                 <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #F1F5F9" }}>
                   <span style={{ color: "#64748B" }}>{k}</span>
@@ -131,7 +133,7 @@ function PdfOnizleme({ open, onClose, onDownload, yukleniyor, proje, analiz, zem
             </div>
 
             <div style={{ marginBottom: "8px" }}>
-              <div style={{ fontSize: "11px", fontWeight: "700", color: "#0369A1", marginBottom: "6px" }}>Zemin Logu ({zemin.length} katman)</div>
+              <div style={{ fontSize: "11px", fontWeight: "700", color: "#0369A1", marginBottom: "6px" }}>{t("pdfSoilLog")} ({zemin.length} {t("pdfLayers")})</div>
               <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
                 {zemin.map((z, i) => (
                   <span key={i} style={{
@@ -147,7 +149,7 @@ function PdfOnizleme({ open, onClose, onDownload, yukleniyor, proje, analiz, zem
             {makineUygunluklari.length > 0 && (
               <div>
                 <div style={{ fontSize: "11px", fontWeight: "700", color: "#0369A1", marginBottom: "6px", marginTop: "10px" }}>
-                  Ekipman ({makineUygunluklari.length} makine)
+                  {t("pdfEquipment")} ({makineUygunluklari.length} {t("pdfMachines")})
                 </div>
                 {makineUygunluklari.map((m, i) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #F1F5F9" }}>
@@ -175,7 +177,7 @@ function PdfOnizleme({ open, onClose, onDownload, yukleniyor, proje, analiz, zem
             color: "var(--text-secondary)", fontSize: "13px", fontWeight: "600",
             cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif",
           }}>
-            Kapat
+            {t("close")}
           </button>
           <button onClick={onDownload} disabled={yukleniyor} style={{
             padding: "10px 24px", border: "none", borderRadius: "8px",
@@ -184,7 +186,7 @@ function PdfOnizleme({ open, onClose, onDownload, yukleniyor, proje, analiz, zem
             cursor: yukleniyor ? "wait" : "pointer",
             fontFamily: "'Plus Jakarta Sans', sans-serif",
           }}>
-            {yukleniyor ? "Olusturuluyor..." : "PDF Indir"}
+            {yukleniyor ? t("generating") : t("pdfDownload")}
           </button>
         </div>
       </div>
@@ -225,6 +227,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
   const [kaydetYukleniyor, setKaydetYukleniyor] = useState(false)
   const [kaydetBasarili, setKaydetBasarili] = useState(false)
   const toast = useToast()
+  const { t } = useLang()
 
   const handlePdf = useCallback(async () => {
     if (!projeId) return
@@ -334,10 +337,10 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
           <circle cx="90" cy="30" r="18" fill="#FEF2F2" stroke="#FECACA" strokeWidth="2" />
           <path d="M84 24L96 36M96 24L84 36" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" />
         </svg>
-        <h2 style={{color: "#0369A1", fontSize: "20px", fontWeight: "700", marginBottom: "8px"}}>Zemin Verisi Eksik</h2>
+        <h2 style={{color: "#0369A1", fontSize: "20px", fontWeight: "700", marginBottom: "8px"}}>{t("noSoilTitle")}</h2>
         <p style={{color: "#94A3B8", fontSize: "14px", maxWidth: "320px", lineHeight: "1.6"}}>
-          Analiz icin zemin katman verilerine ihtiyac var.<br />
-          <strong style={{color: "#64748B"}}>Zemin Logu</strong> sayfasindan verileri girin.
+          {t("noSoilDesc")}<br />
+          <strong style={{color: "#64748B"}}>{t("noSoilHint")}</strong> {t("noSoilHint2")}
         </p>
       </div>
     )
@@ -365,13 +368,13 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
         }}>
           <span>🎯</span>
           <span style={{ color: "#166534", fontWeight: "600" }}>
-            Kalibrasyon aktif (katsayı: {kalibrasyon.katsayi.toFixed(4)}) — delgi süreleri sahaya göre düzeltildi.
+            {t("calibrationActive").replace("{val}", kalibrasyon.katsayi.toFixed(4))}
           </span>
         </div>
       )}
       <div style={{marginBottom: "24px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "12px"}}>
         <div>
-          <h2 style={{color: "var(--heading)", fontSize: "22px", fontWeight: "700"}}>Analiz Sonucu</h2>
+          <h2 style={{color: "var(--heading)", fontSize: "22px", fontWeight: "700"}}>{t("analysisTitle")}</h2>
           <p style={{color: "var(--text-muted)", fontSize: "14px", marginTop: "4px"}}>
             {proje.projeAdi || "Proje"} — {proje.kazikBoyu}m / Ø{proje.kazikCapi}mm / {proje.kazikAdedi} adet
           </p>
@@ -393,23 +396,23 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
                   fontFamily: "'Plus Jakarta Sans', sans-serif",
                 }}
               >
-                {kaydetYukleniyor ? "Kaydediliyor..." : kaydetBasarili ? "✓ Kaydedildi" : "Analizi Kaydet"}
+                {kaydetYukleniyor ? t("saving") : kaydetBasarili ? t("savedOk") : t("saveAnalysis")}
               </button>
               <button onClick={() => analizCsvIndir(proje, tork, casingDur, casingM, sure, toplamGun, mBasi, topMazot, makineUygunluklari)}
                 style={{padding: "8px 16px", border: "1.5px solid #E2E8F0", borderRadius: "8px", background: "white", color: "#475569", fontSize: "13px", fontWeight: "600", cursor: "pointer"}}>
-                Analiz CSV
+                {t("analysisCsv")}
               </button>
               <button onClick={handleZeminCsv} disabled={csvYukleniyor}
                 style={{padding: "8px 16px", border: "1.5px solid #E2E8F0", borderRadius: "8px", background: "white", color: "#475569", fontSize: "13px", fontWeight: "600", cursor: csvYukleniyor ? "wait" : "pointer"}}>
-                {csvYukleniyor ? "..." : "Zemin CSV"}
+                {csvYukleniyor ? "..." : t("soilCsv")}
               </button>
               <button onClick={() => setPdfOnizlemeAcik(true)}
                 style={{padding: "8px 16px", border: "none", borderRadius: "8px", background: "linear-gradient(135deg, #0284C7, #0EA5E9)", color: "white", fontSize: "13px", fontWeight: "600", cursor: "pointer"}}>
-                PDF Rapor
+                {t("pdfReport")}
               </button>
               <button onClick={() => window.print()}
                 style={{padding: "8px 16px", border: "1.5px solid #E2E8F0", borderRadius: "8px", background: "white", color: "#475569", fontSize: "13px", fontWeight: "600", cursor: "pointer"}}>
-                Yazdır
+                {t("printBtn")}
               </button>
             </>
           )}
@@ -426,9 +429,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
       }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: "11px", fontWeight: "700", color: sistemKarari.renk, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "6px" }}>
-              Makine Kararı
-            </div>
+            <div style={{ fontSize: "11px", fontWeight: "700", color: sistemKarari.renk, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "6px" }}>{t("machineDecision")}</div>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
               <span style={{ fontSize: "28px", lineHeight: 1 }}>
                 {sistemKarari.durum === "Uygun" ? "✔" : sistemKarari.durum === "Uygun makine yok" ? "❌" : "⚠️"}
@@ -439,12 +440,12 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
                     {sistemKarari.makine.ad}{sistemKarari.makine.marka ? ` — ${sistemKarari.makine.marka}` : ""}
                   </div>
                 ) : (
-                  <div style={{ fontSize: "18px", fontWeight: "800", color: "#DC2626" }}>Uygun Makine Bulunamadı</div>
+                  <div style={{ fontSize: "18px", fontWeight: "800", color: "#DC2626" }}>{t("noSuitableMachine")}</div>
                 )}
                 <div style={{ fontSize: "13px", color: "#475569", marginTop: "2px" }}>
                   {sistemKarari.makine
                     ? `Gerekli tork: ${tork} kNm (bant: ${torkAralik?.min}–${torkAralik?.max} kNm, Sınıf ${torkAralik?.guven}) · Makine: ${sistemKarari.makine.tork} kNm · ${sistemKarari.makine.gerekce}`
-                    : "Makine parkına uygun rig ekleyin"}
+                    : t("addSuitableRig")}
                 </div>
               </div>
             </div>
@@ -462,14 +463,14 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
         {(!sistemKarari.makine || sistemKarari.durum === "Uygun Değil") && (
           <div style={{ marginTop: "14px", paddingTop: "14px", borderTop: `1px solid ${sistemKarari.renk}30` }}>
             <div style={{ fontSize: "12px", fontWeight: "700", color: "#DC2626", marginBottom: "10px" }}>
-              Bu proje için şu özelliklerde bir makine gereklidir:
+              {t("minTorque")}:
             </div>
             <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
               {[
-                { k: "Minimum Tork", v: `${tork} kNm` },
-                { k: "Max Derinlik", v: `≥ ${proje.kazikBoyu} m` },
-                { k: "Max Çap", v: `≥ ${proje.kazikCapi} mm` },
-                { k: "Casing Sistemi", v: analiz.zorunlu ? "Zorunlu" : "Opsiyonel" },
+                { k: t("minTorque"), v: `${tork} kNm` },
+                { k: t("maxDepth"), v: `≥ ${proje.kazikBoyu} m` },
+                { k: t("maxDiam"), v: `≥ ${proje.kazikCapi} mm` },
+                { k: t("casingSystem"), v: analiz.zorunlu ? t("required") : t("optional") },
               ].map(({ k, v }) => (
                 <div key={k} style={{ background: "white", border: "1px solid #FECACA", borderRadius: "8px", padding: "8px 14px" }}>
                   <div style={{ fontSize: "10px", color: "#94A3B8", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.04em" }}>{k}</div>
@@ -502,7 +503,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
             <span style={{ fontSize: "20px" }}>{guven.seviye === "HIGH" ? "🟢" : guven.seviye === "MEDIUM" ? "🟡" : "🔴"}</span>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: "700", fontSize: "13px", color: guven.seviye === "HIGH" ? "#15803D" : guven.seviye === "MEDIUM" ? "#92400E" : "#991B1B", marginBottom: "4px" }}>
-                Hesap Güveni: {guven.seviye === "HIGH" ? "Yüksek" : guven.seviye === "MEDIUM" ? "Orta" : "Düşük"} — {guven.puan}/100 puan
+                {t("calcConfidence")}: {guven.seviye === "HIGH" ? t("high") : guven.seviye === "MEDIUM" ? t("medium") : t("low")} — {guven.puan}/100
               </div>
               <div style={{ height: "6px", background: "rgba(0,0,0,0.08)", borderRadius: "3px", overflow: "hidden", maxWidth: "320px" }}>
                 <div style={{
@@ -520,7 +521,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
             {(guven.sebepler || []).length > 0 && (
               <div>
                 <div style={{ fontSize: "11px", fontWeight: "700", color: "#15803D", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>
-                  Mevcut Veriler
+                  {t("presentData")}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                   {(guven.sebepler || []).map((s, i) => (
@@ -537,7 +538,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
             {(guven.eksikVeriler || []).length > 0 && (
               <div>
                 <div style={{ fontSize: "11px", fontWeight: "700", color: "#92400E", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>
-                  Güveni Artırmak İçin Ekleyin
+                  {t("addForConfidence")}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                   {(guven.eksikVeriler || []).map((e, i) => {

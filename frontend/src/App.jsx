@@ -21,10 +21,11 @@ import {
   fromSnake, fromSnakeLayer, fromSnakeMakine,
   setOnUnauthorized,
 } from "./api"
+import { LangProvider, useLang } from "./LangContext"
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
 
-class ErrorBoundary extends Component {
+class ErrorBoundaryInner extends Component {
   constructor(props) { super(props); this.state = { hata: null } }
   static getDerivedStateFromError(err) { return { hata: err.message || "Bilinmeyen hata" } }
   render() {
@@ -33,17 +34,26 @@ class ErrorBoundary extends Component {
         background: "#FEF2F2", border: "1.5px solid #FECACA", borderRadius: "12px",
         padding: "32px", color: "#DC2626", fontSize: "14px"
       }}>
-        <strong>Analiz hesaplanırken bir hata oluştu:</strong>
+        <strong>{this.props.errorTitle}</strong>
         <pre style={{ marginTop: "8px", fontSize: "12px", whiteSpace: "pre-wrap" }}>{this.state.hata}</pre>
         <button onClick={() => this.setState({ hata: null })} style={{
           marginTop: "16px", padding: "8px 18px", border: "none",
           borderRadius: "8px", background: "#DC2626", color: "white",
           fontSize: "13px", fontWeight: "600", cursor: "pointer"
-        }}>Tekrar Dene</button>
+        }}>{this.props.retryLabel}</button>
       </div>
     )
     return this.props.children
   }
+}
+
+function ErrorBoundary({ children }) {
+  const { t } = useLang()
+  return (
+    <ErrorBoundaryInner errorTitle={t("errorTitle")} retryLabel={t("retry")}>
+      {children}
+    </ErrorBoundaryInner>
+  )
 }
 
 function SkeletonBlock({ width = "100%", height = "16px", radius = "6px" }) {
@@ -85,45 +95,49 @@ function SkeletonLoader() {
 }
 
 // Sidebar grupları
-const SIDEBAR_GROUPS = [
-  {
-    group: null,
-    items: [
-      { id: "dashboard", label: "Ana Ekran", icon: "🏠" },
-      { id: "yeniAnaliz", label: "Yeni Analiz Başlat", icon: "⚡", accent: true },
-    ]
-  },
-  {
-    group: "PROJE",
-    items: [
-      { id: "guncel", label: "Güncel Proje", icon: "📂" },
-      { id: "onceki", label: "Önceki Analizler", icon: "🕒" },
-    ]
-  },
-  {
-    group: "ÇIKTILAR",
-    items: [
-      { id: "raporlar", label: "Raporlar", icon: "📄" },
-      { id: "fiyat", label: "Fiyat Analizi", icon: "💰" },
-    ]
-  },
-  {
-    group: "HESAP",
-    items: [
-      { id: "ayarlar", label: "Ayarlar", icon: "⚙️" },
-    ]
-  },
-]
+function getSidebarGroups(t) {
+  return [
+    {
+      group: null,
+      items: [
+        { id: "dashboard", label: t("navDashboard"), icon: "🏠" },
+        { id: "yeniAnaliz", label: t("navNewAnalysis"), icon: "⚡", accent: true },
+      ]
+    },
+    {
+      group: t("groupProject"),
+      items: [
+        { id: "guncel", label: t("navCurrentProject"), icon: "📂" },
+        { id: "onceki", label: t("navPrevAnalyses"), icon: "🕒" },
+      ]
+    },
+    {
+      group: t("groupOutputs"),
+      items: [
+        { id: "raporlar", label: t("navReports"), icon: "📄" },
+        { id: "fiyat", label: t("navPricing"), icon: "💰" },
+      ]
+    },
+    {
+      group: t("groupAccount"),
+      items: [
+        { id: "ayarlar", label: t("navSettings"), icon: "⚙️" },
+      ]
+    },
+  ]
+}
 
 // Proje wizard alt sekmeleri (Güncel Proje içinde)
-const WIZARD_TABS = [
-  { id: "proje", label: "Proje", icon: "📋" },
-  { id: "zemin", label: "Zemin", icon: "🪨" },
-  { id: "makine", label: "Makine", icon: "⚙️" },
-  { id: "analiz", label: "Analiz", icon: "📊" },
-  { id: "wizardFiyat", label: "Fiyat", icon: "💰" },
-  { id: "kalibrasyon", label: "Kalibrasyon", icon: "🎯" },
-]
+function getWizardTabs(t) {
+  return [
+    { id: "proje", label: t("tabProject"), icon: "📋" },
+    { id: "zemin", label: t("tabSoil"), icon: "🪨" },
+    { id: "makine", label: t("tabMachine"), icon: "⚙️" },
+    { id: "analiz", label: t("tabAnalysis"), icon: "📊" },
+    { id: "wizardFiyat", label: t("tabPrice"), icon: "💰" },
+    { id: "kalibrasyon", label: t("tabCalibration"), icon: "🎯" },
+  ]
+}
 
 const BOS_PROJE = {
   projeAdi: "", projeKodu: "", sahaKodu: "",
@@ -139,9 +153,10 @@ function LoginPage({ onLogin, onGoRegister, onGoLanding }) {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const { t } = useLang()
 
   const handleLogin = async () => {
-    if (!username || !password) { setError("Kullanıcı adı ve şifre gerekli."); return }
+    if (!username || !password) { setError(t("usernameLabel") + " / " + t("passwordLabel")); return }
     setLoading(true)
     setError("")
     try {
@@ -196,7 +211,7 @@ function LoginPage({ onLogin, onGoRegister, onGoLanding }) {
             marginBottom: "28px", fontFamily: "'Plus Jakarta Sans', sans-serif",
             letterSpacing: "0.02em",
           }}>
-            ← Ana Sayfa
+            {t("backToHome")}
           </button>
         )}
 
@@ -214,14 +229,14 @@ function LoginPage({ onLogin, onGoRegister, onGoLanding }) {
             </div>
           </div>
           <p style={{ color: "#94A3B8", fontSize: "12px", letterSpacing: "0.03em" }}>
-            Geoteknik Karar Destek Sistemi
+            {t("loginSubtitle")}
           </p>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           <div>
             <label style={{ color: "#64748B", fontSize: "12px", fontWeight: "600", display: "block", marginBottom: "6px", letterSpacing: "0.04em" }}>
-              KULLANICI ADI
+              {t("usernameLabel")}
             </label>
             <input type="text" value={username}
               onChange={e => setUsername(e.target.value)}
@@ -232,7 +247,7 @@ function LoginPage({ onLogin, onGoRegister, onGoLanding }) {
           </div>
           <div>
             <label style={{ color: "#64748B", fontSize: "12px", fontWeight: "600", display: "block", marginBottom: "6px", letterSpacing: "0.04em" }}>
-              ŞİFRE
+              {t("passwordLabel")}
             </label>
             <input type="password" value={password}
               onChange={e => setPassword(e.target.value)}
@@ -264,18 +279,18 @@ function LoginPage({ onLogin, onGoRegister, onGoLanding }) {
             transition: "background 0.2s",
             boxShadow: loading ? "none" : "0 4px 12px rgba(14,165,233,0.25)",
           }}>
-            {loading ? "Giriş yapılıyor..." : "Giriş Yap"}
+            {loading ? t("loggingIn") : t("loginBtn")}
           </button>
         </div>
 
         <p style={{ textAlign: "center", marginTop: "20px", fontSize: "13px", color: "#94A3B8" }}>
-          Hesabınız yok mu?{" "}
+          {t("noAccount")}{" "}
           <button onClick={onGoRegister} style={{
             background: "none", border: "none", color: "#0EA5E9",
             fontWeight: "600", cursor: "pointer", fontSize: "13px", padding: 0,
             fontFamily: "'Plus Jakarta Sans', sans-serif",
           }}>
-            Kayıt Ol
+            {t("registerLink")}
           </button>
         </p>
 
@@ -290,6 +305,8 @@ function LoginPage({ onLogin, onGoRegister, onGoLanding }) {
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 function Sidebar({ active, onNav, open, onClose, projeAdi }) {
+  const { t } = useLang()
+  const SIDEBAR_GROUPS = getSidebarGroups(t)
   return (
     <>
       {open && (
@@ -315,7 +332,7 @@ function Sidebar({ active, onNav, open, onClose, projeAdi }) {
               <div style={{ color: "var(--text-muted)", fontSize: "8px", letterSpacing: "3px", fontWeight: "600", marginTop: "1px" }}>INSIGHT</div>
             </div>
           </div>
-          <button onClick={onClose} aria-label="Menüyü kapat"
+          <button onClick={onClose} aria-label="Close menu"
             style={{ background: "none", border: "none", color: "#94A3B8", fontSize: "18px", cursor: "pointer", display: "none" }}
             className="sidebar-close-btn">✕</button>
         </div>
@@ -400,6 +417,7 @@ function DarkModeToggle({ dark, onToggle }) {
 }
 
 function Header({ username, onLogout, onMenuOpen, dark, onToggleDark }) {
+  const { lang, toggleLang, t } = useLang()
   return (
     <header style={{
       height: "54px",
@@ -411,7 +429,7 @@ function Header({ username, onLogout, onMenuOpen, dark, onToggleDark }) {
     }}>
       <button
         onClick={onMenuOpen}
-        aria-label="Menüyü aç"
+        aria-label="Open menu"
         style={{
           background: "none", border: "none", cursor: "pointer",
           color: "var(--text-secondary)", fontSize: "20px", lineHeight: 1,
@@ -427,8 +445,24 @@ function Header({ username, onLogout, onMenuOpen, dark, onToggleDark }) {
       </span>
       <DarkModeToggle dark={dark} onToggle={onToggleDark} />
       <button
+        onClick={toggleLang}
+        style={{
+          padding: "5px 11px",
+          border: "1px solid var(--border-medium)",
+          borderRadius: "6px",
+          background: "transparent",
+          color: "var(--text-secondary)",
+          fontSize: "11px", cursor: "pointer",
+          fontFamily: "'DM Mono', monospace",
+          fontWeight: "700", letterSpacing: "0.06em",
+          transition: "color 0.15s, border-color 0.15s",
+        }}
+      >
+        {lang === "tr" ? "TR" : "EN"}
+      </button>
+      <button
         onClick={onLogout}
-        aria-label="Oturumu kapat"
+        aria-label="Sign out"
         style={{
           padding: "6px 14px",
           border: "1px solid var(--border-medium)",
@@ -441,7 +475,7 @@ function Header({ username, onLogout, onMenuOpen, dark, onToggleDark }) {
           transition: "color 0.15s, border-color 0.15s",
         }}
       >
-        Çıkış
+        {t("logoutBtn")}
       </button>
     </header>
   )
@@ -450,6 +484,7 @@ function Header({ username, onLogout, onMenuOpen, dark, onToggleDark }) {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 function WelcomeModal({ onDemoYukle, onKapat }) {
+  const { t } = useLang()
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 9100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}>
       <div style={{ background: "white", borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "40px 40px 32px", boxShadow: "0 32px 80px rgba(14,165,233,0.18)", animation: "fadeUp 0.3s ease" }}>
@@ -459,21 +494,21 @@ function WelcomeModal({ onDemoYukle, onKapat }) {
             <span style={{ fontFamily: "'Fraunces', serif", fontWeight: "900", fontSize: "28px", color: "#0EA5E9" }}>Drill</span>
           </div>
           <div style={{ color: "#0369A1", fontSize: "9px", letterSpacing: "5px", fontWeight: "700", marginBottom: "16px" }}>— INSIGHT —</div>
-          <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#0C4A6E", marginBottom: "10px" }}>Hoş geldiniz!</h2>
+          <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#0C4A6E", marginBottom: "10px" }}>{t("welcomeTitle")}</h2>
           <p style={{ fontSize: "14px", color: "#64748B", lineHeight: "1.7" }}>
-            Hızlı başlamak için gerçek bir saha verisini temel alan demo projeyi yükleyebilirsiniz. İstediğiniz zaman düzenleyebilirsiniz.
+            {t("welcomeDesc")}
           </p>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           <button onClick={onDemoYukle} style={{ padding: "13px", border: "none", borderRadius: "10px", background: "linear-gradient(135deg, #0284C7, #0EA5E9)", color: "white", fontSize: "15px", fontWeight: "700", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            Demo Proje Yükle
+            {t("loadDemo")}
           </button>
           <button onClick={onKapat} style={{ padding: "12px", border: "1.5px solid #E2E8F0", borderRadius: "10px", background: "white", color: "#475569", fontSize: "14px", fontWeight: "600", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            Boş Başla
+            {t("startBlank")}
           </button>
         </div>
         <p style={{ textAlign: "center", fontSize: "12px", color: "#94A3B8", marginTop: "16px" }}>
-          Demo proje İstanbul / Kadıköy Metro temel kazıkları verisini kullanır
+          {t("demoNote")}
         </p>
       </div>
     </div>
@@ -482,23 +517,24 @@ function WelcomeModal({ onDemoYukle, onKapat }) {
 
 // ─── Ana Ekran (home dashboard) ──────────────────────────────────────────────
 function HomeDashboard({ onYeniAnaliz, onOnceki, onRaporlar, proje, projeId, zemin, onGuncel, username }) {
+  const { t } = useLang()
   const kaydedildi = projeId && proje.projeAdi
   return (
     <div style={{ animation: "fadeUp 0.3s ease" }}>
       {/* Karşılama */}
       <div style={{ marginBottom: "32px" }}>
         <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: "26px", fontWeight: "800", color: "var(--heading)", marginBottom: "6px" }}>
-          Merhaba, {username} 👋
+          {t("homeGreeting").replace("{name}", username)}
         </h2>
-        <p style={{ color: "var(--text-muted)", fontSize: "14px" }}>GeoDrill Insight — Geoteknik Proje Yönetim Platformu</p>
+        <p style={{ color: "var(--text-muted)", fontSize: "14px" }}>{t("platformSubtitle")}</p>
       </div>
 
       {/* 3 Büyük Aksiyon */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "32px" }}>
         {[
-          { icon: "⚡", label: "Yeni Analiz Başlat", desc: "Sıfırdan yeni proje oluştur", onClick: onYeniAnaliz, bg: "linear-gradient(135deg, #0284C7 0%, #0EA5E9 100%)", color: "white", accent: true },
-          { icon: "🕒", label: "Önceki Analizler", desc: "Geçmiş projeleri görüntüle ve düzenle", onClick: onOnceki, bg: "var(--bg-card)", color: "var(--text-primary)" },
-          { icon: "📄", label: "Raporlar", desc: "PDF ve Excel çıktılarını indir", onClick: onRaporlar, bg: "var(--bg-card)", color: "var(--text-primary)" },
+          { icon: "⚡", label: t("startNewAnalysis"), desc: t("startNewDesc"), onClick: onYeniAnaliz, bg: "linear-gradient(135deg, #0284C7 0%, #0EA5E9 100%)", color: "white", accent: true },
+          { icon: "🕒", label: t("prevAnalysesMenu"), desc: t("prevAnalysesDesc"), onClick: onOnceki, bg: "var(--bg-card)", color: "var(--text-primary)" },
+          { icon: "📄", label: t("reportsMenu"), desc: t("reportsDesc"), onClick: onRaporlar, bg: "var(--bg-card)", color: "var(--text-primary)" },
         ].map(b => (
           <button key={b.label} onClick={b.onClick} style={{
             padding: "24px 20px", borderRadius: "12px", border: `1px solid ${b.accent ? "transparent" : "var(--input-border)"}`,
@@ -521,12 +557,12 @@ function HomeDashboard({ onYeniAnaliz, onOnceki, onRaporlar, proje, projeId, zem
       {kaydedildi && (
         <div style={{ background: "var(--bg-card)", borderRadius: "12px", border: "1.5px solid var(--accent)", padding: "20px 24px", marginBottom: "24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
           <div>
-            <div style={{ fontSize: "11px", fontWeight: "700", color: "var(--accent)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "4px" }}>Güncel Proje</div>
+            <div style={{ fontSize: "11px", fontWeight: "700", color: "var(--accent)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "4px" }}>{t("currentProjectLabel")}</div>
             <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--heading)" }}>{proje.projeAdi}</div>
-            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{proje.isTipi} · {proje.kazikBoyu}m / Ø{proje.kazikCapi}mm · {proje.kazikAdedi} kazık · {zemin.length} katman</div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{proje.isTipi} · {proje.kazikBoyu}m / Ø{proje.kazikCapi}mm · {proje.kazikAdedi} {t("piles")} · {zemin.length} {t("colSoilType")}</div>
           </div>
           <button onClick={onGuncel} style={{ padding: "10px 22px", border: "none", borderRadius: "8px", background: "var(--accent)", color: "white", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
-            Devam Et →
+            {t("continueBtn")}
           </button>
         </div>
       )}
@@ -534,10 +570,10 @@ function HomeDashboard({ onYeniAnaliz, onOnceki, onRaporlar, proje, projeId, zem
       {/* İpuçları */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
         {[
-          { icon: "🪨", title: "Zemin Verisi Girin", desc: "SPT, UCS, RQD değerleri ile katman katman zemin profili oluşturun." },
-          { icon: "⚙️", title: "Makine Parkı", desc: "Firmaya ait sondaj makinelerini tanımlayın, katalogdan ekleyin." },
-          { icon: "📊", title: "Sistem Kararı", desc: "Hangi makinenin uygun olduğunu tork hesabıyla otomatik öğrenin." },
-          { icon: "💰", title: "Fiyat Analizi", desc: "Mazot, amortisman ve işçilik maliyetlerini hesaplayın." },
+          { icon: "🪨", title: t("tipSoilTitle"), desc: t("tipSoilDesc") },
+          { icon: "⚙️", title: t("tipMachineTitle"), desc: t("tipMachineDesc") },
+          { icon: "📊", title: t("tipDecisionTitle"), desc: t("tipDecisionDesc") },
+          { icon: "💰", title: t("tipPriceTitle"), desc: t("tipPriceDesc") },
         ].map(k => (
           <div key={k.title} style={{ background: "var(--bg-card)", borderRadius: "10px", border: "1px solid var(--input-border)", padding: "16px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
             <div style={{ fontSize: "20px", marginBottom: "8px" }}>{k.icon}</div>
@@ -551,6 +587,7 @@ function HomeDashboard({ onYeniAnaliz, onOnceki, onRaporlar, proje, projeId, zem
 }
 
 function Dashboard({ username, onLogout }) {
+  const { t } = useLang()
   const [activePage, setActivePage] = useState("dashboard")
   const [wizardTab, setWizardTab] = useState("proje")
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -702,7 +739,7 @@ function Dashboard({ username, onLogout }) {
             {activePage === "guncel" && (
               <>
                 <div style={{ display: "flex", gap: "4px", marginBottom: "24px", background: "var(--bg-card)", borderRadius: "10px", padding: "4px", border: "1px solid var(--input-border)" }}>
-                  {WIZARD_TABS.map(tab => (
+                  {getWizardTabs(t).map(tab => (
                     <button key={tab.id} onClick={() => setWizardTab(tab.id)}
                       style={{
                         flex: 1, padding: "8px 4px", border: "none", borderRadius: "7px",
@@ -792,29 +829,35 @@ export default function App() {
     return () => setOnUnauthorized(null)
   }, [handleLogout])
 
-  if (user) return <ToastProvider><Dashboard username={user} onLogout={handleLogout} /></ToastProvider>
+  if (user) return <LangProvider><ToastProvider><Dashboard username={user} onLogout={handleLogout} /></ToastProvider></LangProvider>
 
   if (authPage === "register")
     return (
-      <RegisterPage
-        onLogin={handleLogin}
-        onGoLogin={() => setAuthPage("login")}
-      />
+      <LangProvider>
+        <RegisterPage
+          onLogin={handleLogin}
+          onGoLogin={() => setAuthPage("login")}
+        />
+      </LangProvider>
     )
 
   if (authPage === "login")
     return (
-      <LoginPage
-        onLogin={handleLogin}
-        onGoRegister={() => setAuthPage("register")}
-        onGoLanding={() => setAuthPage("landing")}
-      />
+      <LangProvider>
+        <LoginPage
+          onLogin={handleLogin}
+          onGoRegister={() => setAuthPage("register")}
+          onGoLanding={() => setAuthPage("landing")}
+        />
+      </LangProvider>
     )
 
   return (
-    <LandingPage
-      onGoLogin={() => setAuthPage("login")}
-      onGoRegister={() => setAuthPage("register")}
-    />
+    <LangProvider>
+      <LandingPage
+        onGoLogin={() => setAuthPage("login")}
+        onGoRegister={() => setAuthPage("register")}
+      />
+    </LangProvider>
   )
 }

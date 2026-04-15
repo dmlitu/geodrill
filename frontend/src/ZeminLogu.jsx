@@ -3,6 +3,7 @@ import { bulkReplaceSoilLayers, fromSnakeLayer } from "./api"
 import ConfirmDialog from "./ConfirmDialog"
 import { useToast } from "./Toast"
 import { zeminHesapTipi } from "./hesaplamalar"
+import { useLang } from "./LangContext"
 
 // ─── Geological classification constants ─────────────────────────────────────
 
@@ -331,6 +332,7 @@ function SondajProfili({ satirlar, yeraltiSuyu, kazikBoyu }) {
 // ─── PDF Preview Modal ────────────────────────────────────────────────────────
 
 function PdfOnizlemeModal({ katmanlar, onUygula, onIptal }) {
+  const { t } = useLang()
   return (
     <div style={{
       position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)",
@@ -356,10 +358,10 @@ function PdfOnizlemeModal({ katmanlar, onUygula, onIptal }) {
           </div>
           <div>
             <h3 style={{ fontSize: "17px", fontWeight: "700", color: "#0F172A", margin: 0 }}>
-              PDF'den Çıkarılan Zemin Katmanları
+              {t("pdfImportTitle")}
             </h3>
             <p style={{ color: "#64748B", fontSize: "13px", margin: "3px 0 0" }}>
-              {katmanlar.length} katman bulundu — inceleyip onaylayın
+              {t("pdfImportDesc").replace("{n}", katmanlar.length)}
             </p>
           </div>
         </div>
@@ -369,7 +371,7 @@ function PdfOnizlemeModal({ katmanlar, onUygula, onIptal }) {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
               <tr style={{ background: "#F8FAFC", borderBottom: "2px solid #E2E8F0" }}>
-                {["#", "Derinlik", "Formasyon", "Zemin Tipi", "Kohezyon", "SPT", "UCS", "RQD"].map(h => (
+                {["#", t("colDepth"), t("colFormation"), t("colSoilType"), t("colCohesion"), t("colSPT"), t("colUCS"), t("colRQD")].map(h => (
                   <th key={h} style={{
                     padding: "10px 12px", textAlign: "left", fontWeight: "700",
                     color: "#64748B", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.3px",
@@ -419,12 +421,12 @@ function PdfOnizlemeModal({ katmanlar, onUygula, onIptal }) {
           <button onClick={onIptal} style={{
             padding: "9px 22px", background: "white", border: "1.5px solid #E2E8F0",
             borderRadius: "8px", fontSize: "14px", fontWeight: "600", cursor: "pointer", color: "#64748B",
-          }}>İptal</button>
+          }}>{t("cancel")}</button>
           <button onClick={onUygula} style={{
             padding: "9px 22px", background: "linear-gradient(135deg, #0284C7, #0EA5E9)",
             color: "white", border: "none", borderRadius: "8px",
             fontSize: "14px", fontWeight: "600", cursor: "pointer",
-          }}>Uygula</button>
+          }}>{t("apply")}</button>
         </div>
       </div>
     </div>
@@ -441,6 +443,7 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
   const [pdfOnizleme, setPdfOnizleme] = useState(null)
   const fileInputRef = useRef(null)
   const toast = useToast()
+  const { t } = useLang()
 
   const satirlar = useMemo(
     () => data.length > 0 ? data : [DEFAULT_ROW()],
@@ -561,8 +564,8 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
     <div>
       <ConfirmDialog
         open={silmeOnay !== null}
-        title="Katman Silinsin mi?"
-        message="Bu zemin katmanını silmek istediğinize emin misiniz?"
+        title={t("delete") + "?"}
+        message={t("deleteConfirm")}
         onConfirm={confirmRemove}
         onCancel={() => setSilmeOnay(null)}
       />
@@ -582,9 +585,9 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
       {/* ── Header ─────────────────────────────────────────────────── */}
       <div style={{ marginBottom: "18px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px" }}>
         <div>
-          <h2 style={{ color: "var(--heading)", fontSize: "20px", fontWeight: "700", margin: 0 }}>Zemin Logu</h2>
+          <h2 style={{ color: "var(--heading)", fontSize: "20px", fontWeight: "700", margin: 0 }}>{t("soilLogTitle")}</h2>
           <p style={{ color: "var(--text-muted)", fontSize: "13px", margin: "3px 0 0" }}>
-            Sondaj bazlı jeolojik profil — {stats.katmanSayisi} katman, {stats.toplamDerinlik} m
+            {stats.katmanSayisi} {t("colDepth").split(" ")[0].toLowerCase()} · {stats.toplamDerinlik} m
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
@@ -602,7 +605,7 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
               <polyline points="17,8 12,3 7,8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
               <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
             </svg>
-            {pdfYukleniyor ? "Okunuyor..." : "PDF Yükle"}
+            {pdfYukleniyor ? t("loading") : "PDF " + t("save")}
           </button>
           <button onClick={kaydet} disabled={kayitDurumu === "loading"} style={{
             display: "flex", alignItems: "center", gap: "6px", padding: "8px 20px",
@@ -615,7 +618,7 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
               <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
             </svg>
-            {kayitDurumu === "loading" ? "Kaydediliyor..." : "Kaydet"}
+            {kayitDurumu === "loading" ? t("saving") : t("save")}
           </button>
         </div>
       </div>
@@ -624,22 +627,22 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginBottom: "14px" }}>
         {[
           {
-            label: "Katman Sayısı", val: `${stats.katmanSayisi}`,
+            label: t("statLayers"), val: `${stats.katmanSayisi}`,
             icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="20" height="3" rx="1" fill="currentColor" opacity=".4"/><rect x="2" y="12" width="20" height="3" rx="1" fill="currentColor" opacity=".7"/><rect x="2" y="17" width="20" height="3" rx="1" fill="currentColor"/></svg>,
             color: "#0369A1",
           },
           {
-            label: "Toplam Derinlik", val: `${stats.toplamDerinlik} m`,
+            label: t("statDepth"), val: `${stats.toplamDerinlik} m`,
             icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><line x1="12" y1="2" x2="12" y2="22" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/><polyline points="8,18 12,22 16,18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
             color: "#0369A1",
           },
           {
-            label: "Maks. SPT", val: stats.maxSPT > 0 ? `N = ${stats.maxSPT}` : "—",
+            label: t("statMaxSPT"), val: stats.maxSPT > 0 ? `N = ${stats.maxSPT}` : "—",
             icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 010 1.4l-8 8a1 1 0 01-1.4 0l-1-1a1 1 0 010-1.4l8-8a1 1 0 011.4 0l1 1z" fill="currentColor" opacity=".5"/><path d="M20 17l-3-3 2-2 3 3a1.4 1.4 0 010 2v0a1.4 1.4 0 01-2 0z" fill="currentColor"/></svg>,
             color: "#0369A1",
           },
           {
-            label: "Kaya Başlangıcı", val: stats.kayaBaslangic !== null ? `${stats.kayaBaslangic} m` : "—",
+            label: t("statRockStart"), val: stats.kayaBaslangic !== null ? `${stats.kayaBaslangic} m` : "—",
             icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 19h20L12 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
             color: "#0369A1",
           },
@@ -667,7 +670,7 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
           borderRadius: "8px", display: "flex", alignItems: "center", gap: "12px",
         }}>
           <span style={{ fontSize: "12.5px", fontWeight: "600", color: kapsamYuzde >= 100 ? "#15803D" : "#92400E", whiteSpace: "nowrap" }}>
-            {kapsamYuzde >= 100 ? "Kapsam tam" : `Kapsam ${kapsamYuzde}%`}
+            {kapsamYuzde >= 100 ? t("coverFull") : t("coverPct").replace("{pct}", kapsamYuzde)}
             <span style={{ fontWeight: "400", marginLeft: "6px" }}>({maxBitis} / {kazikBoyu} m)</span>
           </span>
           <div style={{ flex: 1, height: "5px", background: "#E2E8F0", borderRadius: "3px", overflow: "hidden" }}>
@@ -731,24 +734,24 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "960px" }}>
             <thead>
               <tr>
-                <th style={{ ...thSt, width: "130px" }}>Derinlik (m)</th>
+                <th style={{ ...thSt, width: "130px" }}>{t("colDepth")}</th>
                 <th style={{ ...thSt, width: "10px", padding: "10px 4px" }}></th>
-                <th style={{ ...thSt }}>Formasyon / Birim</th>
-                <th style={{ ...thSt, minWidth: "140px" }}>Zemin Tanımı</th>
-                <th style={{ ...thSt, width: "105px" }}>Sınıf</th>
+                <th style={{ ...thSt }}>{t("colFormation")}</th>
+                <th style={{ ...thSt, minWidth: "140px" }}>{t("colSoilType")}</th>
+                <th style={{ ...thSt, width: "105px" }}>{t("colCohesion")}</th>
                 <th style={{ ...thSt, width: "62px" }}>
-                  <span title="SPT N60 değeri">SPT N</span>
+                  <span title="SPT N60">{t("colSPT")}</span>
                 </th>
                 <th style={{ ...thSt, width: "74px" }}>
-                  <span title="Tek eksenli basınç dayanımı">UCS (MPa)</span>
+                  <span title="Uniaxial compressive strength">{t("colUCS")} (MPa)</span>
                 </th>
                 <th style={{ ...thSt, width: "60px" }}>
-                  <span title="Kaya kalitesi göstergesi">RQD %</span>
+                  <span title="Rock quality designation">{t("colRQD")} %</span>
                 </th>
-                <th style={{ ...thSt, minWidth: "100px" }}>Kıvam / Yoğ.</th>
-                <th style={{ ...thSt, width: "72px" }}>Stabilite</th>
-                <th style={{ ...thSt, width: "80px" }}>Uç Tipi</th>
-                <th style={{ ...thSt, minWidth: "120px" }}>Açıklama</th>
+                <th style={{ ...thSt, minWidth: "100px" }}>{t("colConsistency")}</th>
+                <th style={{ ...thSt, width: "72px" }}>{t("colStability")}</th>
+                <th style={{ ...thSt, width: "80px" }}>{t("colTipType")}</th>
+                <th style={{ ...thSt, minWidth: "120px" }}>{t("colDescription")}</th>
                 <th style={{ ...thSt, width: "34px" }}></th>
               </tr>
             </thead>
@@ -950,13 +953,13 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
                 <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
                 <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
               </svg>
-              Katman Ekle
+              {t("addLayerBtn")}
             </button>
             <div style={{ display: "flex", gap: "16px", fontSize: "11.5px", color: "var(--text-secondary)", fontWeight: "600" }}>
-              <span>{stats.katmanSayisi} katman</span>
+              <span>{stats.katmanSayisi} {t("statLayers").toLowerCase()}</span>
               <span>·</span>
-              <span>{maxBitis} m toplam</span>
-              {yeraltiSuyu > 0 && <><span>·</span><span style={{ color: "#3B82F6" }}>YAS {yeraltiSuyu} m</span></>}
+              <span>{maxBitis} m</span>
+              {yeraltiSuyu > 0 && <><span>·</span><span style={{ color: "#3B82F6" }}>GWL {yeraltiSuyu} m</span></>}
             </div>
           </div>
         </div>
