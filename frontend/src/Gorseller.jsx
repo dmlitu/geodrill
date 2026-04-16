@@ -4,6 +4,7 @@ import {
   ResponsiveContainer, Cell, Legend,
 } from "recharts"
 import { ropHesapla } from "./hesaplamalar"
+import { useLang } from "./LangContext"
 
 // ─── Renk haritası ────────────────────────────────────────────────────────────
 
@@ -23,6 +24,7 @@ const ZEMIN_RENK = {
 
 export function ZeminProfilDiyagrami({ zemin, yeraltiSuyu, kazikBoyu }) {
   const [hover, setHover] = useState(null)
+  const { t } = useLang()
 
   if (!zemin.length) return null
 
@@ -36,7 +38,7 @@ export function ZeminProfilDiyagrami({ zemin, yeraltiSuyu, kazikBoyu }) {
   return (
     <div style={{ position: "relative" }}>
       <h3 style={{ color: "#0369A1", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE" }}>
-        Zemin Profili
+        {t("soilProfile")}
       </h3>
       <svg width={W + 60} height={H + 20} style={{ overflow: "visible" }}>
         {/* Katmanlar */}
@@ -83,7 +85,7 @@ export function ZeminProfilDiyagrami({ zemin, yeraltiSuyu, kazikBoyu }) {
               y1={depthToY(yeraltiSuyu)} y2={depthToY(yeraltiSuyu)}
               stroke="#3B82F6" strokeWidth={1.5} strokeDasharray="6,3" />
             <text x={LEFT + CHART_W + 6} y={depthToY(yeraltiSuyu) + 4}
-              fontSize={9} fill="#3B82F6" fontWeight="600">YAS</text>
+              fontSize={9} fill="#3B82F6" fontWeight="600">{t("gwt")}</text>
           </g>
         )}
 
@@ -94,13 +96,13 @@ export function ZeminProfilDiyagrami({ zemin, yeraltiSuyu, kazikBoyu }) {
               y1={depthToY(kazikBoyu)} y2={depthToY(kazikBoyu)}
               stroke="#DC2626" strokeWidth={2} />
             <text x={LEFT + CHART_W + 6} y={depthToY(kazikBoyu) + 4}
-              fontSize={9} fill="#DC2626" fontWeight="600">Kazık ucu</text>
+              fontSize={9} fill="#DC2626" fontWeight="600">{t("pileEnd")}</text>
           </g>
         )}
 
         {/* Başlık */}
         <text x={LEFT + CHART_W / 2} y={-8} textAnchor="middle" fontSize={10} fill="#0369A1" fontWeight="700">
-          Derinlik (m)
+          {t("depthLabel")}
         </text>
       </svg>
 
@@ -114,7 +116,7 @@ export function ZeminProfilDiyagrami({ zemin, yeraltiSuyu, kazikBoyu }) {
         }}>
           <strong>{zemin[hover].zemTipi}</strong> — {zemin[hover].baslangic}m ~ {zemin[hover].bitis}m
           <br />SPT: {zemin[hover].spt} | UCS: {zemin[hover].ucs} MPa | RQD: {zemin[hover].rqd}%
-          {zemin[hover].formasyon && <><br />Formasyon: {zemin[hover].formasyon}</>}
+          {zemin[hover].formasyon && <><br />{t("formationLabel")}: {zemin[hover].formasyon}</>}
         </div>
       )}
 
@@ -128,7 +130,7 @@ export function ZeminProfilDiyagrami({ zemin, yeraltiSuyu, kazikBoyu }) {
         ))}
         <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "#3B82F6" }}>
           <span style={{ display: "inline-block", width: "14px", height: "2px", background: "#3B82F6", borderTop: "2px dashed #3B82F6" }} />
-          YAS
+          {t("gwt")}
         </span>
       </div>
     </div>
@@ -148,29 +150,33 @@ function katmanTork(row, capMm) {
 }
 
 export function TorkDerinlikGrafigi({ zemin, kazikCapi }) {
+  const { t } = useLang()
+
   if (!zemin.length) return null
+
+  const torkLabel = t("torqueUnit")
 
   const data = zemin.map(row => ({
     derinlik: `${row.baslangic}-${row.bitis}m`,
-    tork: katmanTork(row, kazikCapi),
+    [torkLabel]: katmanTork(row, kazikCapi),
     tip: row.zemTipi,
   }))
 
   return (
     <div>
       <h3 style={{ color: "#0369A1", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE" }}>
-        Tork — Derinlik Grafiği
+        {t("torqueDepthChart")}
       </h3>
       <ResponsiveContainer width="100%" height={280}>
         <BarChart data={data} layout="vertical" margin={{ left: 60, right: 20, top: 4, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-          <XAxis type="number" tick={{ fontSize: 11 }} label={{ value: "Tork (kNm)", position: "insideBottom", offset: -4, fontSize: 11 }} />
+          <XAxis type="number" tick={{ fontSize: 11 }} label={{ value: `${torkLabel} (kNm)`, position: "insideBottom", offset: -4, fontSize: 11 }} />
           <YAxis type="category" dataKey="derinlik" tick={{ fontSize: 10 }} width={60} />
           <Tooltip
-            formatter={(v) => [`${v} kNm`, "Tork"]}
+            formatter={(v) => [`${v} kNm`, torkLabel]}
             contentStyle={{ fontSize: "12px", borderRadius: "8px" }}
           />
-          <Bar dataKey="tork" radius={[0, 4, 4, 0]}>
+          <Bar dataKey={torkLabel} radius={[0, 4, 4, 0]}>
             {data.map((entry, i) => (
               <Cell key={i} fill={ZEMIN_RENK[entry.tip] || "#0EA5E9"} />
             ))}
@@ -184,6 +190,8 @@ export function TorkDerinlikGrafigi({ zemin, kazikCapi }) {
 // ─── 3. Gantt Şeması (SVG) ────────────────────────────────────────────────────
 
 export function GanttSemasi({ kazikAdedi, sure, toplamGun }) {
+  const { t } = useLang()
+
   const mobilize = 1
   const delmeSure = Math.ceil((sure * kazikAdedi) / 10)
   const bekleme = Math.ceil(delmeSure * 0.1)
@@ -191,10 +199,10 @@ export function GanttSemasi({ kazikAdedi, sure, toplamGun }) {
   const toplam = mobilize + delmeSure + bekleme + demobilize
 
   const fazlar = [
-    { ad: "Mobilizasyon", sure: mobilize, renk: "#6366F1" },
-    { ad: "Kazık Delme", sure: delmeSure, renk: "#0284C7" },
-    { ad: "Bekleme / Test", sure: bekleme, renk: "#0EA5E9" },
-    { ad: "Demobilizasyon", sure: demobilize, renk: "#94A3B8" },
+    { ad: t("ganttMobilization"), sure: mobilize, renk: "#6366F1" },
+    { ad: t("ganttDrilling"), sure: delmeSure, renk: "#0284C7" },
+    { ad: t("ganttWaiting"), sure: bekleme, renk: "#0EA5E9" },
+    { ad: t("ganttDemobilization"), sure: demobilize, renk: "#94A3B8" },
   ]
 
   const W = 420
@@ -207,7 +215,7 @@ export function GanttSemasi({ kazikAdedi, sure, toplamGun }) {
   return (
     <div>
       <h3 style={{ color: "#0369A1", fontSize: "15px", fontWeight: "700", marginBottom: "16px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE" }}>
-        Proje Zaman Çizelgesi
+        {t("projectTimeline")}
       </h3>
       <svg width={W + 60} height={H} style={{ overflow: "visible" }}>
         {/* Gün grid */}
@@ -222,7 +230,7 @@ export function GanttSemasi({ kazikAdedi, sure, toplamGun }) {
           )
         })}
         <text x={LEFT + BAR_W / 2} y={H - 2} textAnchor="middle" fontSize={10} fill="#94A3B8">
-          Toplam ~{toplamGun} iş günü
+          {t("totalDays").replace("{n}", toplamGun)}
         </text>
 
         {fazlar.map((faz, i) => {
@@ -269,7 +277,12 @@ function sureTahmini(zemin, capMm, kazikBoyu) {
 }
 
 export function SenaryoKarsilastirma({ zemin, kazikCapi, kazikBoyu, kazikAdedi }) {
+  const { t } = useLang()
+
   if (!zemin.length) return null
+
+  const torkKey = `${t("torqueUnit")} (kNm)`
+  const pileKey = `${t("onePileHours")}`
 
   const senaryolar = [-400, -200, 0, 200, 400].map(delta => {
     const cap = kazikCapi + delta
@@ -281,33 +294,33 @@ export function SenaryoKarsilastirma({ zemin, kazikCapi, kazikBoyu, kazikAdedi }
 
   const data = senaryolar.map(s => ({
     name: `Ø${s.cap}mm`,
-    "Tork (kNm)": s.tork,
-    "1 Kazık (saat)": s.sure,
+    [torkKey]: s.tork,
+    [pileKey]: s.sure,
     isMain: s.isMain,
   }))
 
   return (
     <div>
       <h3 style={{ color: "#0369A1", fontSize: "15px", fontWeight: "700", marginBottom: "8px", paddingBottom: "10px", borderBottom: "2px solid #E0F2FE" }}>
-        Senaryo Karşılaştırması — Çap Değişimi
+        {t("scenarioComparison")}
       </h3>
       <p style={{ color: "#94A3B8", fontSize: "12px", marginBottom: "16px" }}>
-        Mevcut çap (Ø{kazikCapi}mm) baz alınarak ±200 / ±400 mm senaryoları
+        {t("scenarioBaseDesc").replace("{d}", kazikCapi)}
       </p>
       <ResponsiveContainer width="100%" height={260}>
         <BarChart data={data} margin={{ left: 8, right: 8, top: 4, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
           <XAxis dataKey="name" tick={{ fontSize: 11 }} />
           <YAxis yAxisId="tork" orientation="left" tick={{ fontSize: 10 }} label={{ value: "kNm", angle: -90, position: "insideLeft", fontSize: 10 }} />
-          <YAxis yAxisId="sure" orientation="right" tick={{ fontSize: 10 }} label={{ value: "saat", angle: 90, position: "insideRight", fontSize: 10 }} />
+          <YAxis yAxisId="sure" orientation="right" tick={{ fontSize: 10 }} label={{ value: "h", angle: 90, position: "insideRight", fontSize: 10 }} />
           <Tooltip contentStyle={{ fontSize: "12px", borderRadius: "8px" }} />
           <Legend wrapperStyle={{ fontSize: "12px" }} />
-          <Bar yAxisId="tork" dataKey="Tork (kNm)" radius={[4, 4, 0, 0]}>
+          <Bar yAxisId="tork" dataKey={torkKey} radius={[4, 4, 0, 0]}>
             {data.map((entry, i) => (
               <Cell key={i} fill={entry.isMain ? "#0284C7" : "#7DD3FC"} />
             ))}
           </Bar>
-          <Bar yAxisId="sure" dataKey="1 Kazık (saat)" radius={[4, 4, 0, 0]}>
+          <Bar yAxisId="sure" dataKey={pileKey} radius={[4, 4, 0, 0]}>
             {data.map((entry, i) => (
               <Cell key={i} fill={entry.isMain ? "#0891B2" : "#A5F3FC"} />
             ))}

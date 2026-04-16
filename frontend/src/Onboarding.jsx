@@ -4,6 +4,7 @@
  */
 import { useState } from "react"
 import { createCompany, joinCompany } from "./api"
+import { useLang } from "./LangContext"
 
 const S = {
   overlay: {
@@ -106,35 +107,33 @@ function ProgressBar({ step, total }) {
 // ── Adım 1: Hoş Geldin ──────────────────────────────────────────────────────
 
 function Adim1({ username, onNext, onSkip }) {
+  const { t } = useLang()
   return (
     <div>
       <Logo />
       <ProgressBar step={0} total={4} />
-      <div style={S.step}>ADIM 1 / 4</div>
-      <div style={S.h}>Hoş geldiniz, {username}!</div>
-      <div style={S.sub}>
-        GeoDrill Insight, kazık sondajı kararlarınızı veri ile destekler. Birkaç adımda
-        hesaplama motorunu yapılandıralım — toplam 2 dakika sürer.
-      </div>
+      <div style={S.step}>{t("step1of4")}</div>
+      <div style={S.h}>{t("onboardingWelcome").replace("{name}", username)}</div>
+      <div style={S.sub}>{t("onboardingDesc")}</div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "32px" }}>
         {[
-          { icon: "🪨", label: "Zemin profili", desc: "SPT / UCS / RQD" },
-          { icon: "⚙️", label: "Makine kararı", desc: "Tork & crowd analizi" },
-          { icon: "📊", label: "Risk değerlendirmesi", desc: "Güven puanı ile" },
-          { icon: "💰", label: "Maliyet motoru", desc: "Piyasa karşılaştırması" },
+          { icon: "🪨", labelKey: "featureSoilLabel", desc: "SPT / UCS / RQD" },
+          { icon: "⚙️", labelKey: "featureMachineLabel", desc: "Tork & crowd analizi" },
+          { icon: "📊", labelKey: "featureRiskLabel", desc: "Güven puanı ile" },
+          { icon: "💰", labelKey: "featureCostLabel", desc: "Piyasa karşılaştırması" },
         ].map(f => (
-          <div key={f.label} style={{ background: "#F0F9FF", borderRadius: "10px", padding: "14px 12px", border: "1px solid #BAE6FD" }}>
+          <div key={f.labelKey} style={{ background: "#F0F9FF", borderRadius: "10px", padding: "14px 12px", border: "1px solid #BAE6FD" }}>
             <div style={{ fontSize: "18px", marginBottom: "6px" }}>{f.icon}</div>
-            <div style={{ fontSize: "12px", fontWeight: "700", color: "#0C4A6E", marginBottom: "2px" }}>{f.label}</div>
+            <div style={{ fontSize: "12px", fontWeight: "700", color: "#0C4A6E", marginBottom: "2px" }}>{t(f.labelKey)}</div>
             <div style={{ fontSize: "11px", color: "#64748B" }}>{f.desc}</div>
           </div>
         ))}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        <button style={S.btn} onClick={onNext}>Başlayalım →</button>
-        <button style={S.btnGhost} onClick={onSkip}>Atla, doğrudan uygulamaya git</button>
+        <button style={S.btn} onClick={onNext}>{t("letsStart")}</button>
+        <button style={S.btnGhost} onClick={onSkip}>{t("skipToApp")}</button>
       </div>
     </div>
   )
@@ -149,30 +148,31 @@ function Adim2({ onNext, onSkip }) {
   const [joinSlug, setJoinSlug] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const { t } = useLang()
 
   const autoSlug = (name) => name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
 
   const handleCreate = async () => {
-    if (!firmaAdi.trim()) { setError("Firma adı gerekli"); return }
+    if (!firmaAdi.trim()) { setError(t("companyNameRequired2")); return }
     setLoading(true); setError("")
     try {
       await createCompany({ name: firmaAdi.trim(), slug: slug || autoSlug(firmaAdi) })
       onNext()
     } catch (e) {
-      setError(e.message || "Firma oluşturulamadı")
+      setError(e.message || t("cantCreateCompany2"))
     } finally {
       setLoading(false)
     }
   }
 
   const handleJoin = async () => {
-    if (!joinSlug.trim()) { setError("Firma kodu gerekli"); return }
+    if (!joinSlug.trim()) { setError(t("companyCodeRequired")); return }
     setLoading(true); setError("")
     try {
       await joinCompany(joinSlug.trim())
       onNext()
     } catch (e) {
-      setError(e.message || "Firmaya katılamadı")
+      setError(e.message || t("cantJoinCompany2"))
     } finally {
       setLoading(false)
     }
@@ -182,20 +182,17 @@ function Adim2({ onNext, onSkip }) {
     <div>
       <Logo />
       <ProgressBar step={1} total={4} />
-      <div style={S.step}>ADIM 2 / 4</div>
-      <div style={S.h}>Firma Kurulumu</div>
-      <div style={S.sub}>
-        Analizlerinizi firmanızla paylaşmak ve ortak proje geçmişi oluşturmak için
-        çalışma alanı belirleyin. İstediğiniz zaman ayarlardan değiştirebilirsiniz.
-      </div>
+      <div style={S.step}>{t("step2of4")}</div>
+      <div style={S.h}>{t("companySetupTitle")}</div>
+      <div style={S.sub}>{t("companySetupDesc")}</div>
 
       {!mode && (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
           <button onClick={() => setMode("create")} style={{ ...S.btn, background: "linear-gradient(135deg,#0284C7,#0EA5E9)" }}>
-            + Yeni Firma Oluştur
+            {t("newCompanyBtn")}
           </button>
           <button onClick={() => setMode("join")} style={S.btnGhost}>
-            Mevcut Firmaya Katıl
+            {t("joinExistingBtn")}
           </button>
         </div>
       )}
@@ -203,43 +200,43 @@ function Adim2({ onNext, onSkip }) {
       {mode === "create" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "16px" }}>
           <div>
-            <label style={S.label}>FİRMA ADI</label>
+            <label style={S.label}>{t("companyNameLabelCap")}</label>
             <input style={S.inp} value={firmaAdi} placeholder="Örn: Temel İnşaat A.Ş."
               onChange={e => { setFirmaAdi(e.target.value); setSlug(autoSlug(e.target.value)) }} />
           </div>
           <div>
-            <label style={S.label}>ÇALIŞMA ALANI KODU (opsiyonel)</label>
+            <label style={S.label}>{t("workspaceCodeLabelCap")}</label>
             <input style={S.inp} value={slug} placeholder="temel-insaat"
               onChange={e => setSlug(autoSlug(e.target.value))} />
-            <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "4px" }}>Ekip arkadaşlarınız bu kodla katılır</div>
+            <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "4px" }}>{t("workspaceCodeHint")}</div>
           </div>
           {error && <div style={{ color: "#DC2626", fontSize: "13px", background: "#FEF2F2", padding: "10px 12px", borderRadius: "8px" }}>{error}</div>}
           <button style={{ ...S.btn, opacity: loading ? 0.6 : 1 }} onClick={handleCreate} disabled={loading}>
-            {loading ? "Oluşturuluyor..." : "Firma Oluştur →"}
+            {loading ? t("creatingCompanyBtn") : t("createCompanyArrow")}
           </button>
-          <button style={S.btnGhost} onClick={() => { setMode(null); setError("") }}>Geri</button>
+          <button style={S.btnGhost} onClick={() => { setMode(null); setError("") }}>{t("backBtn")}</button>
         </div>
       )}
 
       {mode === "join" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "16px" }}>
           <div>
-            <label style={S.label}>FİRMA KODU</label>
+            <label style={S.label}>{t("companyCodeLabelCap")}</label>
             <input style={S.inp} value={joinSlug} placeholder="temel-insaat"
               onChange={e => setJoinSlug(e.target.value)} />
-            <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "4px" }}>Firma yöneticisinden alın</div>
+            <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "4px" }}>{t("companyCodeHint")}</div>
           </div>
           {error && <div style={{ color: "#DC2626", fontSize: "13px", background: "#FEF2F2", padding: "10px 12px", borderRadius: "8px" }}>{error}</div>}
           <button style={{ ...S.btn, opacity: loading ? 0.6 : 1 }} onClick={handleJoin} disabled={loading}>
-            {loading ? "Katılınıyor..." : "Katıl →"}
+            {loading ? t("joiningCompanyBtn") : t("joinCompanyArrow")}
           </button>
-          <button style={S.btnGhost} onClick={() => { setMode(null); setError("") }}>Geri</button>
+          <button style={S.btnGhost} onClick={() => { setMode(null); setError("") }}>{t("backBtn")}</button>
         </div>
       )}
 
       {!mode && (
         <button style={{ ...S.btnGhost, marginTop: "4px", color: "#94A3B8", border: "none", fontSize: "13px" }} onClick={onSkip}>
-          Şimdilik atla →
+          {t("skipForNow")}
         </button>
       )}
     </div>
@@ -249,16 +246,14 @@ function Adim2({ onNext, onSkip }) {
 // ── Adım 3: İlk Proje ───────────────────────────────────────────────────────
 
 function Adim3({ onDemo, onBos }) {
+  const { t } = useLang()
   return (
     <div>
       <Logo />
       <ProgressBar step={2} total={4} />
-      <div style={S.step}>ADIM 3 / 4</div>
-      <div style={S.h}>İlk Projenizi Başlatın</div>
-      <div style={S.sub}>
-        Gerçek verilerle başlamak için demo projeyi yükleyin, ya da sıfırdan
-        kendiniz oluşturun. Her iki durumda da tam sistemi kullanabilirsiniz.
-      </div>
+      <div style={S.step}>{t("step3of4")}</div>
+      <div style={S.h}>{t("onboardStep3Title")}</div>
+      <div style={S.sub}>{t("onboardStep3Desc")}</div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "8px" }}>
         {/* Demo kart */}
@@ -274,10 +269,9 @@ function Adim3({ onDemo, onBos }) {
           onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
         >
           <div style={{ fontSize: "22px", marginBottom: "8px" }}>🏗️</div>
-          <div style={{ fontSize: "15px", fontWeight: "700", marginBottom: "4px" }}>Demo Proje Yükle (Önerilen)</div>
+          <div style={{ fontSize: "15px", fontWeight: "700", marginBottom: "4px" }}>{t("loadDemoRecommended")}</div>
           <div style={{ fontSize: "12px", opacity: 0.85, lineHeight: "1.5" }}>
-            İstanbul / Kadıköy Metro temel kazıkları — kil, kum, kaya katmanlı gerçek profil.
-            Tüm hesaplamalar çalışır halde.
+            {t("demoProjectDescFull")}
           </div>
         </button>
 
@@ -292,9 +286,9 @@ function Adim3({ onDemo, onBos }) {
           onMouseLeave={e => { e.currentTarget.style.borderColor = "#E2E8F0"; e.currentTarget.style.boxShadow = "none" }}
         >
           <div style={{ fontSize: "22px", marginBottom: "8px" }}>📋</div>
-          <div style={{ fontSize: "15px", fontWeight: "700", color: "#0C4A6E", marginBottom: "4px" }}>Boş Proje ile Başla</div>
+          <div style={{ fontSize: "15px", fontWeight: "700", color: "#0C4A6E", marginBottom: "4px" }}>{t("blankProjectBtn")}</div>
           <div style={{ fontSize: "12px", color: "#64748B", lineHeight: "1.5" }}>
-            Proje bilgilerini ve zemin katmanlarını kendiniz gireceksiniz.
+            {t("blankProjectDescFull")}
           </div>
         </button>
       </div>
@@ -306,11 +300,12 @@ function Adim3({ onDemo, onBos }) {
 
 function Adim4({ onBitir, demoYuklendi }) {
   const [hover, setHover] = useState(false)
+  const { t } = useLang()
   return (
     <div style={{ textAlign: "center" }}>
       <Logo />
       <ProgressBar step={3} total={4} />
-      <div style={S.step}>ADIM 4 / 4</div>
+      <div style={S.step}>{t("step4of4")}</div>
 
       {/* Check animasyonu */}
       <div style={{
@@ -325,24 +320,21 @@ function Adim4({ onBitir, demoYuklendi }) {
         ✓
       </div>
 
-      <div style={{ ...S.h, textAlign: "center" }}>Her şey hazır!</div>
+      <div style={{ ...S.h, textAlign: "center" }}>{t("step4Title")}</div>
       <div style={{ ...S.sub, textAlign: "center" }}>
-        {demoYuklendi
-          ? "Demo proje yüklendi. Zemin profilini, tork hesabını ve maliyet analizini inceleyebilirsiniz."
-          : "Boş proje oluşturuldu. Proje formunu doldurup zemin katmanlarını ekleyerek başlayabilirsiniz."
-        }
+        {demoYuklendi ? t("step4DemoMsg") : t("step4BlankMsg")}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "32px" }}>
         {[
-          { icon: "📋", label: "Proje Bilgileri", desc: "İlk adım" },
-          { icon: "🪨", label: "Zemin Logu", desc: "Katman girin" },
-          { icon: "📊", label: "Analiz", desc: "Sonuçları gör" },
+          { icon: "📋", labelKey: "onboardStep1Label", descKey: "onboardFirstStep" },
+          { icon: "🪨", labelKey: "onboardStep2Label", descKey: "onboardEnterLayers" },
+          { icon: "📊", labelKey: "onboardStep3Label", descKey: "onboardSeeResults" },
         ].map(s => (
-          <div key={s.label} style={{ background: "#F0F9FF", borderRadius: "10px", padding: "14px 10px", border: "1px solid #BAE6FD", textAlign: "center" }}>
+          <div key={s.labelKey} style={{ background: "#F0F9FF", borderRadius: "10px", padding: "14px 10px", border: "1px solid #BAE6FD", textAlign: "center" }}>
             <div style={{ fontSize: "20px", marginBottom: "6px" }}>{s.icon}</div>
-            <div style={{ fontSize: "11px", fontWeight: "700", color: "#0C4A6E", marginBottom: "2px" }}>{s.label}</div>
-            <div style={{ fontSize: "10px", color: "#64748B" }}>{s.desc}</div>
+            <div style={{ fontSize: "11px", fontWeight: "700", color: "#0C4A6E", marginBottom: "2px" }}>{t(s.labelKey)}</div>
+            <div style={{ fontSize: "10px", color: "#64748B" }}>{t(s.descKey)}</div>
           </div>
         ))}
       </div>
@@ -359,7 +351,7 @@ function Adim4({ onBitir, demoYuklendi }) {
         onMouseLeave={() => setHover(false)}
         onClick={onBitir}
       >
-        Uygulamaya Geç →
+        {t("toAppBtn")}
       </button>
     </div>
   )
