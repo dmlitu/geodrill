@@ -418,7 +418,13 @@ function DarkModeToggle({ dark, onToggle }) {
 }
 
 function Header({ username, onLogout, onMenuOpen, dark, onToggleDark }) {
-  const { lang, toggleLang, t } = useLang()
+  const { lang, setLang, t } = useLang()
+
+  const handleLangChange = (l) => {
+    setLang(l)
+    localStorage.setItem("gd_lang", l)
+  }
+
   return (
     <header style={{
       height: "54px",
@@ -445,22 +451,39 @@ function Header({ username, onLogout, onMenuOpen, dark, onToggleDark }) {
         <span style={{ color: "var(--text-secondary)" }}>{username}</span>
       </span>
       <DarkModeToggle dark={dark} onToggle={onToggleDark} />
-      <button
-        onClick={toggleLang}
+      <div
+        role="group"
+        aria-label="Language"
         style={{
-          padding: "5px 11px",
+          display: "flex",
           border: "1px solid var(--border-medium)",
           borderRadius: "6px",
-          background: "transparent",
-          color: "var(--text-secondary)",
-          fontSize: "11px", cursor: "pointer",
-          fontFamily: "'DM Mono', monospace",
-          fontWeight: "700", letterSpacing: "0.06em",
-          transition: "color 0.15s, border-color 0.15s",
+          overflow: "hidden",
         }}
       >
-        {lang.toUpperCase()}
-      </button>
+        {["tr", "en", "ru"].map((l, i) => (
+          <button
+            key={l}
+            onClick={() => handleLangChange(l)}
+            aria-pressed={lang === l}
+            style={{
+              padding: "5px 9px",
+              border: "none",
+              borderRight: i < 2 ? "1px solid var(--border-medium)" : "none",
+              background: lang === l ? "var(--accent)" : "transparent",
+              color: lang === l ? "white" : "var(--text-secondary)",
+              fontSize: "11px",
+              cursor: "pointer",
+              fontFamily: "'DM Mono', monospace",
+              fontWeight: "700",
+              letterSpacing: "0.06em",
+              transition: "background 0.15s, color 0.15s",
+            }}
+          >
+            {l.toUpperCase()}
+          </button>
+        ))}
+      </div>
       <button
         onClick={onLogout}
         aria-label="Sign out"

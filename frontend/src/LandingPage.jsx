@@ -164,7 +164,9 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
   const [activePage, setActivePage] = useState("home")
   const [selectedPost, setSelectedPost] = useState(null)
   const [mobMenu, setMobMenu] = useState(false)
-  const { t } = useLang()
+  const { t, lang, setLang } = useLang()
+
+  const handleLangChange = (l) => { setLang(l); localStorage.setItem("gd_lang", l) }
 
   const goHome = () => { setActivePage("home"); setSelectedPost(null); setMobMenu(false); window.scrollTo(0, 0) }
   const goPost = (post) => { setSelectedPost(post); setActivePage("post"); setMobMenu(false); window.scrollTo(0, 0) }
@@ -356,6 +358,40 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
             <button key={id} className="nav-link" onClick={() => goPage(id)}>{label}</button>
           ))}
           <div style={{ width: "1px", height: "20px", background: "#E0F2FE", margin: "0 8px" }} />
+          <div
+            role="group"
+            aria-label="Language"
+            style={{
+              display: "flex",
+              border: "1px solid #BAE6FD",
+              borderRadius: "6px",
+              overflow: "hidden",
+              marginRight: "4px",
+            }}
+          >
+            {["tr", "en", "ru"].map((l, i) => (
+              <button
+                key={l}
+                onClick={() => handleLangChange(l)}
+                aria-pressed={lang === l}
+                style={{
+                  padding: "5px 8px",
+                  border: "none",
+                  borderRight: i < 2 ? "1px solid #BAE6FD" : "none",
+                  background: lang === l ? "#0EA5E9" : "transparent",
+                  color: lang === l ? "white" : "#64748B",
+                  fontSize: "11px",
+                  cursor: "pointer",
+                  fontFamily: "'DM Mono', monospace",
+                  fontWeight: "700",
+                  letterSpacing: "0.06em",
+                  transition: "background 0.15s, color 0.15s",
+                }}
+              >
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
           <button className="nav-btn-ghost" onClick={onGoLogin}>{t("navLoginBtn")}</button>
           <button className="nav-btn-accent" onClick={() => setDemoAcik(true)}>{t("navDemoRequest")}</button>
         </div>
@@ -383,7 +419,29 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
                 fontFamily: "'Plus Jakarta Sans', sans-serif",
               }}>{label}</button>
             ))}
-            <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+            <div style={{ display: "flex", gap: "4px", marginTop: "12px", marginBottom: "4px" }}>
+              {["tr", "en", "ru"].map((l, i) => (
+                <button
+                  key={l}
+                  onClick={() => { handleLangChange(l); setMobMenu(false) }}
+                  aria-pressed={lang === l}
+                  style={{
+                    flex: 1, padding: "8px 4px",
+                    border: `1px solid ${lang === l ? "#0EA5E9" : "#BAE6FD"}`,
+                    borderRadius: "6px",
+                    background: lang === l ? "#0EA5E9" : "transparent",
+                    color: lang === l ? "white" : "#64748B",
+                    fontSize: "12px", cursor: "pointer",
+                    fontFamily: "'DM Mono', monospace",
+                    fontWeight: "700", letterSpacing: "0.06em",
+                    transition: "background 0.15s, color 0.15s",
+                  }}
+                >
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
               <button className="nav-btn-ghost" style={{ flex: 1 }} onClick={() => { onGoLogin(); setMobMenu(false) }}>{t("navLoginBtn")}</button>
               <button className="nav-btn-accent" style={{ flex: 1 }} onClick={() => { setDemoAcik(true); setMobMenu(false) }}>{t("navDemoRequest")}</button>
             </div>
