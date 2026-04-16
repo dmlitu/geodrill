@@ -227,6 +227,8 @@
   "excelDownloading": "Подготовка Excel...",
   "pdfError": "Не удалось скачать PDF",
   "excelError": "Не удалось скачать Excel",
+  "excelExport": "Скачать Excel",
+  "saveProjectForPdf": "Сохраните проект для PDF и сохранения анализа",
 
   "costTitle": "Анализ стоимости",
   "costDesc": "Рассчитайте стоимость свайных работ",

@@ -65,11 +65,34 @@ function ProjeKarti({ proje, onDuzenle, onSil }) {
   }
 
   const handleXlsx = async () => {
-    if (!detay) return
     setXlsxYukleniyor(true)
-    try { await downloadExcelReport(detay.proje, detay.zemin, detay.analiz, proje.proje_kodu) }
-    catch (e) { toast.error(t("excelError") + ": " + e.message) }
-    finally { setXlsxYukleniyor(false) }
+    try {
+      // Load data if not already expanded — Excel doesn't require accordion to be open
+      let d = detay
+      if (!d) {
+        const tam = await getProject(proje.id)
+        const zemin = (tam.soil_layers || []).map(fromSnakeLayer)
+        const projeData = fromSnake(tam)
+        let analiz = null
+        if (zemin.length) {
+          const tork = gerekliTork(zemin, projeData.kazikCapi)
+          const { durum: casingDur, zorunlu } = casingDurum(zemin, projeData.yeraltiSuyu)
+          const casingM = casingMetreHesapla(zemin, projeData.yeraltiSuyu)
+          const sure = kazikSuresi(zemin, projeData.kazikCapi, projeData.kazikBoyu, casingM)
+          const { mBasi, toplam: topMazot } = mazotTahmini(tork, projeData.kazikBoyu)
+          const toplamGun = Math.round(sure * projeData.kazikAdedi * 10) / 10
+          const katmanCiktilar = katmanTeknikCikti(zemin, projeData.kazikCapi)
+          analiz = { tork, casingDur, casingM, sure, mBasi, topMazot, toplamGun, zorunlu, katmanCiktilar }
+        }
+        d = { zemin, proje: projeData, analiz }
+        setDetay(d)
+      }
+      await downloadExcelReport(d.proje, d.zemin, d.analiz, proje.proje_kodu)
+    } catch (e) {
+      toast.error(t("excelError") + ": " + e.message)
+    } finally {
+      setXlsxYukleniyor(false)
+    }
   }
 
   const tarih = new Date(proje.updated_at || proje.created_at || Date.now())
@@ -115,7 +138,7 @@ function ProjeKarti({ proje, onDuzenle, onSil }) {
             style={{ padding: "5px 12px", border: "1px solid #BAE6FD", borderRadius: "6px", background: "#F0F9FF", color: "#0369A1", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}
           >{pdfYukleniyor ? "..." : "PDF"}</button>
           <button
-            onClick={e => { e.stopPropagation(); toggle().then(() => handleXlsx()) }}
+            onClick={e => { e.stopPropagation(); handleXlsx() }}
             disabled={xlsxYukleniyor}
             style={{ padding: "5px 12px", border: "1px solid #BBF7D0", borderRadius: "6px", background: "#F0FDF4", color: "#16A34A", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}
           >{xlsxYukleniyor ? "..." : "Excel"}</button>

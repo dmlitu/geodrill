@@ -227,6 +227,8 @@
   "excelDownloading": "Excel hazırlanıyor...",
   "pdfError": "PDF indirilemedi",
   "excelError": "Excel indirilemedi",
+  "excelExport": "Excel İndir",
+  "saveProjectForPdf": "Projeyi kaydedin → PDF & analiz kaydet etkinleşir",
 
   "costTitle": "Fiyat Analizi",
   "costDesc": "Kazık maliyetlerini hesaplayın",

@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react"
-import { downloadPdfReport, downloadSoilLayersCsv, saveAnalysis } from "./api"
+import { downloadPdfReport, downloadExcelReport, saveAnalysis } from "./api"
 import { useToast } from "./Toast"
 import { useLang } from "./LangContext"
 import { ZeminProfilDiyagrami, TorkDerinlikGrafigi, GanttSemasi, SenaryoKarsilastirma } from "./Gorseller"
@@ -39,191 +39,11 @@ function MetrikKart({ baslik, deger, renk, alt, oran }) {
   )
 }
 
-// ── PDF Önizleme Modal ──────────────────────────────────
-function PdfOnizleme({ open, onClose, onDownload, yukleniyor, proje, analiz, zemin, makineUygunluklari }) {
-  const { t } = useLang()
-  if (!open || !analiz) return null
-  const { tork, casingDur, casingM, sure, mBasi, topMazot, toplamGun } = analiz
-
-  const rows = [
-    [t("pdfProjectName"), proje.projeAdi || "—"],
-    [t("pdfLocation"), proje.lokasyon || "—"],
-    [t("pdfJobType"), proje.isTipi],
-    [t("pdfPile"), `${proje.kazikBoyu}m / Ø${proje.kazikCapi}mm / ${proje.kazikAdedi}`],
-  ]
-  const metrikler = [
-    [t("pdfMinTorque"), `${tork} kNm`],
-    [t("pdfCasing"), `${casingDur} (${casingM} m)`],
-    [t("pdfDrillTime"), `${sure} h`],
-    [t("pdfTotalDuration"), `${toplamGun} d`],
-    [t("pdfFuelPerMeter"), `${mBasi} L/m`],
-    [t("pdfTotalFuel"), `${Math.round(topMazot * proje.kazikAdedi)} L`],
-  ]
-
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, zIndex: 9000,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)",
-        animation: "fadeUp 0.15s ease",
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: "var(--bg-surface)", borderRadius: "16px",
-          width: "100%", maxWidth: "520px", maxHeight: "85vh",
-          overflow: "hidden", display: "flex", flexDirection: "column",
-          boxShadow: "0 24px 80px rgba(0,0,0,0.2)",
-          animation: "fadeUp 0.25s ease",
-        }}
-      >
-        {/* Header */}
-        <div style={{
-          padding: "20px 24px", borderBottom: "1px solid var(--border-subtle)",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-        }}>
-          <div>
-            <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)" }}>{t("pdfPreviewTitle")}</h3>
-            <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{t("pdfPreviewDesc")}</p>
-          </div>
-          <button onClick={onClose} style={{
-            background: "none", border: "none", cursor: "pointer",
-            color: "var(--text-muted)", fontSize: "20px", padding: "4px",
-          }}>×</button>
-        </div>
-
-        {/* Content */}
-        <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1 }}>
-          {/* Fake PDF page */}
-          <div style={{
-            background: "white", border: "1px solid #E2E8F0", borderRadius: "8px",
-            padding: "24px", color: "#0C4A6E", fontSize: "12px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-          }}>
-            <div style={{ textAlign: "center", marginBottom: "16px", paddingBottom: "12px", borderBottom: "2px solid #0284C7" }}>
-              <div style={{ fontFamily: "'Fraunces', serif", fontSize: "16px", fontWeight: "800", color: "#0C4A6E" }}>
-                {t("pdfAnalysisReport")}
-              </div>
-              <div style={{ fontSize: "10px", color: "#64748B", marginTop: "4px" }}>
-                {proje.projeAdi} | {proje.lokasyon} | {new Date().toLocaleDateString("tr-TR")}
-              </div>
-            </div>
-
-            <div style={{ marginBottom: "14px" }}>
-              <div style={{ fontSize: "11px", fontWeight: "700", color: "#0369A1", marginBottom: "6px" }}>{t("pdfProjectInfo")}</div>
-              {rows.map(([k, v]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #F1F5F9" }}>
-                  <span style={{ color: "#64748B" }}>{k}</span>
-                  <span style={{ fontWeight: "600" }}>{v}</span>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ marginBottom: "14px" }}>
-              <div style={{ fontSize: "11px", fontWeight: "700", color: "#0369A1", marginBottom: "6px" }}>{t("pdfAnalysisResults")}</div>
-              {metrikler.map(([k, v]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #F1F5F9" }}>
-                  <span style={{ color: "#64748B" }}>{k}</span>
-                  <span style={{ fontWeight: "600" }}>{v}</span>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ marginBottom: "8px" }}>
-              <div style={{ fontSize: "11px", fontWeight: "700", color: "#0369A1", marginBottom: "6px" }}>{t("pdfSoilLog")} ({zemin.length} {t("pdfLayers")})</div>
-              <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-                {zemin.map((z, i) => (
-                  <span key={i} style={{
-                    padding: "2px 8px", borderRadius: "4px", fontSize: "10px",
-                    background: "#F0F9FF", border: "1px solid #E0F2FE", color: "#0369A1",
-                  }}>
-                    {z.zemTipi} ({z.baslangic}-{z.bitis}m)
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {makineUygunluklari.length > 0 && (
-              <div>
-                <div style={{ fontSize: "11px", fontWeight: "700", color: "#0369A1", marginBottom: "6px", marginTop: "10px" }}>
-                  {t("pdfEquipment")} ({makineUygunluklari.length} {t("pdfMachines")})
-                </div>
-                {makineUygunluklari.map((m, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #F1F5F9" }}>
-                    <span style={{ color: "#64748B" }}>{m.ad} ({m.marka})</span>
-                    <span style={{ fontWeight: "600", color: m.renk }}>{m.karar}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div style={{ marginTop: "14px", paddingTop: "8px", borderTop: "1px solid #E2E8F0", fontSize: "9px", color: "#94A3B8", textAlign: "center" }}>
-              GeoDrill Insight — {new Date().toLocaleDateString("tr-TR")}
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div style={{
-          padding: "16px 24px", borderTop: "1px solid var(--border-subtle)",
-          display: "flex", gap: "10px", justifyContent: "flex-end",
-        }}>
-          <button onClick={onClose} style={{
-            padding: "10px 20px", border: "1px solid var(--input-border)",
-            borderRadius: "8px", background: "var(--bg-surface)",
-            color: "var(--text-secondary)", fontSize: "13px", fontWeight: "600",
-            cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif",
-          }}>
-            {t("close")}
-          </button>
-          <button onClick={onDownload} disabled={yukleniyor} style={{
-            padding: "10px 24px", border: "none", borderRadius: "8px",
-            background: yukleniyor ? "#94A3B8" : "linear-gradient(135deg, #0284C7, #0EA5E9)",
-            color: "white", fontSize: "13px", fontWeight: "600",
-            cursor: yukleniyor ? "wait" : "pointer",
-            fontFamily: "'Plus Jakarta Sans', sans-serif",
-          }}>
-            {yukleniyor ? t("generating") : t("pdfDownload")}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── CSV indirme (client-side) ─────────────────────────────
-function analizCsvIndir(proje, tork, casingDur, casingM, sure, toplamGun, mBasi, topMazot, makineUygunluklari) {
-  const satirlar = [
-    ["Metrik", "Değer"],
-    ["Gerekli Min. Tork (kNm)", tork],
-    ["Casing Durumu", casingDur],
-    ["Tahmini Casing (m)", casingM],
-    ["1 Kazık Delgi Süresi (saat)", sure],
-    ["Toplam İş Süresi (gün)", toplamGun],
-    ["Metre Başı Mazot (L/m)", mBasi],
-    ["Toplam Mazot (L)", Math.round(topMazot * proje.kazikAdedi)],
-    [],
-    ["Makine", "Karar", "Gerekçe"],
-    ...makineUygunluklari.map(m => [m.ad, m.karar, m.gerekce]),
-  ]
-  const csv = satirlar.map(r => r.join(";")).join("\n")
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `analiz_${proje.projeKodu || "sonucu"}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
-}
 
 // ── Ana bileşen ─────────────────────────────────────────
 export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibrasyon = null }) {
   const [pdfYukleniyor, setPdfYukleniyor] = useState(false)
-  const [csvYukleniyor, setCsvYukleniyor] = useState(false)
-  const [pdfOnizlemeAcik, setPdfOnizlemeAcik] = useState(false)
+  const [excelYukleniyor, setExcelYukleniyor] = useState(false)
   const [kaydetYukleniyor, setKaydetYukleniyor] = useState(false)
   const [kaydetBasarili, setKaydetBasarili] = useState(false)
   const toast = useToast()
@@ -232,13 +52,25 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
   const handlePdf = useCallback(async () => {
     if (!projeId) return
     setPdfYukleniyor(true)
-    try { await downloadPdfReport(projeId) } finally { setPdfYukleniyor(false); setPdfOnizlemeAcik(false) }
-  }, [projeId])
+    try {
+      await downloadPdfReport(projeId)
+    } catch (e) {
+      toast.error(t("pdfError") + ": " + e.message)
+    } finally {
+      setPdfYukleniyor(false)
+    }
+  }, [projeId, toast, t])
 
-  const handleZeminCsv = async () => {
-    if (!projeId) return
-    setCsvYukleniyor(true)
-    try { await downloadSoilLayersCsv(projeId) } finally { setCsvYukleniyor(false) }
+  const handleExcel = async () => {
+    if (!analiz) return
+    setExcelYukleniyor(true)
+    try {
+      await downloadExcelReport(proje, zemin, analiz, proje.projeKodu)
+    } catch (e) {
+      toast.error(t("excelError") + ": " + e.message)
+    } finally {
+      setExcelYukleniyor(false)
+    }
   }
 
   const handleKaydet = async () => {
@@ -350,16 +182,6 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
 
   return (
     <div>
-      <PdfOnizleme
-        open={pdfOnizlemeAcik}
-        onClose={() => setPdfOnizlemeAcik(false)}
-        onDownload={handlePdf}
-        yukleniyor={pdfYukleniyor}
-        proje={proje}
-        analiz={analiz}
-        zemin={zemin}
-        makineUygunluklari={makineUygunluklari}
-      />
       {kalibrasyon?.aktif && (
         <div style={{
           background: "#F0FDF4", border: "1.5px solid #86EFAC", borderRadius: "10px",
@@ -379,8 +201,22 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
             {proje.projeAdi || "Proje"} — {proje.kazikBoyu}m / Ø{proje.kazikCapi}mm / {proje.kazikAdedi} adet
           </p>
         </div>
-        <div style={{display: "flex", gap: "8px", flexShrink: 0, flexWrap: "wrap"}} className="no-print">
-          {projeId && (
+        <div style={{display: "flex", gap: "8px", alignItems: "center", flexShrink: 0, flexWrap: "wrap"}} className="no-print">
+          {/* Excel — client-side, always available */}
+          <button
+            onClick={handleExcel}
+            disabled={excelYukleniyor}
+            style={{
+              padding: "8px 16px", border: "1.5px solid #BBF7D0", borderRadius: "8px",
+              background: "#F0FDF4", color: "#16A34A", fontSize: "13px", fontWeight: "600",
+              cursor: excelYukleniyor ? "wait" : "pointer",
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+            }}
+          >
+            {excelYukleniyor ? "..." : t("excelExport")}
+          </button>
+
+          {projeId ? (
             <>
               <button
                 onClick={handleKaydet}
@@ -398,24 +234,36 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
               >
                 {kaydetYukleniyor ? t("saving") : kaydetBasarili ? t("savedOk") : t("saveAnalysis")}
               </button>
-              <button onClick={() => analizCsvIndir(proje, tork, casingDur, casingM, sure, toplamGun, mBasi, topMazot, makineUygunluklari)}
-                style={{padding: "8px 16px", border: "1.5px solid #E2E8F0", borderRadius: "8px", background: "white", color: "#475569", fontSize: "13px", fontWeight: "600", cursor: "pointer"}}>
-                {t("analysisCsv")}
-              </button>
-              <button onClick={handleZeminCsv} disabled={csvYukleniyor}
-                style={{padding: "8px 16px", border: "1.5px solid #E2E8F0", borderRadius: "8px", background: "white", color: "#475569", fontSize: "13px", fontWeight: "600", cursor: csvYukleniyor ? "wait" : "pointer"}}>
-                {csvYukleniyor ? "..." : t("soilCsv")}
-              </button>
-              <button onClick={() => setPdfOnizlemeAcik(true)}
-                style={{padding: "8px 16px", border: "none", borderRadius: "8px", background: "linear-gradient(135deg, #0284C7, #0EA5E9)", color: "white", fontSize: "13px", fontWeight: "600", cursor: "pointer"}}>
-                {t("pdfReport")}
-              </button>
-              <button onClick={() => window.print()}
-                style={{padding: "8px 16px", border: "1.5px solid #E2E8F0", borderRadius: "8px", background: "white", color: "#475569", fontSize: "13px", fontWeight: "600", cursor: "pointer"}}>
-                {t("printBtn")}
+              <button
+                onClick={handlePdf}
+                disabled={pdfYukleniyor}
+                style={{
+                  padding: "8px 16px", border: "none", borderRadius: "8px",
+                  background: pdfYukleniyor ? "#94A3B8" : "linear-gradient(135deg, #0284C7, #0EA5E9)",
+                  color: "white", fontSize: "13px", fontWeight: "600",
+                  cursor: pdfYukleniyor ? "wait" : "pointer",
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                }}
+              >
+                {pdfYukleniyor ? t("generating") : t("pdfReport")}
               </button>
             </>
+          ) : (
+            <span style={{
+              fontSize: "11px", color: "var(--text-muted)",
+              padding: "8px 12px", border: "1px dashed var(--border-medium)",
+              borderRadius: "8px", maxWidth: "180px", lineHeight: "1.4",
+            }}>
+              {t("saveProjectForPdf")}
+            </span>
           )}
+
+          <button
+            onClick={() => window.print()}
+            style={{padding: "8px 16px", border: "1.5px solid var(--border-medium)", borderRadius: "8px", background: "var(--bg-surface)", color: "var(--text-secondary)", fontSize: "13px", fontWeight: "600", cursor: "pointer"}}
+          >
+            {t("printBtn")}
+          </button>
         </div>
       </div>
 

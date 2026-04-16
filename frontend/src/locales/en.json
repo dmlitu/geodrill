@@ -227,6 +227,8 @@
   "excelDownloading": "Preparing Excel...",
   "pdfError": "Could not download PDF",
   "excelError": "Could not download Excel",
+  "excelExport": "Download Excel",
+  "saveProjectForPdf": "Save the project to enable PDF & analysis save",
 
   "costTitle": "Cost Analysis",
   "costDesc": "Calculate pile costs",

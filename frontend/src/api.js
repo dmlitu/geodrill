@@ -157,34 +157,51 @@ export async function bulkReplaceEquipment(items) {
 
 // ─── Reports ──────────────────────────────────────────────────────────────────
 
-export async function downloadPdfReport(projectId) {
+// Shared blob downloader — timeout, retry on 5xx, proper error messages
+async function _downloadBlob(path, filename) {
   const token = getToken()
-  const res = await fetch(`${BASE}/projects/${projectId}/report`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const headers = { Authorization: `Bearer ${token}` }
+
+  let res = await _doFetch(path, { headers })
+
+  // 1 retry on transient server errors (502/503/504 + Render cold-start 503)
+  if (res.status >= 500) {
+    await new Promise(r => setTimeout(r, 1500))
+    res = await _doFetch(path, { headers })
+  }
+
+  if (res.status === 401) {
+    clearToken()
+    if (_onUnauthorized) _onUnauthorized()
+    throw new Error("Oturum süresi doldu. Lütfen tekrar giriş yapın.")
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.detail || `Sunucu hatası (HTTP ${res.status})`)
+  }
+
   const blob = await res.blob()
   const url = URL.createObjectURL(blob)
   const a = document.createElement("a")
   a.href = url
-  a.download = `geodrill_rapor_${projectId}.pdf`
+  a.download = filename
   a.click()
   URL.revokeObjectURL(url)
 }
 
+export async function downloadPdfReport(projectId) {
+  await _downloadBlob(
+    `/projects/${projectId}/report`,
+    `geodrill_rapor_${projectId}.pdf`,
+  )
+}
+
 export async function downloadSoilLayersCsv(projectId) {
-  const token = getToken()
-  const res = await fetch(`${BASE}/projects/${projectId}/soil-layers/export`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  const blob = await res.blob()
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `zemin_logu_${projectId}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+  await _downloadBlob(
+    `/projects/${projectId}/soil-layers/export`,
+    `zemin_logu_${projectId}.csv`,
+  )
 }
 
 // Excel (xlsx) client-side export — zemin, analiz ve fiyat verileri
