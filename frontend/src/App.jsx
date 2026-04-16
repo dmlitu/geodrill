@@ -314,7 +314,7 @@ function Sidebar({ active, onNav, open, onClose, projeAdi }) {
           style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.3)", display: "none" }}
           className="sidebar-overlay" />
       )}
-      <div role="navigation" aria-label="Ana menü"
+      <div role="navigation" aria-label={t("ariaMainMenu")}
         style={{ width: "230px", minHeight: "100vh", background: "var(--bg-surface)", borderRight: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", flexShrink: 0, position: "relative", zIndex: 50 }}
         className={`sidebar${open ? " sidebar-open" : ""}`}
       >
@@ -389,10 +389,11 @@ function Sidebar({ active, onNav, open, onClose, projeAdi }) {
 // ─── Header ───────────────────────────────────────────────────────────────────
 
 function DarkModeToggle({ dark, onToggle }) {
+  const { t } = useLang()
   return (
     <button
       onClick={onToggle}
-      aria-label={dark ? "Açık temaya geç" : "Koyu temaya geç"}
+      aria-label={dark ? t("ariaToLight") : t("ariaToDark")}
       style={{
         width: "36px", height: "20px", borderRadius: "10px",
         border: "none", cursor: "pointer", position: "relative",
@@ -458,7 +459,7 @@ function Header({ username, onLogout, onMenuOpen, dark, onToggleDark }) {
           transition: "color 0.15s, border-color 0.15s",
         }}
       >
-        {lang === "tr" ? "TR" : "EN"}
+        {lang.toUpperCase()}
       </button>
       <button
         onClick={onLogout}

@@ -3,6 +3,7 @@ import { listProjects, getProject, deleteProject, downloadPdfReport, downloadExc
 import { gerekliTork, casingDurum, casingMetreHesapla, kazikSuresi, mazotTahmini, katmanTeknikCikti, makinaUygunluk } from "./hesaplamalar"
 import ConfirmDialog from "./ConfirmDialog"
 import { useToast } from "./Toast"
+import { useLang } from "./LangContext"
 
 const RISK_RENK = {
   "Yüksek": { bg: "#FEF2F2", color: "#DC2626", border: "#FECACA" },
@@ -18,6 +19,7 @@ function ProjeKarti({ proje, onDuzenle, onSil }) {
   const [pdfYukleniyor, setPdfYukleniyor] = useState(false)
   const [xlsxYukleniyor, setXlsxYukleniyor] = useState(false)
   const toast = useToast()
+  const { t } = useLang()
 
   const yukleDetay = async () => {
     setYukleniyor(true)
@@ -40,10 +42,7 @@ function ProjeKarti({ proje, onDuzenle, onSil }) {
       setDetay({ zemin, proje: projeData, analiz })
     } catch (e) {
       const agHatasi = e instanceof TypeError || e.message === "Load failed" || e.message === "Failed to fetch"
-      setHata(agHatasi
-        ? "Sunucuya bağlanılamadı. Backend çalışıyor mu? Tekrar deneyin."
-        : "Yükleme hatası: " + e.message
-      )
+      setHata(agHatasi ? t("serverError") : t("loadError") + ": " + e.message)
     } finally {
       setYukleniyor(false)
     }
@@ -61,7 +60,7 @@ function ProjeKarti({ proje, onDuzenle, onSil }) {
   const handlePdf = async () => {
     setPdfYukleniyor(true)
     try { await downloadPdfReport(proje.id) }
-    catch (e) { toast.error("PDF indirilemedi: " + e.message) }
+    catch (e) { toast.error(t("pdfError") + ": " + e.message) }
     finally { setPdfYukleniyor(false) }
   }
 
@@ -69,7 +68,7 @@ function ProjeKarti({ proje, onDuzenle, onSil }) {
     if (!detay) return
     setXlsxYukleniyor(true)
     try { await downloadExcelReport(detay.proje, detay.zemin, detay.analiz, proje.proje_kodu) }
-    catch (e) { toast.error("Excel indirilemedi: " + e.message) }
+    catch (e) { toast.error(t("excelError") + ": " + e.message) }
     finally { setXlsxYukleniyor(false) }
   }
 
@@ -97,7 +96,7 @@ function ProjeKarti({ proje, onDuzenle, onSil }) {
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {proje.proje_adi || "İsimsiz Proje"}
+            {proje.proje_adi || t("unnamedProject")}
           </div>
           <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
             {proje.proje_kodu || "—"} · {proje.is_tipi || "Fore Kazık"} · {proje.kazik_boyu}m / Ø{proje.kazik_capi}mm
@@ -109,7 +108,7 @@ function ProjeKarti({ proje, onDuzenle, onSil }) {
           <button
             onClick={e => { e.stopPropagation(); onDuzenle(proje.id) }}
             style={{ padding: "5px 12px", border: "1px solid var(--input-border)", borderRadius: "6px", background: "var(--bg-surface)", color: "var(--text-secondary)", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}
-          >Düzenle</button>
+          >{t("editBtn")}</button>
           <button
             onClick={e => { e.stopPropagation(); handlePdf() }}
             disabled={pdfYukleniyor}
@@ -134,7 +133,7 @@ function ProjeKarti({ proje, onDuzenle, onSil }) {
           {yukleniyor ? (
             <div style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)", fontSize: "13px" }}>
               <span style={{ display: "inline-block", animation: "spin 1s linear infinite", marginRight: "8px" }}>⟳</span>
-              Yükleniyor...
+              {t("loading")}
             </div>
           ) : hata ? (
             <div style={{ textAlign: "center", padding: "16px", background: "#FEF2F2", borderRadius: "8px", border: "1px solid #FECACA" }}>
@@ -142,20 +141,20 @@ function ProjeKarti({ proje, onDuzenle, onSil }) {
               <button
                 onClick={e => { e.stopPropagation(); yukleDetay() }}
                 style={{ padding: "6px 18px", border: "none", borderRadius: "6px", background: "#DC2626", color: "white", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}
-              >Tekrar Dene</button>
+              >{t("retry")}</button>
             </div>
           ) : detay ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
               {/* Analiz özeti */}
               {detay.analiz && (
                 <div style={{ background: "var(--bg-card)", borderRadius: "10px", border: "1px solid var(--input-border)", padding: "16px" }}>
-                  <div style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-secondary)", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: "10px" }}>Analiz Özeti</div>
+                  <div style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-secondary)", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: "10px" }}>{t("analysisSummary")}</div>
                   {[
-                    ["Gerekli Tork", `${detay.analiz.tork} kNm`],
-                    ["Casing", `${detay.analiz.casingDur} (${detay.analiz.casingM} m)`],
-                    ["1 Kazık Süresi", `${detay.analiz.sure} saat`],
-                    ["Toplam Süre", `${detay.analiz.toplamGun} gün`],
-                    ["Metre Başı Mazot", `${detay.analiz.mBasi} L/m`],
+                    [t("requiredTorqueRow"), `${detay.analiz.tork} kNm`],
+                    [t("casingRow"), `${detay.analiz.casingDur} (${detay.analiz.casingM} m)`],
+                    [t("onePileDurationRow"), `${detay.analiz.sure} saat`],
+                    [t("totalDurationRow"), `${detay.analiz.toplamGun} gün`],
+                    [t("fuelPerMeterRow"), `${detay.analiz.mBasi} L/m`],
                   ].map(([k, v]) => (
                     <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid var(--border-subtle)" }}>
                       <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{k}</span>
@@ -168,10 +167,10 @@ function ProjeKarti({ proje, onDuzenle, onSil }) {
               {/* Zemin özeti */}
               <div style={{ background: "var(--bg-card)", borderRadius: "10px", border: "1px solid var(--input-border)", padding: "16px" }}>
                 <div style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-secondary)", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: "10px" }}>
-                  Zemin Logu ({detay.zemin.length} katman)
+                  {t("soilLogLayersLabel").replace("{n}", detay.zemin.length)}
                 </div>
                 {detay.zemin.length === 0
-                  ? <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>Zemin verisi girilmemiş.</p>
+                  ? <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>{t("noSoilDataMsg")}</p>
                   : detay.zemin.slice(0, 6).map((z, i) => (
                     <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid var(--border-subtle)" }}>
                       <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{z.baslangic}–{z.bitis} m</span>
@@ -179,14 +178,16 @@ function ProjeKarti({ proje, onDuzenle, onSil }) {
                     </div>
                   ))}
                 {detay.zemin.length > 6 && (
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "6px" }}>...ve {detay.zemin.length - 6} katman daha</div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "6px" }}>
+                    {t("moreLayersMsg").replace("{n}", detay.zemin.length - 6)}
+                  </div>
                 )}
               </div>
 
               {/* Tork dağılımı */}
               {detay.analiz?.katmanCiktilar && (
                 <div style={{ background: "var(--bg-card)", borderRadius: "10px", border: "1px solid var(--input-border)", padding: "16px" }}>
-                  <div style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-secondary)", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: "10px" }}>Tork Dağılımı</div>
+                  <div style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-secondary)", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: "10px" }}>{t("torqueDistribution")}</div>
                   {detay.analiz.katmanCiktilar.map((r, i) => (
                     <div key={i} style={{ marginBottom: "6px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
@@ -214,6 +215,7 @@ export default function OncekiAnalizler({ onDuzenle }) {
   const [aramaMetni, setAramaMetni] = useState("")
   const [silOnay, setSilOnay] = useState(null)
   const toast = useToast()
+  const { t } = useLang()
 
   const yukle = async () => {
     setYukleniyor(true)
@@ -221,7 +223,7 @@ export default function OncekiAnalizler({ onDuzenle }) {
       const liste = await listProjects()
       setProjeler(liste)
     } catch (e) {
-      toast.error("Projeler yüklenemedi: " + e.message)
+      toast.error(t("cantLoadProjects") + " " + e.message)
     } finally {
       setYukleniyor(false)
     }
@@ -235,9 +237,9 @@ export default function OncekiAnalizler({ onDuzenle }) {
     try {
       await deleteProject(silOnay.id)
       setProjeler(p => p.filter(x => x.id !== silOnay.id))
-      toast.success("Proje silindi.")
+      toast.success(t("projectDeleted"))
     } catch (e) {
-      toast.error("Silinemedi: " + e.message)
+      toast.error(t("cantDeleteProject") + " " + e.message)
     } finally {
       setSilOnay(null)
     }
@@ -251,23 +253,23 @@ export default function OncekiAnalizler({ onDuzenle }) {
     <div>
       <ConfirmDialog
         open={silOnay !== null}
-        title="Proje Silinsin mi?"
-        message={`"${silOnay?.ad || "Bu proje"}" kalıcı olarak silinecek. Bu işlem geri alınamaz.`}
+        title={t("deleteProjectTitle")}
+        message={`"${silOnay?.ad || t("unnamed")}" ${t("permanentDeleteMsg")}`}
         onConfirm={confirmSil}
         onCancel={() => setSilOnay(null)}
       />
 
       <div style={{ marginBottom: "24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
         <div>
-          <h2 style={{ color: "var(--heading)", fontSize: "22px", fontWeight: "700" }}>Önceki Analizler</h2>
+          <h2 style={{ color: "var(--heading)", fontSize: "22px", fontWeight: "700" }}>{t("prevAnalysesTitle")}</h2>
           <p style={{ color: "var(--text-muted)", fontSize: "14px", marginTop: "4px" }}>
-            {projeler.length} proje · Tıklayarak detayları görün
+            {t("projectsCount").replace("{n}", projeler.length)}
           </p>
         </div>
         <input
           value={aramaMetni}
           onChange={e => setAramaMetni(e.target.value)}
-          placeholder="Proje adı veya kod ara..."
+          placeholder={t("searchPlaceholder")}
           style={{
             padding: "9px 14px", border: "1.5px solid var(--input-border)", borderRadius: "8px",
             fontSize: "13px", outline: "none", background: "var(--input-bg)", color: "var(--input-text)",
@@ -286,10 +288,10 @@ export default function OncekiAnalizler({ onDuzenle }) {
         <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-muted)" }}>
           <div style={{ fontSize: "40px", marginBottom: "16px" }}>🕒</div>
           <div style={{ fontSize: "16px", fontWeight: "600", color: "var(--heading)", marginBottom: "8px" }}>
-            {aramaMetni ? "Eşleşen proje bulunamadı" : "Henüz kayıtlı analiz yok"}
+            {aramaMetni ? t("noMatchFound") : t("prevAnalysesEmpty")}
           </div>
           <div style={{ fontSize: "13px" }}>
-            {aramaMetni ? "Farklı bir arama terimi deneyin." : "Yeni Analiz Başlat ile ilk projeyi oluşturun."}
+            {aramaMetni ? t("tryDifferentSearch") : t("createFirstProject")}
           </div>
         </div>
       ) : (

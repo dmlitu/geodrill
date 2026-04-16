@@ -4,9 +4,11 @@
 
 import { useState, useMemo } from "react"
 import { casingMetreHesapla, tamCevrimSuresi } from "./hesaplamalar"
+import { useLang } from "./LangContext"
 
 export default function ProjeKalibrasyonu({ proje, zemin, kalibrasyon, onKalibrasyon }) {
   const [gercekSure, setGercekSure] = useState("")
+  const { t } = useLang()
 
   // Model ROP: kalibrasyon uygulanmamış hali (katsayi=null)
   const modelSonuc = useMemo(() => {
@@ -55,11 +57,10 @@ export default function ProjeKalibrasyonu({ proje, zemin, kalibrasyon, onKalibra
     <div style={{ animation: "fadeUp 0.3s ease", maxWidth: "680px" }}>
       <div style={{ marginBottom: "28px" }}>
         <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: "22px", fontWeight: "800", color: "var(--heading)", marginBottom: "6px" }}>
-          Proje Kalibrasyonu
+          {t("calibTitle")}
         </h2>
         <p style={{ color: "var(--text-muted)", fontSize: "13px", lineHeight: "1.6" }}>
-          Sahada ölçülen gerçek delgi süresi ile model tahminini karşılaştırın. Kalibrasyon katsayısı
-          tüm ROP hesaplamalarına uygulanır.
+          {t("calibDescFull")}
         </p>
       </div>
 
@@ -72,19 +73,19 @@ export default function ProjeKalibrasyonu({ proje, zemin, kalibrasyon, onKalibra
           display: "flex", gap: "32px", flexWrap: "wrap",
         }}>
           <div>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "600", letterSpacing: "0.05em", marginBottom: "4px" }}>MODEL DELGİ SÜRESİ</div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "600", letterSpacing: "0.05em", marginBottom: "4px" }}>{t("modelDrillTimeLabel")}</div>
             <div style={{ fontSize: "22px", fontWeight: "700", color: "var(--text-primary)", fontFamily: "'DM Mono', monospace" }}>
-              {modelSonuc.tDelme} <span style={{ fontSize: "13px", fontWeight: "400", color: "var(--text-muted)" }}>saat</span>
+              {modelSonuc.tDelme} <span style={{ fontSize: "13px", fontWeight: "400", color: "var(--text-muted)" }}>{t("unitHours")}</span>
             </div>
           </div>
           <div>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "600", letterSpacing: "0.05em", marginBottom: "4px" }}>MODEL ORTALAMA ROP</div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "600", letterSpacing: "0.05em", marginBottom: "4px" }}>{t("modelAvgRopLabel")}</div>
             <div style={{ fontSize: "22px", fontWeight: "700", color: "var(--text-primary)", fontFamily: "'DM Mono', monospace" }}>
-              {modelSonuc.modelRop.toFixed(2)} <span style={{ fontSize: "13px", fontWeight: "400", color: "var(--text-muted)" }}>m/saat</span>
+              {modelSonuc.modelRop.toFixed(2)} <span style={{ fontSize: "13px", fontWeight: "400", color: "var(--text-muted)" }}>{t("unitMperHour")}</span>
             </div>
           </div>
           <div>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "600", letterSpacing: "0.05em", marginBottom: "4px" }}>KAZIK BOYU</div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "600", letterSpacing: "0.05em", marginBottom: "4px" }}>{t("pileLengthLabelCap")}</div>
             <div style={{ fontSize: "22px", fontWeight: "700", color: "var(--text-primary)", fontFamily: "'DM Mono', monospace" }}>
               {proje.kazikBoyu} <span style={{ fontSize: "13px", fontWeight: "400", color: "var(--text-muted)" }}>m</span>
             </div>
@@ -99,7 +100,7 @@ export default function ProjeKalibrasyonu({ proje, zemin, kalibrasyon, onKalibra
         padding: "24px", marginBottom: "24px",
       }}>
         <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "var(--text-secondary)", letterSpacing: "0.05em", marginBottom: "10px" }}>
-          GERÇEK KAZIK DELGİ SÜRESİ (saat)
+          {t("realDrillTimeInput")}
         </label>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
           <input
@@ -112,7 +113,7 @@ export default function ProjeKalibrasyonu({ proje, zemin, kalibrasyon, onKalibra
             style={inp}
           />
           <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-            yalnızca delgi + casing süresi, beton/donatı hariç
+            {t("realDrillNote")}
           </span>
         </div>
       </div>
@@ -125,18 +126,18 @@ export default function ProjeKalibrasyonu({ proje, zemin, kalibrasyon, onKalibra
           padding: "24px", marginBottom: "24px",
         }}>
           <div style={{ fontSize: "12px", fontWeight: "700", color: "var(--text-secondary)", letterSpacing: "0.05em", marginBottom: "16px" }}>
-            KALİBRASYON SONUÇLARI
+            {t("calibrationResults")}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "16px" }}>
-            <Kart baslik="Model ROP" deger={`${modelSonuc.modelRop.toFixed(2)} m/saat`} renk="#0EA5E9" />
-            <Kart baslik="Gerçek ROP" deger={`${hesap.gercekRop.toFixed(2)} m/saat`} renk="#0369A1" />
+            <Kart baslik={t("modelRopLabel")} deger={`${modelSonuc.modelRop.toFixed(2)} m/saat`} renk="#0EA5E9" />
+            <Kart baslik={t("realRopLabel")} deger={`${hesap.gercekRop.toFixed(2)} m/saat`} renk="#0369A1" />
             <Kart
-              baslik="Fark"
+              baslik={t("diffLabel")}
               deger={`${hesap.yonSembol} ${Math.abs(hesap.yuzde)}%`}
               renk={hesap.yonRenk}
             />
             <Kart
-              baslik="Kalibrasyon Katsayısı"
+              baslik={t("calibFactorLabel")}
               deger={hesap.katsayi.toFixed(4)}
               renk={hesap.yonRenk}
             />
@@ -154,10 +155,10 @@ export default function ProjeKalibrasyonu({ proje, zemin, kalibrasyon, onKalibra
           <span style={{ fontSize: "18px" }}>✅</span>
           <div>
             <div style={{ fontSize: "13px", fontWeight: "700", color: "#166534" }}>
-              Kalibrasyon aktif — katsayı: {kalibrasyon.katsayi.toFixed(4)}
+              {t("calibActiveMsg").replace("{k}", kalibrasyon.katsayi.toFixed(4))}
             </div>
             <div style={{ fontSize: "12px", color: "#4ADE80", marginTop: "2px" }}>
-              Analiz Sonucu sayfasındaki tüm delgi süresi hesapları bu katsayıyla güncellendi.
+              {t("calibAppliedMsg")}
             </div>
           </div>
         </div>
@@ -177,7 +178,7 @@ export default function ProjeKalibrasyonu({ proje, zemin, kalibrasyon, onKalibra
             transition: "all 0.15s",
           }}
         >
-          Bu projeye uygula
+          {t("applyToProject")}
         </button>
         {kalibrasyon?.aktif && (
           <button
@@ -189,14 +190,14 @@ export default function ProjeKalibrasyonu({ proje, zemin, kalibrasyon, onKalibra
               fontFamily: "'Plus Jakarta Sans', sans-serif",
             }}
           >
-            Kalibrasyonu sıfırla
+            {t("resetCalibration")}
           </button>
         )}
       </div>
 
       {!zemin.length && (
         <div style={{ marginTop: "32px", color: "var(--text-muted)", fontSize: "13px" }}>
-          Kalibrasyon yapabilmek için önce zemin verisi girin.
+          {t("noSoilForCalib")}
         </div>
       )}
     </div>
