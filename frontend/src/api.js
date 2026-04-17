@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000"
+const BASE = import.meta.env.VITE_API_URL || "https://geodrill-api.onrender.com"
 const REQUEST_TIMEOUT_MS = 30_000
 
 // ─── Token helpers ────────────────────────────────────────────────────────────
