@@ -128,16 +128,18 @@ export const KATSAYILAR = {
     // Taban ROP (m/saat) Ø800 mm referans çapında — saha kalibrasyonlu orta değerler.
     // Malzeme düzeltmeleri (UCS, SPT, RQD, YAS) bu tabloyu başlangıç noktası olarak kullanır.
     // aralik tablosuna sıkıştırılır; ardından F_tork × 0.75 etkin hızı verir.
+    // v5.1 kalibrasyonu: kaya baz ROP değerleri artırıldı; cap_azaltma_katsayi yumuşatıldı;
+    // saha_verimlilik 0.75→0.85 — kombine etkinin aşırı düşük sonuç vermesini önler.
     baz: {
       "Dolgu":         22.0,  // gevşek dolgu → saha aralığı [15-30]
       "Kil":           20.0,  // yumuşak kil → [10-28]; SPT/su ile sert kil ayarlanır
       "Silt":          17.0,  // siltli zemin → [8-25]
       "Kum":           15.0,  // orta sıkı kum → [8-22]; yoğun kum SPT azaltmasıyla
       "Çakıl":         10.0,  // çakıl → [4-15]; takım aşınması, yüksek tork
-      "Ayrışmış Kaya":  5.0,  // tam ayrışmış kaya → [2-8]; UCS tipik <15 MPa
-      "Kumtaşı":        5.5,  // zayıf-orta kumtaşı → [1.5-8]; UCS power-law ince ayar
-      "Kireçtaşı":      4.0,  // kireçtaşı → [1.5-8]
-      "Sert Kaya":      2.5,  // sert kaya → [0.3-3]; power-law ölçülen UCS için azaltır
+      "Ayrışmış Kaya":  6.5,  // tam ayrışmış kaya → [2.5-10]; UCS tipik <15 MPa
+      "Kumtaşı":        6.5,  // zayıf-orta kumtaşı → [2-9]; UCS power-law ince ayar
+      "Kireçtaşı":      5.5,  // kireçtaşı → [2-9]
+      "Sert Kaya":      3.5,  // sert kaya → [0.5-4.5]; power-law ölçülen UCS için azaltır
       "Organik Kil":   18.0,  // organik kil → [8-25]; mekanik delgi kolay (stabilite ayrıca)
       "Torf":          14.0,  // torf → [6-20]; yüksek sıkıştırılabilirlik, kolay delgi
       varsayilan:       6.0,
@@ -145,18 +147,17 @@ export const KATSAYILAR = {
 
     // ── Zemin tipine göre ROP baz aralıkları (m/saat, Ø800 mm ref.) ─────────
     // Malzeme düzeltmeleri sonrası baz ROP bu aralıklara sıkıştırılır.
-    // Kategoriler: yumuşak kil/gevşek kum [15-30]; orta yoğun [10-20];
-    //   sıkı/çakıl [5-15]; ayrışmış kaya [2-8]; sert kaya [0.5-3].
+    // v5.1: kaya alt/üst sınırları artırıldı (yeni baz değerleriyle uyumlu).
     aralik: {
       "Dolgu":         [15, 30],
       "Kil":           [10, 28],
       "Silt":          [8, 25],
       "Kum":           [8, 22],
       "Çakıl":         [4, 15],
-      "Ayrışmış Kaya": [2, 8],
-      "Kumtaşı":       [1.5, 8],
-      "Kireçtaşı":     [1.5, 8],
-      "Sert Kaya":     [0.3, 3],
+      "Ayrışmış Kaya": [2.5, 10],
+      "Kumtaşı":       [2.0, 9],
+      "Kireçtaşı":     [2.0, 9],
+      "Sert Kaya":     [0.5, 4.5],
       "Organik Kil":   [8, 25],
       "Torf":          [6, 20],
       varsayilan:      [1, 15],
@@ -175,9 +176,10 @@ export const KATSAYILAR = {
     ucs_azaltma_min:      0.25,
 
     // ── Çap cezası ──────────────────────────────────────────────────────────
+    // v5.1: katsayi 0.50→0.30, min 0.40→0.45 — büyük çaplarda aşırı ceza önlenir.
     referans_cap_m:       0.80,  // ROP tablosu referans çapı
-    cap_azaltma_katsayi:  0.50,  // referans üzerindeki her metre için
-    cap_azaltma_min:      0.40,  // çap azaltma faktörü alt sınırı
+    cap_azaltma_katsayi:  0.30,  // referans üzerindeki her metre için
+    cap_azaltma_min:      0.45,  // çap azaltma faktörü alt sınırı
 
     // ── SPT bazlı granüler azaltma ──────────────────────────────────────────
     spt_azaltma_esigi:    30,    // SPT N > bu eşik → yoğunluk azaltması
@@ -205,8 +207,8 @@ export const KATSAYILAR = {
     min_rop:              0.20,  // mutlak alt sınır (çok sert kaya), m/saat
 
     // Kaya alt sınır faktörü: tüm azaltmalar sonrası ROP, BAZ_ROP × bu değerin altına inemez.
-    // v4.6: 0.55→0.65 (aşırı düşük sonuçları önler, saha gözlemiyle daha uyumlu).
-    minimum_rop_factor:   0.65,
+    // v5.1: 0.65→0.70 (aşırı pessimistik kaya sürelerini engeller).
+    minimum_rop_factor:   0.70,
   },
 
   // ── Tam çevrim süresi katsayıları ────────────────────────────────────────
@@ -298,27 +300,29 @@ export const KATSAYILAR = {
     sinif_agirlik: { kaya: 3.0, granüler: 1.5, kohezyonlu: 1.0, belirsiz: 0.8 },
   },
 
-  // ── Saha kalibrasyon parametreleri (v5.0) ────────────────────────────────
+  // ── Saha kalibrasyon parametreleri (v5.1) ────────────────────────────────
   // saha_verimlilik: ROP_eff = ROP_baz × F_tork × saha_verimlilik
-  //   Sabit 0.75 — EFFC/DFI 2019 fore kazık saha verimi; çift sayım önler.
+  //   0.85 — spoil yönetimi, bekleme süreleri ve operatör değişkenliğini kapsar.
+  //   0.75'ten 0.85'e yükseltildi: çap cezasıyla birleşik etkiyi dengelemek için.
   //   (operator_faktoru ve makine_kondisyon F_tork içinde modellenmiş sayılır.)
   kalibrasyon_varsayilan: {
-    saha_verimlilik:  0.75,  // sabit saha verimliliği — fore kazık saha normali
+    saha_verimlilik:  0.85,  // sabit saha verimliliği — fore kazık saha normali (v5.1)
     operator_faktoru: 1.00,  // bilgi amaçlı; v5.0'da F_tork tarafından kapsanır
     makine_kondisyon: 1.00,  // bilgi amaçlı; v5.0'da F_tork tarafından kapsanır
   },
 
-  // ── Formasyon sınıfı baz ROP (v4.6) ─────────────────────────────────────
+  // ── Formasyon sınıfı baz ROP (v5.1) ─────────────────────────────────────
   // 5+1 sınıf sistem: zemin/kaya türüne göre beklenen baz ROP aralıkları (Ø800mm).
   // ropHesapla() içindeki per-tip tablonun cross-check/doğrulama kaynağıdır.
+  // v5.1: kaya baz değerleri artırıldı.
   // Kaynak: EFFC/DFI 2019; Türkiye saha kayıtları 2022-2024.
   formasyon_baz_rop: {
     yumusak_kohezif:  16.0,  // Kil/Silt SPT<15 veya su<40 kPa
     sert_kohezif:      9.0,  // Kil SPT>15, Silt sıkı
     granüler:         10.0,  // Kum/Çakıl/Dolgu
-    ayrismis_kaya:     7.0,  // Ayrışmış Kaya, UCS<10 MPa
-    parcali_kaya:      4.0,  // Kırıklı/orta kaya, UCS 10-50 MPa, RQD<50
-    sert_kaya:         2.5,  // Sert masif kaya, UCS>50 MPa veya RQD≥75
+    ayrismis_kaya:     9.0,  // Ayrışmış Kaya, UCS<10 MPa
+    parcali_kaya:      6.0,  // Kırıklı/orta kaya, UCS 10-50 MPa, RQD<50
+    sert_kaya:         3.5,  // Sert masif kaya, UCS>50 MPa veya RQD≥75
   },
 
   // ── Uç tipi modifikatörleri (v4.6) ───────────────────────────────────────
@@ -926,12 +930,12 @@ export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, b
 
   let rop = Math.max(baz, R.min_rop)
 
-  // ── F_tork: tork kullanım oranı — doğrusal sıkıştırma [0.6, 1.2] ─────────
-  // ratio ≥ 1.0: fazla kapasite → ROP artar (max %20)
-  // ratio < 1.0: yetersiz tork → ROP düşer (min %40 kaybı)
-  // Çift sayım önlemek için tek makine faktörü; F_makine ayrıca uygulanmaz.
+  // ── F_tork: tork kullanım oranı — doğrusal sıkıştırma [0.65, 1.10] ──────
+  // ratio ≥ 1.0: yeterli/fazla kapasite → normal veya hafif hızlı (max +10%)
+  // ratio < 1.0: kısmi yetersizlik → kademeli azalma (floor %35 azalma)
+  // v5.1: [0.6, 1.2] → [0.65, 1.10] — tork etkisi daha yumuşak, daha az cezalı.
   if (gerekliTork > 0 && makineTorku > 0) {
-    const fTork = Math.min(1.2, Math.max(0.6, makineTorku / gerekliTork))
+    const fTork = Math.min(1.10, Math.max(0.65, makineTorku / gerekliTork))
     rop *= fTork
   }
 

@@ -424,7 +424,7 @@ def _build_pdf_report(project, current_user, db):
         f"Kazık: Ø{project.kazik_capi} mm × {project.kazik_boyu} m",
         f"Adet: {project.kazik_adedi}",
         f"YAS: {project.yeralti_suyu} m",
-        f"Motor: v3.1"
+        f"Motor: v5.1"
     ]]
     k_t = Table(k_data, colWidths=[(W - 2 * MARGIN) / 4] * 4)
     k_t.setStyle(TableStyle([
@@ -487,7 +487,7 @@ def _build_pdf_report(project, current_user, db):
         ["Günlük Üretim", f"~{gunluk_uretim} kazık/gün", "9 saatlik iş günü"],
         ["Toplam Süre", f"{toplam_gun} iş günü", f"{project.kazik_adedi} kazık"],
         ["Yakıt (metre başı)", f"{m_basi} L/m", f"Toplam: {round(tek_mazot * project.kazik_adedi)} L"],
-        ["Hesap Güveni", guven_str, f"Motor v3.1 / FHWA GEC 10"],
+        ["Hesap Güveni", guven_str, f"Motor v5.1 / FHWA GEC 10"],
     ]
     t, s = simple_table(ozet_data, [4.5 * cm, 4.5 * cm, 8.5 * cm])
     # Güven satırına renk
@@ -722,7 +722,7 @@ def _build_pdf_report(project, current_user, db):
         "Sonuçlar ön tasarım ve makine seçimi aşamaları için referans niteliğindedir; "
         "kesin tasarım kararları için tescilli bir geoteknik mühendisi tarafından onaylanmalıdır. "
         "GeoDrill, bu rapordaki hesap hatalarından kaynaklanabilecek doğrudan veya dolaylı zararlardan sorumlu tutulamaz. "
-        f"Hesap motoru: GeoDrill Engine v3.1  |  Rapor ID: {project.id}-{datetime.now().strftime('%Y%m%d')}"
+        f"Hesap motoru: GeoDrill Engine v5.1  |  Rapor ID: {project.id}-{datetime.now().strftime('%Y%m%d')}"
     )
     content.append(Paragraph(uyari_metin, sUyari))
 

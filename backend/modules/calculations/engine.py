@@ -554,12 +554,13 @@ def rop_hesapla(tip: str, ucs: float, cap_mm: float, kohezyon: str = "",
 
     rop = max(baz, R.min_rop)
 
-    # ── F_tork: tork kullanım oranı — doğrusal sıkıştırma [0.6, 1.2] ─────────
-    # ratio ≥ 1.0: fazla kapasite → ROP artar (max %20)
-    # ratio < 1.0: yetersiz tork → ROP düşer (min %40 kaybı)
-    # Tek makine faktörü; çift sayım önlemek için F_makine ayrıca uygulanmaz.
+    # ── F_tork: tork kullanım oranı — doğrusal sıkıştırma [0.65, 1.10] ──────
+    # ratio ≥ 1.0: yeterli/fazla kapasite → ROP normal veya hafif artar (max +10%)
+    # ratio < 1.0: kısmi yetersizlik → ROP kademeli düşer (floor %35 azalma)
+    # Tekil makine faktörü; F_makine ayrıca uygulanmaz (çift sayım önlenir).
+    # v5.1: range [0.6,1.2] → [0.65,1.10] — torque influence smoother, less punishing.
     if gerekli_tork > 0 and makine_torku > 0:
-        f_tork = min(1.2, max(0.6, makine_torku / gerekli_tork))
+        f_tork = min(1.10, max(0.65, makine_torku / gerekli_tork))
         rop *= f_tork
 
     # ── Sabit saha verimliliği (R.saha_verimlilik = 0.75) ────────────────────
