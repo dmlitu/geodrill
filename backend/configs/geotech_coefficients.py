@@ -245,25 +245,44 @@ class RopCoefficients:
     """
 
     # Base ROP by soil type (m/hr at Ø800 mm reference). Class C.
-    # v4.6 revision: Kireçtaşı 2.5→4.0, Sert Kaya 2.0→2.5, Organik Kil/Torf up-calibrated.
-    # Source: EFFC/DFI Production Data Report 2019; Zayed & Halpin (2005);
-    # Turkish contractor telemetry (Bauer BG-series, Soilmec SR-series) 2022-2024.
+    # v5.0 recalibration: values raised to match real fore kazık field speeds.
+    # Model: ROP_eff = base × F_torque × 0.75  (F_torque = clamp(ratio, 0.6, 1.2))
+    # Source: EFFC/DFI Production Data Report 2019; Turkish contractor field data 2022-2024.
     baz: Dict[str, float] = field(default_factory=lambda: {
-        "Dolgu":        14.0,  # loose fill — fast rotary penetration
-        "Kil":          13.0,  # soft–medium clay (SPT 5–20); stiffer clay by SPT reduction
-        "Silt":         12.0,  # silty soil, low cohesion
-        "Kum":          11.0,  # loose–medium sand; dense sand by SPT reduction
-        "Çakıl":         6.0,  # gravel — auger tooth wear, more torque required
-        "Ayrışmış Kaya": 7.0,  # fully weathered — granular-like; 6–8 m/hr field range
-        "Kumtaşı":       5.5,  # weak–medium sandstone; UCS power-law adjusts for harder bands
-        "Kireçtaşı":     4.0,  # limestone; v4.6 recalibrated upward (2.5→4.0, field-aligned)
-        "Sert Kaya":     2.5,  # hard rock — base for no-UCS case; v4.6 2.0→2.5
-        "Organik Kil":  11.0,  # soft organic soil — mechanically easy to drill (stability separate)
-        "Torf":          9.0,  # very compressible peat — easy to drill mechanically
+        "Dolgu":        22.0,  # loose fill → field range [15-30]
+        "Kil":          20.0,  # soft clay → [10-28]; SPT/su adjusts for stiff clay
+        "Silt":         17.0,  # silty soil → [8-25]
+        "Kum":          15.0,  # medium-dense sand → [8-22]; dense sand by SPT reduction
+        "Çakıl":        10.0,  # gravel → [4-15]; auger tooth wear, more torque
+        "Ayrışmış Kaya": 5.0,  # weathered rock → [2-8]; UCS typically < 15 MPa
+        "Kumtaşı":       5.5,  # weak–medium sandstone → [1.5-8]; UCS power-law adjusts
+        "Kireçtaşı":     4.0,  # limestone → [1.5-8]
+        "Sert Kaya":     2.5,  # hard rock → [0.3-3]; UCS power-law adjusts
+        "Organik Kil":  18.0,  # soft organic soil → [8-25]; mechanically easy (stability separate)
+        "Torf":         14.0,  # peat → [6-20]; highly compressible, easy to drill
     })
 
     # Fallback ROP when soil type not matched
-    varsayilan: float = 5.5
+    varsayilan: float = 6.0
+
+    # Per-type ROP base clamp ranges (m/hr at Ø800 mm ref.).
+    # Applied after material corrections (UCS, SPT, RQD, GWT), before F_torque and efficiency.
+    # Field categories: soft clay/loose sand [15-30]; medium dense [10-20];
+    #   dense sand/gravel [5-15]; weathered rock [2-8]; hard rock [0.5-3].
+    aralik: Dict[str, list] = field(default_factory=lambda: {
+        "Dolgu":         [15.0, 30.0],
+        "Kil":           [10.0, 28.0],
+        "Silt":          [8.0,  25.0],
+        "Kum":           [8.0,  22.0],
+        "Çakıl":         [4.0,  15.0],
+        "Ayrışmış Kaya": [2.0,   8.0],
+        "Kumtaşı":       [1.5,   8.0],
+        "Kireçtaşı":     [1.5,   8.0],
+        "Sert Kaya":     [0.3,   3.0],
+        "Organik Kil":   [8.0,  25.0],
+        "Torf":          [6.0,  20.0],
+        "varsayilan":    [1.0,  15.0],
+    })
 
     # UCS-based ROP reduction for non-rock layers with UCS recorded (edge case)
     ucs_azaltma_katsayi: float = 0.75
@@ -317,12 +336,13 @@ class RopCoefficients:
     rqd_azaltma_katsayi: float = 0.002
     rqd_azaltma_min: float = 0.78
 
-    # ── Site calibration defaults (v4.6) ─────────────────────────────────────
-    # Applied to ROP when no project-specific calibration is active.
-    # Net factor: ROP *= saha_verimlilik * operator_faktoru * makine_kondisyon
-    saha_verimlilik: float = 0.90    # 0.80–1.00; site efficiency (transport + wait losses)
-    operator_faktoru: float = 1.00   # 0.85–1.15; experienced operator → 1.05-1.10
-    makine_kondisyon: float = 1.00   # 0.80–1.10; well-maintained machine → 1.00
+    # ── Site calibration defaults (v5.0) ─────────────────────────────────────
+    # ROP_eff = ROP_base × F_torque × saha_verimlilik
+    # saha_verimlilik = 0.75 (fixed): covers site losses, wait times, operator variability.
+    # operator_faktoru / makine_kondisyon kept for backward-compat; no longer multiplied.
+    saha_verimlilik: float = 0.75    # fixed field efficiency — fore kazık site norm (EFFC/DFI 2019)
+    operator_faktoru: float = 1.00   # informational only — captured by F_torque in v5.0
+    makine_kondisyon: float = 1.00   # informational only — captured by F_torque in v5.0
 
 
 @dataclass(frozen=True)

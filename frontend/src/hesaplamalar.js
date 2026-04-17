@@ -120,27 +120,46 @@ export const KATSAYILAR = {
 
   // ── ROP katsayıları ──────────────────────────────────────────────────────
   // Kaynak: FHWA GEC 10 §7 + Türkiye saha kayıtları. C Sınıfı.
-  // v4.6: Kireçtaşı (2.5→4.0), Sert Kaya (2.0→2.5), Organik Kil/Torf yukarı revize edildi.
-  //   UCS referansı 40→30 MPa; üs 0.40→0.50; minimum_rop_factor 0.55→0.65.
-  //   RQD etkisi artık adım fonksiyonu: parçalı kaya hızlı, masif kaya yavaş.
-  // Kalibrasyon notu: ileride saha verisiyle güncellemek için tüm katsayılar burada toplanmıştır.
+  // v5.0: Baz ROP değerleri gerçek saha verisiyle kalibre edildi (v4.6'dan daha yüksek).
+  //   Model: ROP_eff = ROP_baz × F_tork × 0.75  (F_tork = min(1.2, max(0.6, T_mevcut/T_gerekli)))
+  //   Çift sayım önlemek için tek verimlilik faktörü (0.75 sabit).
+  //   aralik tablosu: malzeme düzeltmeleri sonrası baz ROP sıkıştırma sınırları.
   rop: {
-    // Taban ROP (m/saat) Ø800 mm referans çapında, makine tork marjı ≥ %10 varsayımı.
-    // Kaynak: EFFC/DFI Üretkenlik Raporu 2019; Zayed & Halpin (2005) Tablo 3;
-    //   Türkiye saha kayıtları (Bauer BG-serisi, Soilmec SR-serisi) 2022-2024.
+    // Taban ROP (m/saat) Ø800 mm referans çapında — saha kalibrasyonlu orta değerler.
+    // Malzeme düzeltmeleri (UCS, SPT, RQD, YAS) bu tabloyu başlangıç noktası olarak kullanır.
+    // aralik tablosuna sıkıştırılır; ardından F_tork × 0.75 etkin hızı verir.
     baz: {
-      "Dolgu":         14.0,  // gevşek dolgu — hızlı rotary penetrasyon
-      "Kil":           13.0,  // yumuşak-orta kil (SPT 5-20); sert kil SPT azaltmasıyla yavaşlar
-      "Silt":          12.0,  // siltli zemin, düşük kohezyon
-      "Kum":           11.0,  // gevşek-orta kum; sıkı kum SPT azaltmasıyla yavaşlar
-      "Çakıl":          6.0,  // çakıl — takım aşınması, yüksek tork gerekli
-      "Ayrışmış Kaya":  7.0,  // tam ayrışmış; 6–8 m/saat saha aralığı, UCS tipik <15 MPa
-      "Kumtaşı":        5.5,  // zayıf-orta kumtaşı; UCS power-law sert bantları ayarlar
-      "Kireçtaşı":      4.0,  // kireçtaşı; v4.6: saha verisiyle yukarı revize (2.5→4.0)
-      "Sert Kaya":      2.5,  // sert kaya — UCS verisi yokken baz; power-law ölçülen UCS için azaltır
-      "Organik Kil":   11.0,  // yumuşak organik zemin — mekanik delgide hızlı (stabilite ayrıca)
-      "Torf":           9.0,  // çok yumuşak torf — yüksek sıkıştırılabilirlik, delgi kolay
-      varsayilan:       5.5,
+      "Dolgu":         22.0,  // gevşek dolgu → saha aralığı [15-30]
+      "Kil":           20.0,  // yumuşak kil → [10-28]; SPT/su ile sert kil ayarlanır
+      "Silt":          17.0,  // siltli zemin → [8-25]
+      "Kum":           15.0,  // orta sıkı kum → [8-22]; yoğun kum SPT azaltmasıyla
+      "Çakıl":         10.0,  // çakıl → [4-15]; takım aşınması, yüksek tork
+      "Ayrışmış Kaya":  5.0,  // tam ayrışmış kaya → [2-8]; UCS tipik <15 MPa
+      "Kumtaşı":        5.5,  // zayıf-orta kumtaşı → [1.5-8]; UCS power-law ince ayar
+      "Kireçtaşı":      4.0,  // kireçtaşı → [1.5-8]
+      "Sert Kaya":      2.5,  // sert kaya → [0.3-3]; power-law ölçülen UCS için azaltır
+      "Organik Kil":   18.0,  // organik kil → [8-25]; mekanik delgi kolay (stabilite ayrıca)
+      "Torf":          14.0,  // torf → [6-20]; yüksek sıkıştırılabilirlik, kolay delgi
+      varsayilan:       6.0,
+    },
+
+    // ── Zemin tipine göre ROP baz aralıkları (m/saat, Ø800 mm ref.) ─────────
+    // Malzeme düzeltmeleri sonrası baz ROP bu aralıklara sıkıştırılır.
+    // Kategoriler: yumuşak kil/gevşek kum [15-30]; orta yoğun [10-20];
+    //   sıkı/çakıl [5-15]; ayrışmış kaya [2-8]; sert kaya [0.5-3].
+    aralik: {
+      "Dolgu":         [15, 30],
+      "Kil":           [10, 28],
+      "Silt":          [8, 25],
+      "Kum":           [8, 22],
+      "Çakıl":         [4, 15],
+      "Ayrışmış Kaya": [2, 8],
+      "Kumtaşı":       [1.5, 8],
+      "Kireçtaşı":     [1.5, 8],
+      "Sert Kaya":     [0.3, 3],
+      "Organik Kil":   [8, 25],
+      "Torf":          [6, 20],
+      varsayilan:      [1, 15],
     },
 
     // ── UCS power-law modeli (kaya katmanları için) ─────────────────────────
@@ -279,15 +298,14 @@ export const KATSAYILAR = {
     sinif_agirlik: { kaya: 3.0, granüler: 1.5, kohezyonlu: 1.0, belirsiz: 0.8 },
   },
 
-  // ── Saha kalibrasyon parametreleri (v4.6) ────────────────────────────────
-  // Bu parametreler saha gözlemi sonrası kullanıcı tarafından güncellenebilir.
-  // Varsayılanlar muhafazakâr ama gerçekçi saha koşullarını yansıtır.
-  // Kaynak: EFFC/DFI Üretkenlik Rehberi 2019; OEM saha kalibrasyonu.
+  // ── Saha kalibrasyon parametreleri (v5.0) ────────────────────────────────
+  // saha_verimlilik: ROP_eff = ROP_baz × F_tork × saha_verimlilik
+  //   Sabit 0.75 — EFFC/DFI 2019 fore kazık saha verimi; çift sayım önler.
+  //   (operator_faktoru ve makine_kondisyon F_tork içinde modellenmiş sayılır.)
   kalibrasyon_varsayilan: {
-    saha_verimlilik:  0.90,  // 0.80–1.00; ortalama saha üretkenlik faktörü (taşıma, bekleme kayıpları dahil)
-    operator_faktoru: 1.00,  // 0.85–1.15; deneyimli operatör için 1.05-1.10 kullanın
-    makine_kondisyon: 1.00,  // 0.80–1.10; iyi bakımlı makine için 1.00
-    // Birleşik kalibrasyon: ROP *= saha_verimlilik * operator_faktoru * makine_kondisyon
+    saha_verimlilik:  0.75,  // sabit saha verimliliği — fore kazık saha normali
+    operator_faktoru: 1.00,  // bilgi amaçlı; v5.0'da F_tork tarafından kapsanır
+    makine_kondisyon: 1.00,  // bilgi amaçlı; v5.0'da F_tork tarafından kapsanır
   },
 
   // ── Formasyon sınıfı baz ROP (v4.6) ─────────────────────────────────────
@@ -901,40 +919,27 @@ export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, b
   if (sinif === "kaya")
     baz = Math.max(baz, bazTablo * R.minimum_rop_factor)
 
+  // ── Saha aralığı sınırlaması (malzeme düzeltmeleri sonrası) ─────────────
+  // Baz ROP'u zemin tipine göre gerçek saha aralığına sıkıştır.
+  const aralik = R.aralik?.[hesapTip] ?? R.aralik?.varsayilan ?? [R.min_rop, 50]
+  baz = clamp(baz, aralik[0], aralik[1])
+
   let rop = Math.max(baz, R.min_rop)
 
-  // ── Makine-zemin etkileşimi (fizik tabanlı tork oranı düzeltmesi) ──────────
-  // Teale (1965) özgül enerji prensibinden türetilmiş basitleştirilmiş model:
-  //   Se = T × 2π × RPM / (A × ROP)  →  ROP ∝ T_available / (Se × A)
-  //
-  // ratio = T_machine / T_required (tork kullanım oranı)
-  //   ratio > 1.0: Fazla kapasite → besleme hızı artar, fMakine ≤ 1.25.
-  //   ratio < 1.0: Yetersiz tork → bit geri itmesi başlar, güç-yarıçap integrali düşer.
-  //   ratio < 0.6: Durma noktasına yakın (pratik ilerleme yok).
-  //
-  // Kaynak: Drilling mechanics; Rabia (2002); conservative field calibration.
+  // ── F_tork: tork kullanım oranı — doğrusal sıkıştırma [0.6, 1.2] ─────────
+  // ratio ≥ 1.0: fazla kapasite → ROP artar (max %20)
+  // ratio < 1.0: yetersiz tork → ROP düşer (min %40 kaybı)
+  // Çift sayım önlemek için tek makine faktörü; F_makine ayrıca uygulanmaz.
   if (gerekliTork > 0 && makineTorku > 0) {
-    const ratio = makineTorku / gerekliTork
-    const fMakine = ratio >= 1.0
-      ? Math.min(1.25, 1.0 + 0.50 * (ratio - 1.0))
-      : ratio >= 0.6
-        ? Math.max(0.20, ratio ** 1.5)
-        : Math.max(0.05, ratio ** 2.0)  // çok düşük tork → neredeyse durma
-    rop *= fMakine
+    const fTork = Math.min(1.2, Math.max(0.6, makineTorku / gerekliTork))
+    rop *= fTork
   }
 
-  // ── Saha kalibrasyonu ─────────────────────────────────────────────────────
-  // 1. Kullanıcı tarafından belirlenen proje kalibrasyonu (ölçülen/tahmin edilen)
+  // ── Sabit saha verimliliği (0.75) ─────────────────────────────────────────
   if (kalibrasyon?.aktif && kalibrasyon.katsayi > 0)
     rop = Math.max(rop * kalibrasyon.katsayi, R.min_rop)
-
-  // 2. Varsayılan saha verimliliği (KATSAYILAR.kalibrasyon_varsayilan)
-  // Not: Proje kalibrasyonu aktifse bu ikinci adım uygulanmaz (çift sayma önlemi).
-  if (!kalibrasyon?.aktif) {
-    const KAL = KATSAYILAR.kalibrasyon_varsayilan
-    const sahaFaktor = KAL.saha_verimlilik * KAL.operator_faktoru * KAL.makine_kondisyon
-    rop = Math.max(rop * sahaFaktor, R.min_rop)
-  }
+  else
+    rop = Math.max(rop * KATSAYILAR.kalibrasyon_varsayilan.saha_verimlilik, R.min_rop)
 
   return rop
 }

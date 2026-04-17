@@ -548,28 +548,22 @@ def rop_hesapla(tip: str, ucs: float, cap_mm: float, kohezyon: str = "",
     if sinif == "kaya":
         baz = max(baz, baz_tablo * R.minimum_rop_factor)
 
+    # ── Saha aralığı sınırlaması (malzeme düzeltmeleri sonrası) ─────────────
+    aralik = R.aralik.get(hesap_tip) or R.aralik.get("varsayilan") or [R.min_rop, 50.0]
+    baz = clamp(baz, aralik[0], aralik[1])
+
     rop = max(baz, R.min_rop)
 
-    # Makine-zemin etkileşimi: tork oranından fizik tabanlı ROP düzeltmesi (v4.6 piecewise)
-    # ratio >= 1.0: fazla kapasite → hafif ROP artışı (besleme hızı kontrolü)
-    #   F = min(1.25, 1.0 + 0.50 × (ratio − 1.0))
-    # 0.6 <= ratio < 1.0: yetersiz tork → F = ratio^1.5 (floor 0.20)
-    # ratio < 0.6: near-stall → F = ratio^2.0 (floor 0.05)
-    # Kaynak: drilling mechanics, zımba yükleme analojisi; parity with hesaplamalar.js v4.6
+    # ── F_tork: tork kullanım oranı — doğrusal sıkıştırma [0.6, 1.2] ─────────
+    # ratio ≥ 1.0: fazla kapasite → ROP artar (max %20)
+    # ratio < 1.0: yetersiz tork → ROP düşer (min %40 kaybı)
+    # Tek makine faktörü; çift sayım önlemek için F_makine ayrıca uygulanmaz.
     if gerekli_tork > 0 and makine_torku > 0:
-        ratio = makine_torku / gerekli_tork
-        if ratio >= 1.0:
-            f_makine = min(1.25, 1.0 + 0.50 * (ratio - 1.0))
-        elif ratio >= 0.6:
-            f_makine = max(0.20, ratio ** 1.5)
-        else:
-            f_makine = max(0.05, ratio ** 2.0)
-        rop *= f_makine
+        f_tork = min(1.2, max(0.6, makine_torku / gerekli_tork))
+        rop *= f_tork
 
-    # Default site calibration when no project calibration active
-    # Mirrors hesaplamalar.js: saha_verimlilik × operator_faktoru × makine_kondisyon
-    saha_faktor = R.saha_verimlilik * R.operator_faktoru * R.makine_kondisyon
-    rop = max(rop * saha_faktor, R.min_rop)
+    # ── Sabit saha verimliliği (R.saha_verimlilik = 0.75) ────────────────────
+    rop = max(rop * R.saha_verimlilik, R.min_rop)
 
     return rop
 
