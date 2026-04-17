@@ -646,34 +646,37 @@ function Dashboard({ username, onLogout }) {
   // Giriş sonrası veri yükleme
   useEffect(() => {
     async function yukle() {
+      let projeler = []
+      let ekipmanlar = []
+
       try {
-        const [projeler, ekipmanlar] = await Promise.all([
+        ;[projeler, ekipmanlar] = await Promise.all([
           listProjects(),
           listEquipment(),
         ])
+      } catch (e) {
+        console.error("Başlangıç verileri yüklenemedi:", e)
+        const authError = typeof e?.message === "string" && e.message.includes("Oturum süresi doldu")
+        if (authError) return
+      }
 
-        if (projeler.length > 0) {
-          // Temel proje bilgilerini summary'den al — zemin katmanları
-          // "Güncel Proje" sekmesi açıldığında lazy yüklenir (waterfall önleme)
-          const son = projeler[0]
-          setProjeId(son.id)
-          setProje(fromSnake(son))
-        } else {
-          // İlk kez giriş — onboarding wizard göster
-          const onboarded = localStorage.getItem("gd_onboarded")
-          if (!onboarded) setOnboarding(true)
-        }
-
-        if (ekipmanlar.length > 0) {
-          setMakineler(ekipmanlar.map(fromSnakeMakine))
-        }
-      } catch {
-        // İlk açılışta hata olursa boş başla
+      if (projeler.length > 0) {
+        // Temel proje bilgilerini summary'den al — zemin katmanları
+        // "Güncel Proje" sekmesi açıldığında lazy yüklenir (waterfall önleme)
+        const son = projeler[0]
+        setProjeId(son.id)
+        setProje(fromSnake(son))
+      } else {
+        // İlk kez giriş — onboarding wizard göster
         const onboarded = localStorage.getItem("gd_onboarded")
         if (!onboarded) setOnboarding(true)
-      } finally {
-        setYukleniyor(false)
       }
+
+      if (ekipmanlar.length > 0) {
+        setMakineler(ekipmanlar.map(fromSnakeMakine))
+      }
+
+      setYukleniyor(false)
     }
     yukle()
   }, [])
