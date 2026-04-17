@@ -118,6 +118,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
   // useMemo: zemin veya proje değişmediğinde hesaplamalar yeniden yapılmaz
   const analiz = useMemo(() => {
     if (!zemin.length) return null
+    try {
     const torkAralik = gerekliTorkAralik(zemin, proje.kazikCapi, proje.isTipi, proje.yeraltiSuyu)
     const tork = torkAralik.nominal
     const { durum: casingDur, gerekce, zorunlu } = casingDurum(zemin, proje.yeraltiSuyu)
@@ -201,6 +202,10 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
       cevrimMakineIle, torkKullanimOrani, netRop, cevrimVerimiPct, sinirlayanFaktor,
       enIyiMakine, gunlukUretimFizik, toplamGunFizik,
     }
+    } catch (err) {
+      console.error("[GeoDrill] Hesaplama hatası:", err, { zemin, proje })
+      return null
+    }
   }, [zemin, proje, makineler, kalibrasyon])
 
   if (!zemin.length) {
@@ -224,6 +229,21 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
     )
   }
 
+  if (!analiz) {
+    return (
+      <div style={{display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "50vh", textAlign: "center"}}>
+        <div style={{fontSize: "40px", marginBottom: "16px"}}>⚠️</div>
+        <h2 style={{color: "#DC2626", fontSize: "18px", fontWeight: "700", marginBottom: "8px"}}>Hesaplama Hatası</h2>
+        <p style={{color: "#64748B", fontSize: "14px", maxWidth: "360px", lineHeight: "1.6"}}>
+          Zemin verilerinden analiz hesaplanamadı. Lütfen zemin katmanlarını kontrol edin ve sayfayı yenileyin.
+        </p>
+        <p style={{color: "#94A3B8", fontSize: "12px", marginTop: "8px"}}>Detaylar için tarayıcı konsolunu inceleyin.</p>
+      </div>
+    )
+  }
+
+  console.log("[GeoDrill] zemin:", zemin, "analiz:", analiz)
+
   const {
     tork, torkAralik, casingDur, gerekce, casingM, sure, cevrim, guven, mBasi, topMazot,
     kritik, gunlukUretim, kazikBasiGun, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor,
@@ -242,7 +262,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
         }}>
           <span>🎯</span>
           <span style={{ color: "#166534", fontWeight: "600" }}>
-            {t("calibrationActive").replace("{val}", kalibrasyon.katsayi.toFixed(4))}
+            {t("calibrationActive").replace("{val}", (kalibrasyon?.katsayi ?? 0).toFixed(4))}
           </span>
         </div>
       )}
@@ -466,14 +486,14 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
 
       {/* Metrik kartlar */}
       <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "16px", marginBottom: "24px"}}>
-        <MetrikKart baslik="Gerekli Min. Tork" deger={`${tork} kNm`} renk="#0284C7"
-          alt={`Bant: ${torkAralik?.min}–${torkAralik?.max} kNm`}
-          oran={Math.min(100, (tork / 300) * 100)} />
-        <MetrikKart baslik="Muhafaza Borusu" deger={casingDur} renk="#6366F1" alt={`${casingM} m tahmini`}
-          oran={(casingM / proje.kazikBoyu) * 100} />
-        <MetrikKart baslik="1 Kazık Net Delgi" deger={`${cevrimMakineIle.tDelme} saat`} renk="#0891B2"
-          alt={`Çevrim: ${cevrimMakineIle.tToplamCevrim} saat · Verim: %${cevrimVerimiPct}`}
-          oran={Math.min(100, (cevrimMakineIle.tDelme / 8) * 100)} />
+        <MetrikKart baslik="Gerekli Min. Tork" deger={`${tork ?? "—"} kNm`} renk="#0284C7"
+          alt={`Bant: ${torkAralik?.min ?? "—"}–${torkAralik?.max ?? "—"} kNm`}
+          oran={Math.min(100, ((tork ?? 0) / 300) * 100)} />
+        <MetrikKart baslik="Muhafaza Borusu" deger={casingDur ?? "—"} renk="#6366F1" alt={`${casingM ?? 0} m tahmini`}
+          oran={proje.kazikBoyu > 0 ? ((casingM ?? 0) / proje.kazikBoyu) * 100 : 0} />
+        <MetrikKart baslik="1 Kazık Net Delgi" deger={`${cevrimMakineIle?.tDelme ?? "—"} saat`} renk="#0891B2"
+          alt={`Çevrim: ${cevrimMakineIle?.tToplamCevrim ?? "—"} saat · Verim: %${cevrimVerimiPct ?? 0}`}
+          oran={Math.min(100, ((cevrimMakineIle?.tDelme ?? 0) / 8) * 100)} />
         <MetrikKart baslik="Toplam İş Süresi" deger={`${toplamGunFizik} gün`} renk="#0EA5E9"
           alt={`${proje.kazikAdedi} kazık · ~${gunlukUretimFizik} kazık/gün`}
           oran={Math.min(100, (toplamGunFizik / 60) * 100)} />
@@ -697,7 +717,7 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
             </span>
             {kalibrasyon?.aktif && (
               <span style={{ color: "#0369A1", fontWeight: "600" }}>
-                Kalibrasyon ×{kalibrasyon.katsayi.toFixed(4)} uygulandı
+                Kalibrasyon ×{(kalibrasyon?.katsayi ?? 0).toFixed(4)} uygulandı
               </span>
             )}
           </div>
