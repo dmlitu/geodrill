@@ -471,6 +471,131 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
         </div>
       )}
 
+      {/* ─── Tork Formülü Şeffaflık Paneli ─── */}
+      {torkAralik?.katmanDetaylari?.length > 0 && (
+        <div style={{
+          background: "var(--bg-card)", borderRadius: "12px",
+          border: "1px solid var(--input-border)", padding: "20px 24px",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.04)", marginBottom: "20px",
+        }}>
+          <h3 style={{ fontSize: "14px", fontWeight: "700", color: "var(--heading)", marginBottom: "4px" }}>
+            Tork Hesabı — Katman Detayları
+          </h3>
+          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px", fontFamily: "'DM Mono', monospace" }}>
+            T = τ_eff × (π×D³/12) × K_app(1.67) × K_method × K_gw × K_depth × K_rqd
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+              <thead>
+                <tr style={{ background: "#0C3B6E", color: "white" }}>
+                  {["Derinlik (m)", "Zemin Tipi", "τ_eff (kPa)", "Kaynak", "K_gw", "K_depth", "K_rqd", "T (kNm)", "Güven"].map(h => (
+                    <th key={h} style={{ padding: "7px 10px", textAlign: "left", fontWeight: "700", fontSize: "11px", whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {torkAralik.katmanDetaylari.map((kd, i) => {
+                  const isMax = kd.tKatmanKNm === Math.max(...torkAralik.katmanDetaylari.map(d => d.tKatmanKNm))
+                  return (
+                    <tr key={i} style={{ background: isMax ? "#EFF6FF" : i % 2 === 0 ? "#F8FAFC" : "white" }}>
+                      <td style={{ padding: "6px 10px", fontFamily: "'DM Mono', monospace", fontWeight: isMax ? "700" : "400" }}>
+                        {kd.baslangic}–{kd.bitis}
+                      </td>
+                      <td style={{ padding: "6px 10px", fontWeight: "600" }}>{kd.zemTipi || kd.zem_tipi || "—"}</td>
+                      <td style={{ padding: "6px 10px", fontFamily: "'DM Mono', monospace" }}>{kd.tauEffKPa ?? kd.tau_eff_kPa ?? "—"}</td>
+                      <td style={{ padding: "6px 10px", color: "#64748B", fontSize: "11px" }}>{kd.source || "—"}</td>
+                      <td style={{ padding: "6px 10px", fontFamily: "'DM Mono', monospace" }}>{kd.kGw ?? kd.k_gw ?? "—"}</td>
+                      <td style={{ padding: "6px 10px", fontFamily: "'DM Mono', monospace" }}>{kd.kDepth ?? kd.k_depth ?? "—"}</td>
+                      <td style={{ padding: "6px 10px", fontFamily: "'DM Mono', monospace" }}>{kd.kRqd ?? kd.k_rqd ?? "—"}</td>
+                      <td style={{ padding: "6px 10px", fontFamily: "'DM Mono', monospace", fontWeight: "700", color: isMax ? "#0369A1" : "inherit" }}>
+                        {kd.tKatmanKNm ?? kd.t_katman_kNm ?? "—"}
+                        {isMax && <span style={{ marginLeft: "4px", fontSize: "10px", color: "#0369A1" }}>★</span>}
+                      </td>
+                      <td style={{ padding: "6px 10px" }}>
+                        <span style={{
+                          padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: "700",
+                          background: (kd.confidence || kd.confidence) === "A" ? "#F0FDF4"
+                            : (kd.confidence) === "B" ? "#FFFBEB" : "#FEF2F2",
+                          color: (kd.confidence) === "A" ? "#15803D"
+                            : (kd.confidence) === "B" ? "#92400E" : "#991B1B",
+                        }}>
+                          {kd.confidence || "—"}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ marginTop: "10px", fontSize: "11px", color: "var(--text-muted)" }}>
+            ★ Belirleyici katman (en yüksek tork) · Güven: A=ölçülmüş, B=korelasyon, C=çıkarımsal
+          </div>
+        </div>
+      )}
+
+      {/* ─── Katman Bazlı ROP Şeffaflık Paneli ─── */}
+      {cevrim?.katmanRopDetaylari?.length > 0 && (
+        <div style={{
+          background: "var(--bg-card)", borderRadius: "12px",
+          border: "1px solid var(--input-border)", padding: "20px 24px",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.04)", marginBottom: "20px",
+        }}>
+          <h3 style={{ fontSize: "14px", fontWeight: "700", color: "var(--heading)", marginBottom: "4px" }}>
+            Penetrasyon Hızı (ROP) — Katman Detayları
+          </h3>
+          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px", fontFamily: "'DM Mono', monospace" }}>
+            ROP = Baz_ROP × F_ucs × F_cap × F_spt × F_gw × F_machine · Net_sure = kalınlık / ROP
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+              <thead>
+                <tr style={{ background: "#0C3B6E", color: "white" }}>
+                  {["Derinlik (m)", "Zemin Tipi", "ROP (m/saat)", "Net Süre (saat)", "Kalınlık (m)", "Not"].map(h => (
+                    <th key={h} style={{ padding: "7px 10px", textAlign: "left", fontWeight: "700", fontSize: "11px", whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {cevrim.katmanRopDetaylari.map((kd, i) => (
+                  <tr key={i} style={{ background: i % 2 === 0 ? "#F8FAFC" : "white" }}>
+                    <td style={{ padding: "6px 10px", fontFamily: "'DM Mono', monospace" }}>
+                      {kd.baslangic}–{kd.bitis}
+                    </td>
+                    <td style={{ padding: "6px 10px", fontWeight: "600" }}>{kd.zemTipi || "—"}</td>
+                    <td style={{ padding: "6px 10px", fontFamily: "'DM Mono', monospace", fontWeight: "700", color: "#0369A1" }}>
+                      {kd.ropMhr ?? "—"}
+                    </td>
+                    <td style={{ padding: "6px 10px", fontFamily: "'DM Mono', monospace" }}>{kd.sureSaat ?? "—"}</td>
+                    <td style={{ padding: "6px 10px", fontFamily: "'DM Mono', monospace" }}>
+                      {((kd.bitis || 0) - (kd.baslangic || 0)).toFixed(1)}
+                    </td>
+                    <td style={{ padding: "6px 10px", fontSize: "11px", color: kd.duzeltildi ? "#D97706" : "#64748B" }}>
+                      {kd.duzeltildi ? "⚠ Kaya alt sınırı" : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid var(--border-subtle)", display: "flex", gap: "20px", flexWrap: "wrap", fontSize: "12px", color: "#475569" }}>
+            <span>
+              Net delme süresi: <strong style={{ color: "#0C4A6E" }}>{cevrim.tDelme} saat</strong>
+            </span>
+            <span>
+              Ortalama ROP: <strong style={{ color: "#0C4A6E", fontFamily: "'DM Mono', monospace" }}>
+                {cevrim.tDelme > 0 ? (proje.kazikBoyu / cevrim.tDelme).toFixed(2) : "—"} m/saat
+              </strong>
+            </span>
+            {kalibrasyon?.aktif && (
+              <span style={{ color: "#0369A1", fontWeight: "600" }}>
+                Kalibrasyon ×{kalibrasyon.katsayi.toFixed(4)} uygulandı
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* İki kolon */}
       <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "20px", marginBottom: "20px"}}>
         {/* Sol — Proje özeti */}

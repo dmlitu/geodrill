@@ -622,7 +622,10 @@ function Dashboard({ username, onLogout }) {
   const [yukleniyor, setYukleniyor] = useState(true)
   const [onboarding, setOnboarding] = useState(false)
   const [dark, setDark] = useState(() => localStorage.getItem("gd_theme") === "dark")
-  const [kalibrasyon, setKalibrasyon] = useState({ aktif: false, katsayi: 1.0 })
+  const [kalibrasyon, setKalibrasyon] = useState({
+    aktif: false, katsayi: 1.0,
+    sahaVerimi: 1.0, operatorYetenegi: 1.0, makineDurumu: 1.0, olcumKatsayi: 1.0,
+  })
 
   const toggleDark = useCallback(() => {
     setDark(prev => {
@@ -692,7 +695,7 @@ function Dashboard({ username, onLogout }) {
     setProje(BOS_PROJE)
     setZemin([])
     setProjeId(null)
-    setKalibrasyon({ aktif: false, katsayi: 1.0 })
+    setKalibrasyon({ aktif: false, katsayi: 1.0, sahaVerimi: 1.0, operatorYetenegi: 1.0, makineDurumu: 1.0, olcumKatsayi: 1.0 })
     setWizardTab("proje")
     setActivePage("guncel")
   }
@@ -703,7 +706,7 @@ function Dashboard({ username, onLogout }) {
       setProjeId(p.id)
       setProje(fromSnake(p))
       setZemin((p.soil_layers || []).map(fromSnakeLayer))
-      setKalibrasyon({ aktif: false, katsayi: 1.0 })
+      setKalibrasyon({ aktif: false, katsayi: 1.0, sahaVerimi: 1.0, operatorYetenegi: 1.0, makineDurumu: 1.0, olcumKatsayi: 1.0 })
       setWizardTab("proje")
       setActivePage("guncel")
     } catch (e) {

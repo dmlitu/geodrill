@@ -453,7 +453,8 @@ def _build_pdf_report(project, current_user, db):
                    "orta düzey riskli katmanlar içermektedir. Standart önlemler yeterli olacaktır."
                    if orta_var else
                    "genel olarak düşük riskli zemin koşulları sunmaktadır.")
-    guven_str   = (f"Sınıf {guven['sinif']} ({guven['puan']}/100 puan)" if guven else "—")
+    _seviye_tr  = {"HIGH": "Yüksek Güven", "MEDIUM": "Orta Güven", "LOW": "Düşük Güven"}
+    guven_str   = (f"Sınıf {tork_guv} — {_seviye_tr.get(guven.get('seviye',''), guven.get('seviye','?'))} ({guven['puan']}/100 puan)" if guven else "—")
     ozet = (
         f"{project.proje_adi or 'Bu proje'} kapsamında <b>{project.kazik_adedi} adet</b>, "
         f"<b>{project.kazik_boyu} m</b> derinliğinde ve <b>Ø{project.kazik_capi} mm</b> çapında "
@@ -473,7 +474,7 @@ def _build_pdf_report(project, current_user, db):
     content.append(Paragraph(ozet, sKutu))
 
     # Özet metrik tablosu
-    guven_sinif = guven.get("sinif", "?") if guven else "?"
+    guven_sinif = tork_guv or "?"
     sinif_renk = {
         "A": C_GREEN, "B": C_GREEN, "C": C_AMBER, "D": C_RED
     }.get(guven_sinif, C_GRAY)
@@ -640,8 +641,8 @@ def _build_pdf_report(project, current_user, db):
     if guven:
         guven_acik = (
             f"Hesap güveni puanı: <b>{guven['puan']}/100</b>  |  "
-            f"Sınıf: <b>{guven['sinif']}</b>  |  "
-            f"Seviye: <b>{guven['seviye']}</b>. "
+            f"Sınıf: <b>{tork_guv or '?'}</b>  |  "
+            f"Seviye: <b>{_seviye_tr.get(guven.get('seviye', ''), guven.get('seviye', '?'))}</b>. "
             f"Sınıf A/B: üst sınır hesap güvenilirdir. "
             f"Sınıf C: arazi doğrulaması önerilir. "
             f"Sınıf D: kapsamlı zemin araştırması gereklidir."
@@ -731,7 +732,7 @@ def _build_pdf_report(project, current_user, db):
     proje_kodu = (project.proje_kodu or str(project.id)).replace(" ", "_")
     filename = f"geodrill_rapor_{proje_kodu}_{datetime.now().strftime('%Y%m%d')}.pdf"
     return StreamingResponse(
-        buf,
+        iter([buf.getvalue()]),
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

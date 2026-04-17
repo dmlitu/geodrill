@@ -540,11 +540,18 @@ def rop_hesapla(tip: str, ucs: float, cap_mm: float, kohezyon: str = "",
 
     rop = max(baz, R.min_rop)
 
-    # Makine gücü etkisi: gerekli tork / makine torku oranından ROP düzeltmesi
-    # F_makine = clamp(0.85 + 0.3 × (güç_oranı − 1), 0.85, 1.20)
+    # Makine-zemin etkileşimi: tork oranından fizik tabanlı ROP düzeltmesi
+    # ratio >= 1.0: fazla kapasite → hafif ROP artışı (besleme hızı kontrolü)
+    #   F = min(1.20, 1.0 + 0.40 × (ratio − 1.0))
+    # ratio < 1.0: yetersiz tork → kuvvet-yarıçap integrali orantılı düşer
+    #   F = ratio^1.5  (ratio=0.7→0.41, ratio=0.5→0.35, ratio=0.3→0.16)
+    # Kaynak: drilling mechanics, zımba yükleme analojisi; parity with hesaplamalar.js
     if gerekli_tork > 0 and makine_torku > 0:
-        guc_orani = makine_torku / gerekli_tork
-        f_makine  = clamp(0.85 + 0.3 * (guc_orani - 1.0), 0.85, 1.20)
+        ratio = makine_torku / gerekli_tork
+        if ratio >= 1.0:
+            f_makine = min(1.20, 1.0 + 0.40 * (ratio - 1.0))
+        else:
+            f_makine = max(0.02, ratio ** 1.5)
         rop *= f_makine
 
     return rop

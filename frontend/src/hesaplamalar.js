@@ -755,11 +755,23 @@ export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, b
 
   let rop = Math.max(baz, R.min_rop)
 
-  // Makine gücü etkisi: gerekli tork / makine torku oranından ROP düzeltmesi
-  // F_makine = clamp(0.85 + 0.3 × (güç_oranı − 1), 0.85, 1.20)
+  // Makine-zemin etkileşimi: tork oranından fizik tabanlı ROP düzeltmesi
+  // Kaynak: drilling mechanics (T ∝ WOB × D × ROP); pratikte T_available < T_required → bit gerilemeye başlar.
+  //
+  // ratio >= 1.0: Fazla kapasite → hafif ROP artışı (besleme hızı kontrolü).
+  //   F = min(1.20, 1.0 + 0.40 × (ratio − 1.0))   → ratio=1.5'te F=1.20
+  //
+  // ratio < 1.0: Yetersiz tork → kuvvet-yarıçap integrali orantılı düşer.
+  //   F = ratio^1.5   (zımba yükleme analojisi; kübik yerine üs=1.5 seçildi:
+  //                    ratio=0.7 → F=0.41, ratio=0.5 → F=0.35, ratio=0.3 → F=0.16)
+  //   Minimum zemin = 0.02 (makine dönüyor ama neredeyse ilerleme yok).
+  //
+  // Sınır koşulları: ratio=1.0 → F=1.0; ratio=0 → F≈0; ratio>>1 → F=1.20.
   if (gerekliTork > 0 && makineTorku > 0) {
-    const gucOrani = makineTorku / gerekliTork
-    const fMakine  = clamp(0.85 + 0.3 * (gucOrani - 1), 0.85, 1.20)
+    const ratio = makineTorku / gerekliTork
+    const fMakine = ratio >= 1.0
+      ? Math.min(1.20, 1.0 + 0.40 * (ratio - 1.0))
+      : Math.max(0.02, Math.pow(ratio, 1.5))
     rop *= fMakine
   }
 
