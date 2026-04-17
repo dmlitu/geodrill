@@ -245,28 +245,25 @@ class RopCoefficients:
     """
 
     # Base ROP by soil type (m/hr at Ø800 mm reference). Class C.
-    # Calibrated against Turkish Kelly/rotary field records (Bauer BG-series, Soilmec SR-series).
-    # Soil values revised v3.2: prior values (Kil=8, Kum=7) were ~40-50% below observed field
-    # rates for modern rigs. Reference: EFFC/DFI Production Data Report 2019;
-    # Zayed & Halpin (2005) Table 3; internal Turkish contractor telemetry 2022-2024.
-    # Rock values revised v3.3: base calibrated to "no rock-strength data" standard-field case
-    # (UCS_ref=40 MPa reference); power-law model adjusts when UCS is measured.
+    # v4.6 revision: Kireçtaşı 2.5→4.0, Sert Kaya 2.0→2.5, Organik Kil/Torf up-calibrated.
+    # Source: EFFC/DFI Production Data Report 2019; Zayed & Halpin (2005);
+    # Turkish contractor telemetry (Bauer BG-series, Soilmec SR-series) 2022-2024.
     baz: Dict[str, float] = field(default_factory=lambda: {
-        "Dolgu":        15.0,  # loose fill — fast rotary penetration
-        "Kil":          12.0,  # soft–medium clay (SPT 5–20); stiffer clay handled by SPT reduction
-        "Silt":         13.0,  # silty soil, low cohesion
-        "Kum":          12.0,  # loose–medium sand; dense sand handled by SPT reduction
+        "Dolgu":        14.0,  # loose fill — fast rotary penetration
+        "Kil":          13.0,  # soft–medium clay (SPT 5–20); stiffer clay by SPT reduction
+        "Silt":         12.0,  # silty soil, low cohesion
+        "Kum":          11.0,  # loose–medium sand; dense sand by SPT reduction
         "Çakıl":         6.0,  # gravel — auger tooth wear, more torque required
-        "Ayrışmış Kaya": 7.0,  # fully weathered — granular-like; 6–8 m/hr field range, UCS <15 MPa (no penalty)
+        "Ayrışmış Kaya": 7.0,  # fully weathered — granular-like; 6–8 m/hr field range
         "Kumtaşı":       5.5,  # weak–medium sandstone; UCS power-law adjusts for harder bands
-        "Kireçtaşı":     2.5,  # limestone; karstic voids not modelled
-        "Sert Kaya":     2.0,  # hard rock — base for no-UCS case; power-law reduces for measured UCS
-        "Organik Kil":   2.0,  # high plasticity, gas risk — slow advance
-        "Torf":          1.5,  # very compressible, unstable — slow advance
+        "Kireçtaşı":     4.0,  # limestone; v4.6 recalibrated upward (2.5→4.0, field-aligned)
+        "Sert Kaya":     2.5,  # hard rock — base for no-UCS case; v4.6 2.0→2.5
+        "Organik Kil":  11.0,  # soft organic soil — mechanically easy to drill (stability separate)
+        "Torf":          9.0,  # very compressible peat — easy to drill mechanically
     })
 
     # Fallback ROP when soil type not matched
-    varsayilan: float = 5.0
+    varsayilan: float = 5.5
 
     # UCS-based ROP reduction for non-rock layers with UCS recorded (edge case)
     ucs_azaltma_katsayi: float = 0.75
@@ -280,41 +277,52 @@ class RopCoefficients:
     cap_azaltma_min: float = 0.40   # minimum diameter factor (large diameters)
 
     # SPT-based ROP reduction for dense granular soils
-    # Source: Conservative engineering judgment; FHWA GEC 10 §7 commentary.
-    spt_azaltma_esigi: int = 30     # N60 above this triggers reduction
-    spt_azaltma_katsayi: float = 0.008  # per blow above threshold (v3.3: 0.012→0.008, controlled)
-    spt_azaltma_min: float = 0.40   # floor factor for granular SPT reduction (v3.3: 0.30→0.40)
+    spt_azaltma_esigi: int = 30
+    spt_azaltma_katsayi: float = 0.008
+    spt_azaltma_min: float = 0.40
 
-    # Absolute ROP floor (m/hr) — even hardest rock has measurable advance
+    # Absolute ROP floor (m/hr)
     min_rop: float = 0.20
 
-    # Rock layer minimum ROP factor: final ROP cannot fall below BAZ_ROP × this value.
-    # Prevents UCS + RQD reductions from compounding into unrealistic slow rates.
-    # Applied after all reductions, using the raw lookup-table base value as reference.
-    minimum_rop_factor: float = 0.55
+    # Rock layer minimum ROP factor: v4.6 0.55→0.65 (prevents over-pessimistic results)
+    minimum_rop_factor: float = 0.65
 
     # ── Power-law UCS–ROP model for rock ────────────────────────────────────
-    # Engineering basis: Warren (1987), Winters et al. (1987), Zijsling (1987).
+    # v4.6: ucs_referans_mpa 40→30 (more layers penalised), exponent 0.40→0.50 (steeper).
     # ROP_factor = (ucs_referans_mpa / max(UCS, ucs_referans_mpa)) ^ ucs_kuvvet_ussu
-    # Applied ONLY to sinif == "kaya" layers. Soil layers use legacy linear path.
-    #
-    # v3.3 calibration changes vs v3.2:
-    #   ucs_referans_mpa: 20.0 → 40.0  — base rates represent ~UCS40 rock; UCS<40 gets no penalty
-    #   ucs_kuvvet_ussu:  0.65 → 0.55  — less steep reduction curve (closer to field scatter)
-    #   ucs_kuvvet_min:   0.15 → 0.20  — less aggressive floor for extreme hardness
-    # Net effect: ~30–50% faster computed ROP for measured UCS values, matching saha production.
-    ucs_kuvvet_ussu: float = 0.40     # power-law exponent (dimensionless)
-    ucs_referans_mpa: float = 40.0    # reference UCS — at UCS ≤ ref, no penalty applied
-    ucs_kuvvet_min: float = 0.20      # minimum ROP factor for rock (floor at very high UCS)
+    # At UCS < ref → no penalty. At UCS=50: (30/50)^0.50 = 0.775.
+    ucs_kuvvet_ussu: float = 0.50      # power-law exponent (dimensionless); v4.6 0.40→0.50
+    ucs_referans_mpa: float = 30.0     # reference UCS (MPa); v4.6 40→30
+    ucs_kuvvet_min: float = 0.22       # minimum ROP factor for rock
 
-    # ── RQD-based ROP reduction for rock ────────────────────────────────────
-    # Engineering basis: higher RQD = more intact rock = harder face cutting.
-    # factor = max(rqd_azaltma_min, 1 − RQD × rqd_azaltma_katsayi)
-    # RQD=0 (not measured): factor=1.0 — no penalty (standard-field default).
-    # RQD=50: factor=max(0.60, 1−0.2)=0.80 — 20% reduction for moderately intact rock.
-    # RQD=100: factor=max(0.60, 0.60)=0.60 — 40% max reduction for massive rock.
-    rqd_azaltma_katsayi: float = 0.004  # per RQD point (0–100 scale)
-    rqd_azaltma_min: float = 0.60       # minimum RQD factor
+    # ── RQD step-function for rock ROP (v4.6 replaces linear model) ─────────
+    # Physical basis: fractured rock (low RQD) → natural discontinuities assist tool
+    # advance. Massive intact rock (high RQD) → full face-cutting required → slower.
+    # When rqd=0 (not measured): no modifier applied (neutral, no penalty/benefit).
+    # Source: Hoek & Brown (1980); ISRM rock mass classification.
+    #
+    # Step table: {rqd_threshold: modifier}
+    #   rqd >= 75 → 0.83  (massive/excellent — full face-cut, slower)
+    #   rqd >= 50 → 0.95  (good quality — few discontinuities, slightly slower)
+    #   rqd >= 25 → 1.08  (fair — some discontinuities help)
+    #   rqd >  0  → 1.15  (poor/very poor — highly fractured, faster)
+    rqd_adim_tablosu: Dict[int, float] = field(default_factory=lambda: {
+        75: 0.83,
+        50: 0.95,
+        25: 1.08,
+         0: 1.15,
+    })
+
+    # Legacy linear RQD params — retained for backward-compat, not used in v4.6+ code
+    rqd_azaltma_katsayi: float = 0.002
+    rqd_azaltma_min: float = 0.78
+
+    # ── Site calibration defaults (v4.6) ─────────────────────────────────────
+    # Applied to ROP when no project-specific calibration is active.
+    # Net factor: ROP *= saha_verimlilik * operator_faktoru * makine_kondisyon
+    saha_verimlilik: float = 0.90    # 0.80–1.00; site efficiency (transport + wait losses)
+    operator_faktoru: float = 1.00   # 0.85–1.15; experienced operator → 1.05-1.10
+    makine_kondisyon: float = 1.00   # 0.80–1.10; well-maintained machine → 1.00
 
 
 @dataclass(frozen=True)

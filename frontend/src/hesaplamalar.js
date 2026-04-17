@@ -120,36 +120,36 @@ export const KATSAYILAR = {
 
   // ── ROP katsayıları ──────────────────────────────────────────────────────
   // Kaynak: FHWA GEC 10 §7 + Türkiye saha kayıtları. C Sınıfı.
+  // v4.6: Kireçtaşı (2.5→4.0), Sert Kaya (2.0→2.5), Organik Kil/Torf yukarı revize edildi.
+  //   UCS referansı 40→30 MPa; üs 0.40→0.50; minimum_rop_factor 0.55→0.65.
+  //   RQD etkisi artık adım fonksiyonu: parçalı kaya hızlı, masif kaya yavaş.
   // Kalibrasyon notu: ileride saha verisiyle güncellemek için tüm katsayılar burada toplanmıştır.
   rop: {
-    // Taban ROP (m/saat) Ø800 mm referans çapında.
-    // Zemin birimleri: standart saha üretimi (v3.2'de Kil/Kum için ~%40-50 artış).
-    // Kaya birimleri (v3.3): "UCS verisi yok" standart saha durumu; UCS girilince
-    //   power-law modeli baz değerden azaltır.
+    // Taban ROP (m/saat) Ø800 mm referans çapında, makine tork marjı ≥ %10 varsayımı.
     // Kaynak: EFFC/DFI Üretkenlik Raporu 2019; Zayed & Halpin (2005) Tablo 3;
     //   Türkiye saha kayıtları (Bauer BG-serisi, Soilmec SR-serisi) 2022-2024.
     baz: {
-      "Dolgu":         15.0,  // gevşek dolgu — hızlı rotary penetrasyon
-      "Kil":           12.0,  // yumuşak-orta kil (SPT 5-20); sert kil SPT azaltmasıyla yavaşlar
-      "Silt":          13.0,  // siltli zemin, düşük kohezyon
-      "Kum":           12.0,  // gevşek-orta kum; sıkı kum SPT azaltmasıyla yavaşlar
+      "Dolgu":         14.0,  // gevşek dolgu — hızlı rotary penetrasyon
+      "Kil":           13.0,  // yumuşak-orta kil (SPT 5-20); sert kil SPT azaltmasıyla yavaşlar
+      "Silt":          12.0,  // siltli zemin, düşük kohezyon
+      "Kum":           11.0,  // gevşek-orta kum; sıkı kum SPT azaltmasıyla yavaşlar
       "Çakıl":          6.0,  // çakıl — takım aşınması, yüksek tork gerekli
-      "Ayrışmış Kaya":  7.0,  // tam ayrışmış; 6–8 m/saat saha aralığı, UCS tipik <15 MPa → ceza yok
+      "Ayrışmış Kaya":  7.0,  // tam ayrışmış; 6–8 m/saat saha aralığı, UCS tipik <15 MPa
       "Kumtaşı":        5.5,  // zayıf-orta kumtaşı; UCS power-law sert bantları ayarlar
-      "Kireçtaşı":      2.5,  // kireçtaşı; karst boşlukları modellenmedi
-      "Sert Kaya":      2.0,  // sert kaya — UCS verisi yokken baz; power-law ölçülen UCS için azaltır
-      "Organik Kil":    2.0,  // yüksek plastisite, gaz riski — yavaş ilerleme
-      "Torf":           1.5,  // çok sıkıştırılabilir, instabil — yavaş ilerleme
-      varsayilan:       5.0,
+      "Kireçtaşı":      4.0,  // kireçtaşı; v4.6: saha verisiyle yukarı revize (2.5→4.0)
+      "Sert Kaya":      2.5,  // sert kaya — UCS verisi yokken baz; power-law ölçülen UCS için azaltır
+      "Organik Kil":   11.0,  // yumuşak organik zemin — mekanik delgide hızlı (stabilite ayrıca)
+      "Torf":           9.0,  // çok yumuşak torf — yüksek sıkıştırılabilirlik, delgi kolay
+      varsayilan:       5.5,
     },
 
     // ── UCS power-law modeli (kaya katmanları için) ─────────────────────────
     // ROP_faktör = (ucs_kuvvet_referans / max(UCS, ucs_kuvvet_referans)) ^ ucs_kuvvet_ussu
-    // v3.3: referans 20→40 MPa, üs 0.65→0.55 — saha üretimine %30-50 yaklaşım.
+    // v4.6: referans 40→30 MPa (daha çok kaya katmanı UCS cezasına girer), üs 0.40→0.50.
     // Kaynak: Warren (1987); Winters et al. (1987); Zijsling (1987).
-    ucs_kuvvet_referans:  40.0,  // MPa — bu değerin altında UCS cezası uygulanmaz
-    ucs_kuvvet_ussu:       0.40,  // power-law üssü (boyutsuz)
-    ucs_kuvvet_min:        0.20,  // kaya için min ROP faktörü (çok yüksek UCS tabanı)
+    ucs_kuvvet_referans:  30.0,  // MPa — bu değerin altında UCS cezası uygulanmaz
+    ucs_kuvvet_ussu:       0.50,  // power-law üssü (boyutsuz); 0.50 saha üretimiyle daha uyumlu
+    ucs_kuvvet_min:        0.22,  // kaya için min ROP faktörü
 
     // Kaya olmayan katman için eski doğrusal UCS azaltması (kenar durum)
     ucs_azaltma_katsayi:  0.75,
@@ -162,20 +162,32 @@ export const KATSAYILAR = {
 
     // ── SPT bazlı granüler azaltma ──────────────────────────────────────────
     spt_azaltma_esigi:    30,    // SPT N > bu eşik → yoğunluk azaltması
-    spt_azaltma_katsayi:  0.008, // eşik üzerinde darbe başına (v3.3: 0.012→0.008)
-    spt_azaltma_min:      0.40,  // granüler SPT azaltması tabanı (v3.3: 0.30→0.40)
+    spt_azaltma_katsayi:  0.008, // eşik üzerinde darbe başına
+    spt_azaltma_min:      0.40,  // granüler SPT azaltması tabanı
 
-    // ── RQD azaltması (kaya katmanları için) ────────────────────────────────
-    // Yüksek RQD = sağlam kaya = yüzey kesmesi daha yavaş.
-    // RQD=0 (ölçülmemiş) → faktör=1.0 (standart saha varsayımı, ceza yok).
-    rqd_azaltma_katsayi:  0.004, // RQD puanı başına (0-100 ölçeği)
-    rqd_azaltma_min:      0.60,  // RQD'den max %40 azaltma
+    // ── RQD adım fonksiyonu (kaya katmanları için) ───────────────────────────
+    // Fiziksel gerekçe (v4.6):
+    //   Parçalı kaya (düşük RQD) → doğal süreksizlikler delgiyi kolaylaştırır → HIZLANIR.
+    //   Masif kaya (yüksek RQD) → tam yüzey kesimi gerekir → YAVAŞLAR.
+    //   rqd=0 (ölçülmemiş) → modifikatör uygulanmaz; ceza veya fayda yok.
+    //   Eski doğrusal model (yüksek RQD→yavaş ama 0.004 katsayılı) yerini adım fn'ye bıraktı.
+    // Kaynak: Hoek & Brown (1980) kaya kütlesi; ISRM kaya sınıflaması.
+    rqd_adim_tablosu: {
+      75: 0.83,   // RQD ≥ 75 — masif/mükemmel kaya → yüzey kesimi tam, yavaş
+      50: 0.95,   // RQD ≥ 50 — iyi kalite → az süreksizlik, hafif yavaş
+      25: 1.08,   // RQD ≥ 25 — orta parçalı → bazı süreksizlikler yardımcı
+       0: 1.15,   // RQD > 0 & < 25 — çok parçalı → süreksizlikler baskın, hızlı
+    },
+
+    // Eski doğrusal parametreler — geriye dönük uyumluluk için korundu (artık kullanılmıyor)
+    rqd_azaltma_katsayi:  0.002,
+    rqd_azaltma_min:      0.78,
 
     min_rop:              0.20,  // mutlak alt sınır (çok sert kaya), m/saat
 
-    // Kaya katmanı alt sınır faktörü: tüm azaltmalar sonrası ROP, BAZ_ROP × bu değerin altına inemez.
-    // UCS + RQD birleşik etkisinin aşırı düşük sonuç üretmesini engeller.
-    minimum_rop_factor:   0.55,
+    // Kaya alt sınır faktörü: tüm azaltmalar sonrası ROP, BAZ_ROP × bu değerin altına inemez.
+    // v4.6: 0.55→0.65 (aşırı düşük sonuçları önler, saha gözlemiyle daha uyumlu).
+    minimum_rop_factor:   0.65,
   },
 
   // ── Tam çevrim süresi katsayıları ────────────────────────────────────────
@@ -266,6 +278,47 @@ export const KATSAYILAR = {
   kritikKatman: {
     sinif_agirlik: { kaya: 3.0, granüler: 1.5, kohezyonlu: 1.0, belirsiz: 0.8 },
   },
+
+  // ── Saha kalibrasyon parametreleri (v4.6) ────────────────────────────────
+  // Bu parametreler saha gözlemi sonrası kullanıcı tarafından güncellenebilir.
+  // Varsayılanlar muhafazakâr ama gerçekçi saha koşullarını yansıtır.
+  // Kaynak: EFFC/DFI Üretkenlik Rehberi 2019; OEM saha kalibrasyonu.
+  kalibrasyon_varsayilan: {
+    saha_verimlilik:  0.90,  // 0.80–1.00; ortalama saha üretkenlik faktörü (taşıma, bekleme kayıpları dahil)
+    operator_faktoru: 1.00,  // 0.85–1.15; deneyimli operatör için 1.05-1.10 kullanın
+    makine_kondisyon: 1.00,  // 0.80–1.10; iyi bakımlı makine için 1.00
+    // Birleşik kalibrasyon: ROP *= saha_verimlilik * operator_faktoru * makine_kondisyon
+  },
+
+  // ── Formasyon sınıfı baz ROP (v4.6) ─────────────────────────────────────
+  // 5+1 sınıf sistem: zemin/kaya türüne göre beklenen baz ROP aralıkları (Ø800mm).
+  // ropHesapla() içindeki per-tip tablonun cross-check/doğrulama kaynağıdır.
+  // Kaynak: EFFC/DFI 2019; Türkiye saha kayıtları 2022-2024.
+  formasyon_baz_rop: {
+    yumusak_kohezif:  16.0,  // Kil/Silt SPT<15 veya su<40 kPa
+    sert_kohezif:      9.0,  // Kil SPT>15, Silt sıkı
+    granüler:         10.0,  // Kum/Çakıl/Dolgu
+    ayrismis_kaya:     7.0,  // Ayrışmış Kaya, UCS<10 MPa
+    parcali_kaya:      4.0,  // Kırıklı/orta kaya, UCS 10-50 MPa, RQD<50
+    sert_kaya:         2.5,  // Sert masif kaya, UCS>50 MPa veya RQD≥75
+  },
+
+  // ── Uç tipi modifikatörleri (v4.6) ───────────────────────────────────────
+  // Formasyon sınıfına göre önerilen delgi aleti ve ROP etkisi.
+  // ropMod: 1.0 = referans; <1.0 = yavaşlatır; >1.0 = hızlandırır.
+  // Kaynak: OEM uygulama kılavuzları; Türkiye saha deneyimi.
+  uc_tipi: {
+    helezoni_uc:   { ad: "Vidalı Uç (Helezoni)",  ropMod: 1.00 },
+    kepce_uc:      { ad: "Kepçe Uç",               ropMod: 0.93 },  // doygun granüler — spoil yönetimi
+    kaya_helezoni: { ad: "Kaya Vidalısı",           ropMod: 1.00 },  // ayrışmış/parçalı kaya için ideal
+    karot_kes:     { ad: "Karot Keski",             ropMod: 0.88 },  // sert masif kaya — daha yavaş ama doğru
+  },
+  // Yanlış uç kullanım cezası: formasyon tipine uyumsuz alet → verimlilik düşer
+  uc_uyumsuzluk_cezasi: {
+    helezoni_kaya: 0.55,    // Vidalı uç → sert kaya: %45 yavaşlama
+    kepce_kaya:    0.50,    // Kepçe uç → sert kaya: %50 yavaşlama
+    kaya_zemin:    0.92,    // Kaya vidalısı → yumuşak zemin: %8 yavaşlama (tolere edilebilir)
+  },
 }
 
 // Geriye dönük uyumluluk takma adı: eski KATSAYILAR.sure → KATSAYILAR.cevrim
@@ -338,6 +391,93 @@ export function zeminSinifi(zemTipi, kohezyon = null) {
   if (["Kum", "Çakıl", "Dolgu"].includes(tip))                                return "granüler"
   if (["Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya"].includes(tip))  return "kaya"
   return "belirsiz"
+}
+
+// ─── Formasyon Sınıfı (v4.6) ──────────────────────────────────────────────────
+
+/**
+ * Bir zemin katmanı için 5+1 sınıflı formasyon kategorisini döndürür.
+ * Tork, ROP ve alet seçimi kararlarının ortak fiziksel temeli olarak kullanılır.
+ *
+ * Sınıflar:
+ *   "yumusak_kohezif" — Kil/Silt SPT<15 veya su<40 kPa
+ *   "sert_kohezif"    — Kil/Silt SPT≥15
+ *   "granüler"        — Kum, Çakıl, Dolgu
+ *   "ayrismis_kaya"   — Ayrışmış Kaya, UCS<10 MPa
+ *   "parcali_kaya"    — Parçalı/orta kaya, UCS 10-50 MPa ve/veya RQD<50
+ *   "sert_kaya"       — Masif/sert kaya, UCS≥50 MPa veya RQD≥75
+ *
+ * @param {object} row - Zemin katmanı (zemTipi/zem_tipi, kohezyon, spt, ucs, rqd, su)
+ * @returns {string} formasyon sınıfı
+ */
+export function formasyonSinifi(row) {
+  const zemTipi  = row.zemTipi || row.zem_tipi || ""
+  const kohezyon = row.kohezyon || ""
+  const sinif    = zeminSinifi(zemTipi, kohezyon)
+  const ucs  = parseFloat(row.ucs  || 0)
+  const rqd  = parseFloat(row.rqd  || 0)
+  const spt  = parseFloat(row.spt  || 0)
+  const su   = parseFloat(row.su   || 0)
+
+  if (sinif === "kaya") {
+    // Default UCS kaya tipi bazlı
+    const hesapTip = zeminHesapTipi(zemTipi, kohezyon)
+    const ucsEff   = ucs > 0 ? ucs : (KATSAYILAR.tork.kaya_ucs_varsayilan[hesapTip] || 15)
+    if (ucsEff < 10)  return "ayrismis_kaya"
+    if (ucsEff < 50 && (rqd < 50 || rqd === 0)) return "parcali_kaya"
+    return "sert_kaya"
+  }
+
+  if (sinif === "kohezyonlu") {
+    // su ölçülmüşse doğrudan kullan; yoksa SPT'den tahmin et
+    const guv = su > 0 ? su : spt * 4  // kaba proxy: su ≈ N × 4 kPa
+    return guv < 50 ? "yumusak_kohezif" : "sert_kohezif"
+  }
+
+  if (sinif === "granüler") return "granüler"
+
+  // Dolgu / belirsiz → zemin bazlı davranış
+  return "yumusak_kohezif"
+}
+
+/**
+ * Formasyon sınıfına göre önerilen delgi aleti ve ROP modifikatörünü döndürür.
+ * Yanlış alet seçimi açıkça belirtilir ve performansa yansıtılır.
+ *
+ * @param {object} row  - Zemin katmanı
+ * @param {number} yas  - Yeraltı suyu derinliği (m)
+ * @returns {{ uc, ucTr, ropMod, aciklama }}
+ */
+export function ucTipiVeModifier(row, yas = 0) {
+  const UC = KATSAYILAR.uc_tipi
+  const bas     = parseFloat(row.baslangic || row.bas || 0)
+  const altYas  = yas > 0 && bas >= yas
+  const sinif   = zeminSinifi(row.zemTipi || row.zem_tipi, row.kohezyon)
+  const forKlas = formasyonSinifi(row)
+
+  // Doygun granüler zemin → kepçe uç (auger yerine bucket daha uygun)
+  if (sinif === "granüler" && altYas) {
+    return {
+      uc: "kepce_uc", ucTr: UC.kepce_uc.ad, ropMod: UC.kepce_uc.ropMod,
+      aciklama: "Suya doygun granüler zemin — kepçe uç tercih edilmeli",
+    }
+  }
+
+  switch (forKlas) {
+    case "yumusak_kohezif":
+    case "sert_kohezif":
+      return { uc: "helezoni_uc", ucTr: UC.helezoni_uc.ad, ropMod: UC.helezoni_uc.ropMod, aciklama: "Kohezyonlu zemin — vidalı uç uygun" }
+    case "granüler":
+      return { uc: "kepce_uc", ucTr: UC.kepce_uc.ad, ropMod: UC.kepce_uc.ropMod, aciklama: "Granüler zemin — kepçe uç önerilir" }
+    case "ayrismis_kaya":
+      return { uc: "kaya_helezoni", ucTr: UC.kaya_helezoni.ad, ropMod: UC.kaya_helezoni.ropMod, aciklama: "Ayrışmış kaya — kaya vidalısı uygun" }
+    case "parcali_kaya":
+      return { uc: "kaya_helezoni", ucTr: UC.kaya_helezoni.ad, ropMod: UC.kaya_helezoni.ropMod, aciklama: "Parçalı/orta kaya — kaya vidalısı; geçiş tabakasında karot keski değerlendirilebilir" }
+    case "sert_kaya":
+      return { uc: "karot_kes", ucTr: UC.karot_kes.ad, ropMod: UC.karot_kes.ropMod, aciklama: "Sert masif kaya — karot keski gerekli; vidalı uç kullanılırsa ciddi performans kaybı" }
+    default:
+      return { uc: "helezoni_uc", ucTr: UC.helezoni_uc.ad, ropMod: UC.helezoni_uc.ropMod, aciklama: "Standart vidalı uç" }
+  }
 }
 
 /**
@@ -725,11 +865,18 @@ export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, b
     }
   }
 
-  // RQD azaltması — yalnızca kaya katmanları ve RQD ölçülmüşse
-  // Yüksek RQD = sağlam kaya yüzeyi = daha yavaş kesme
+  // ── RQD adım fonksiyonu (v4.6) ────────────────────────────────────────────
+  // Fiziksel gerekçe: parçalı kaya (düşük RQD) doğal süreksizlikleri kullanarak
+  // daha hızlı deler; masif kaya (yüksek RQD) tam yüzey kesimi gerektirir.
+  // rqd=0 (ölçülmemiş) → modifikatör uygulanmaz (ceza/fayda yok, tarafsız).
+  // Kaynak: Hoek & Brown (1980); ISRM kaya kütlesi sınıflaması.
   if (sinif === "kaya" && rqd > 0) {
-    const rqdFaktor = Math.max(R.rqd_azaltma_min, 1 - rqd * R.rqd_azaltma_katsayi)
-    baz *= rqdFaktor
+    const rqdTablo = R.rqd_adim_tablosu
+    const rqdMod = rqd >= 75 ? rqdTablo[75]
+                 : rqd >= 50 ? rqdTablo[50]
+                 : rqd >= 25 ? rqdTablo[25]
+                 :             rqdTablo[0]
+    baz *= rqdMod
   }
 
   // Çap cezası
@@ -749,35 +896,45 @@ export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, b
     else if (sinif === "kaya")       baz *= GW.rop_kaya
   }
 
-  // Kaya alt sınırı: tüm azaltmalar sonrası ROP, BAZ_ROP × minimum_rop_factor'ın altına inemez
+  // Kaya alt sınırı: tüm azaltmalar sonrası ROP, BAZ_ROP × minimum_rop_factor'ın altına inemez.
+  // v4.6: 0.55→0.65 — saha gözlemiyle daha uyumlu, aşırı pessimistik sonuçları önler.
   if (sinif === "kaya")
     baz = Math.max(baz, bazTablo * R.minimum_rop_factor)
 
   let rop = Math.max(baz, R.min_rop)
 
-  // Makine-zemin etkileşimi: tork oranından fizik tabanlı ROP düzeltmesi
-  // Kaynak: drilling mechanics (T ∝ WOB × D × ROP); pratikte T_available < T_required → bit gerilemeye başlar.
+  // ── Makine-zemin etkileşimi (fizik tabanlı tork oranı düzeltmesi) ──────────
+  // Teale (1965) özgül enerji prensibinden türetilmiş basitleştirilmiş model:
+  //   Se = T × 2π × RPM / (A × ROP)  →  ROP ∝ T_available / (Se × A)
   //
-  // ratio >= 1.0: Fazla kapasite → hafif ROP artışı (besleme hızı kontrolü).
-  //   F = min(1.20, 1.0 + 0.40 × (ratio − 1.0))   → ratio=1.5'te F=1.20
+  // ratio = T_machine / T_required (tork kullanım oranı)
+  //   ratio > 1.0: Fazla kapasite → besleme hızı artar, fMakine ≤ 1.25.
+  //   ratio < 1.0: Yetersiz tork → bit geri itmesi başlar, güç-yarıçap integrali düşer.
+  //   ratio < 0.6: Durma noktasına yakın (pratik ilerleme yok).
   //
-  // ratio < 1.0: Yetersiz tork → kuvvet-yarıçap integrali orantılı düşer.
-  //   F = ratio^1.5   (zımba yükleme analojisi; kübik yerine üs=1.5 seçildi:
-  //                    ratio=0.7 → F=0.41, ratio=0.5 → F=0.35, ratio=0.3 → F=0.16)
-  //   Minimum zemin = 0.02 (makine dönüyor ama neredeyse ilerleme yok).
-  //
-  // Sınır koşulları: ratio=1.0 → F=1.0; ratio=0 → F≈0; ratio>>1 → F=1.20.
+  // Kaynak: Drilling mechanics; Rabia (2002); conservative field calibration.
   if (gerekliTork > 0 && makineTorku > 0) {
     const ratio = makineTorku / gerekliTork
     const fMakine = ratio >= 1.0
-      ? Math.min(1.20, 1.0 + 0.40 * (ratio - 1.0))
-      : Math.max(0.02, Math.pow(ratio, 1.5))
+      ? Math.min(1.25, 1.0 + 0.50 * (ratio - 1.0))
+      : ratio >= 0.6
+        ? Math.max(0.20, ratio ** 1.5)
+        : Math.max(0.05, ratio ** 2.0)  // çok düşük tork → neredeyse durma
     rop *= fMakine
   }
 
-  // Proje kalibrasyonu: saha ölçüm verisinden türetilmiş çarpan
+  // ── Saha kalibrasyonu ─────────────────────────────────────────────────────
+  // 1. Kullanıcı tarafından belirlenen proje kalibrasyonu (ölçülen/tahmin edilen)
   if (kalibrasyon?.aktif && kalibrasyon.katsayi > 0)
     rop = Math.max(rop * kalibrasyon.katsayi, R.min_rop)
+
+  // 2. Varsayılan saha verimliliği (KATSAYILAR.kalibrasyon_varsayilan)
+  // Not: Proje kalibrasyonu aktifse bu ikinci adım uygulanmaz (çift sayma önlemi).
+  if (!kalibrasyon?.aktif) {
+    const KAL = KATSAYILAR.kalibrasyon_varsayilan
+    const sahaFaktor = KAL.saha_verimlilik * KAL.operator_faktoru * KAL.makine_kondisyon
+    rop = Math.max(rop * sahaFaktor, R.min_rop)
+  }
 
   return rop
 }
@@ -1037,6 +1194,27 @@ export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, isTipi = "Fore
     : 1
   const kazikBasiGun = Math.round(tToplamCevrim / CV.gunluk_calisma * 10) / 10
 
+  // ── Çevrim verimi ve sınırlayan faktör analizi ──────────────────────────
+  // Çevrim verimi: net delme süresinin toplam çevrime oranı (%).
+  // Düşük verim → lojistik ve beton/donatı süreleri baskın.
+  const cevrimVerimi = tToplamCevrim > 0
+    ? Math.round(tDelme / tToplamCevrim * 100)
+    : 0
+
+  // En büyük çevrim bileşenini sınırlayan faktör olarak etiketle
+  const bileskenler = [
+    { ad: "Net delme",        sure: tDelme },
+    { ad: "Beton",            sure: tBeton },
+    { ad: "Donatı kafesi",    sure: tDonati },
+    { ad: "Casing ops.",      sure: tCasingOps },
+    { ad: "Lojistik/kurulum", sure: tKurulum + tRekonumlama },
+    { ad: "Beklenmedik",      sure: tBeklenmedik },
+  ]
+  const enBuyuk = bileskenler.reduce((a, b) => b.sure > a.sure ? b : a, bileskenler[0])
+  const sinirlayanFaktor = enBuyuk
+    ? `${enBuyuk.ad} (${Math.round(enBuyuk.sure * 10) / 10} saat, toplam çevrimin %${Math.round(enBuyuk.sure / tToplamCevrim * 100)}'i)`
+    : "—"
+
   return {
     tDelme:              Math.round(tDelme * 10) / 10,
     tBeton:              Math.round(tBeton * 10) / 10,
@@ -1048,7 +1226,9 @@ export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, isTipi = "Fore
     tToplamCevrim:       Math.round(tToplamCevrim * 10) / 10,
     kazikBasiGun,
     gunlukUretimAdet,
-    katmanRopDetaylari,  // katman bazlı ROP ve süre katkısı
+    cevrimVerimi,         // % — net delme / toplam çevrim
+    sinirlayanFaktor,     // metinsel açıklama: en büyük süre bileşeni
+    katmanRopDetaylari,   // katman bazlı ROP ve süre katkısı
   }
 }
 

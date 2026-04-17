@@ -8,6 +8,7 @@ import {
   kazikSuresi, mazotTahmini, kritikKatman, makinaUygunluk,
   katmanTeknikCikti, operasyonOnerisi,
   tamCevrimSuresi, guvenAnalizi, aciklamaUret,
+  formasyonSinifi, ucTipiVeModifier,
 } from "./hesaplamalar"
 
 // ── Kart bileşeni ───────────────────────────────────────
@@ -129,9 +130,23 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
     const gunlukUretim = cevrim.gunlukUretimAdet
     const kazikBasiGun = cevrim.kazikBasiGun   // days per pile (> 1 when pile takes longer than a workday)
     const toplamGun = Math.ceil(proje.kazikAdedi / gunlukUretim)
-    const ucOneri = zemin.some(r => ["Kumtaşı", "Kireçtaşı", "Sert Kaya"].includes(r.zemTipi) || r.ucs >= 25)
-      ? "Kaya ucu gerekli" : zemin.some(r => r.zemTipi === "Ayrışmış Kaya" || r.ucs >= 10)
+    // Uç tipi önerisi — baskın formasyon sınıfına göre
+    const ucTipiAnalizleri = zemin.map(r => ucTipiVeModifier(r, proje.yeraltiSuyu))
+    const kayaTipleri = ["Kumtaşı", "Kireçtaşı", "Sert Kaya"]
+    const ucOneri = zemin.some(r => kayaTipleri.includes(r.zemTipi) || (r.ucs || 0) >= 25)
+      ? "Kaya ucu gerekli" : zemin.some(r => r.zemTipi === "Ayrışmış Kaya" || ((r.ucs || 0) >= 10))
       ? "Geçiş tipi uç" : "Standart uç yeterli"
+    // Baskın uç tipi önerisi (en yaygın katman)
+    const ucTipiOneri = ucTipiAnalizleri.length > 0
+      ? ucTipiAnalizleri.reduce((prev, cur) => {
+          // Sert kaya varsa onu baskın say
+          if (cur.uc === "karot_kes") return cur
+          if (prev.uc === "karot_kes") return prev
+          if (cur.uc === "kaya_helezoni" && prev.uc !== "karot_kes") return cur
+          return prev
+        }, ucTipiAnalizleri[0])
+      : null
+
     const makineUygunluklari = makineler.map(m => {
       const uyg = makinaUygunluk(m, tork, proje.kazikBoyu, proje.kazikCapi, zorunlu, proje.isTipi, zemin, proje.yeraltiSuyu)
       const aciklama = aciklamaUret(m.ad, uyg.karar, uyg.torkOran, kritik, guven, proje.isTipi, zemin, proje.yeraltiSuyu)
@@ -152,9 +167,40 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
       : sinirdaMakineler.length > 0
       ? { makine: sinirdaMakineler[0], durum: sinirdaMakineler[0].karar, renk: "#D97706", bg: "#FFFBEB" }
       : { makine: null, durum: "Uygun makine yok", renk: "#DC2626", bg: "#FEF2F2" }
+    // ── Fizik tabanlı performans analizi — en iyi makine ile çevrim yeniden hesapla ──
+    const enIyiMakine = uygunMakineler.length > 0
+      ? uygunMakineler.reduce((best, m) => parseFloat(m.tork) < parseFloat(best.tork) ? m : best, uygunMakineler[0])
+      : sinirdaMakineler.length > 0 ? sinirdaMakineler[0] : null
+    const enIyiMakineTork = enIyiMakine ? parseFloat(enIyiMakine.tork || 0) : 0
+
+    // Makine tork bilgisiyle çevrim süresi yeniden hesapla (makine-zemin etkileşimi devrede)
+    const cevrimMakineIle = enIyiMakineTork > 0 && tork > 0
+      ? tamCevrimSuresi(zemin, proje.kazikCapi, proje.kazikBoyu, casingM, proje.isTipi, kalibrasyon, enIyiMakineTork, tork)
+      : cevrim
+
+    const torkKullanimOrani = enIyiMakineTork > 0 && tork > 0
+      ? Math.round(enIyiMakineTork / tork * 100)
+      : null
+    const netRop = cevrimMakineIle.tDelme > 0
+      ? Math.round(proje.kazikBoyu / cevrimMakineIle.tDelme * 10) / 10
+      : 0
+    const cevrimVerimiPct = cevrimMakineIle.cevrimVerimi ?? 0
+    const sinirlayanFaktor = cevrimMakineIle.sinirlayanFaktor ?? "—"
+
+    // Günlük üretim ve toplam gün — makine torklu çevrimden
+    const gunlukUretimFizik = cevrimMakineIle.gunlukUretimAdet
+    const toplamGunFizik = Math.ceil(proje.kazikAdedi / gunlukUretimFizik)
+
     const katmanCiktilar = katmanTeknikCikti(zemin, proje.kazikCapi)
     const opOneri = operasyonOnerisi(zemin, proje.yeraltiSuyu)
-    return { tork, torkAralik, casingDur, gerekce, zorunlu, casingM, sure, cevrim, guven, mBasi, topMazot, kritik, gunlukUretim, kazikBasiGun, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri }
+    return {
+      tork, torkAralik, casingDur, gerekce, zorunlu, casingM, sure, cevrim, guven, mBasi, topMazot,
+      kritik, gunlukUretim, kazikBasiGun, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor,
+      sistemKarari, katmanCiktilar, opOneri, ucTipiOneri,
+      // Fizik tabanlı performans metrikleri (en iyi makine ile)
+      cevrimMakineIle, torkKullanimOrani, netRop, cevrimVerimiPct, sinirlayanFaktor,
+      enIyiMakine, gunlukUretimFizik, toplamGunFizik,
+    }
   }, [zemin, proje, makineler, kalibrasyon])
 
   if (!zemin.length) {
@@ -178,7 +224,13 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
     )
   }
 
-  const { tork, torkAralik, casingDur, gerekce, casingM, sure, cevrim, guven, mBasi, topMazot, kritik, gunlukUretim, kazikBasiGun, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor, sistemKarari, katmanCiktilar, opOneri } = analiz
+  const {
+    tork, torkAralik, casingDur, gerekce, casingM, sure, cevrim, guven, mBasi, topMazot,
+    kritik, gunlukUretim, kazikBasiGun, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor,
+    sistemKarari, katmanCiktilar, opOneri, ucTipiOneri,
+    cevrimMakineIle, torkKullanimOrani, netRop, cevrimVerimiPct, sinirlayanFaktor,
+    enIyiMakine, gunlukUretimFizik, toplamGunFizik,
+  } = analiz
 
   return (
     <div>
@@ -419,11 +471,12 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
           oran={Math.min(100, (tork / 300) * 100)} />
         <MetrikKart baslik="Muhafaza Borusu" deger={casingDur} renk="#6366F1" alt={`${casingM} m tahmini`}
           oran={(casingM / proje.kazikBoyu) * 100} />
-        <MetrikKart baslik="1 Kazık Delgi Süresi" deger={`${sure} saat`} renk="#0891B2"
-          alt={kazikBasiGun > 1 ? `1 kazık ~${kazikBasiGun} gün` : `~${gunlukUretim} kazık/gün`}
-          oran={Math.min(100, (sure / 8) * 100)} />
-        <MetrikKart baslik="Toplam İş Süresi" deger={`${toplamGun} gün`} renk="#0EA5E9" alt={`${proje.kazikAdedi} kazık`}
-          oran={Math.min(100, (toplamGun / 60) * 100)} />
+        <MetrikKart baslik="1 Kazık Net Delgi" deger={`${cevrimMakineIle.tDelme} saat`} renk="#0891B2"
+          alt={`Çevrim: ${cevrimMakineIle.tToplamCevrim} saat · Verim: %${cevrimVerimiPct}`}
+          oran={Math.min(100, (cevrimMakineIle.tDelme / 8) * 100)} />
+        <MetrikKart baslik="Toplam İş Süresi" deger={`${toplamGunFizik} gün`} renk="#0EA5E9"
+          alt={`${proje.kazikAdedi} kazık · ~${gunlukUretimFizik} kazık/gün`}
+          oran={Math.min(100, (toplamGunFizik / 60) * 100)} />
         <MetrikKart
           baslik="Stabilite Skoru"
           deger={`${stabiliteSkor}/100`}
@@ -468,6 +521,61 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
               Tahmini toplam: <span style={{ fontWeight: "700", color: "#0C4A6E" }}>{toplamGun} gün</span>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ─── Fizik Tabanlı Delgi Performans Analizi ─── */}
+      {enIyiMakine && (
+        <div style={{
+          background: "var(--bg-card)", borderRadius: "12px",
+          border: "1px solid #BAE6FD", padding: "20px 24px",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.04)", marginBottom: "20px",
+        }}>
+          <h3 style={{ fontSize: "14px", fontWeight: "700", color: "var(--heading)", marginBottom: "4px" }}>
+            ⚡ Delgi Performans Analizi
+          </h3>
+          <div style={{ fontSize: "11px", color: "#64748B", marginBottom: "14px", fontFamily: "'DM Mono', monospace" }}>
+            Makine: <strong>{enIyiMakine.ad}</strong> ({enIyiMakine.tork} kNm)
+            {torkKullanimOrani && <> · Tork kullanım oranı: <strong>%{torkKullanimOrani}</strong></>}
+          </div>
+
+          {/* Metrik grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "10px", marginBottom: "14px" }}>
+            {[
+              { label: "Tork Kullanım Oranı", val: torkKullanimOrani ? `%${torkKullanimOrani}` : "—",
+                renk: torkKullanimOrani >= 130 ? "#16A34A" : torkKullanimOrani >= 100 ? "#0369A1" : torkKullanimOrani >= 85 ? "#D97706" : "#DC2626",
+                aciklama: torkKullanimOrani >= 130 ? "Rahat marj" : torkKullanimOrani >= 100 ? "Yeterli" : torkKullanimOrani >= 85 ? "Sınırda" : "Yetersiz" },
+              { label: "Ort. Net ROP", val: `${netRop} m/saat`, renk: "#0369A1", aciklama: "Makine tork etkisi dahil" },
+              { label: "Net Delme Süresi", val: `${cevrimMakineIle.tDelme} saat`, renk: "#0891B2", aciklama: "Sadece zemin kesimi" },
+              { label: "Toplam Çevrim", val: `${cevrimMakineIle.tToplamCevrim} saat`, renk: "#7C3AED", aciklama: "Beton+donatı+lojistik dahil" },
+              { label: "Çevrim Verimi", val: `%${cevrimVerimiPct}`, renk: cevrimVerimiPct >= 50 ? "#16A34A" : cevrimVerimiPct >= 35 ? "#D97706" : "#DC2626", aciklama: "Net delme / toplam çevrim" },
+              { label: "Günlük Üretim", val: `~${gunlukUretimFizik} kazık/gün`, renk: "#16A34A", aciklama: "10 saatlik iş günü" },
+            ].map(({ label, val, renk, aciklama }) => (
+              <div key={label} style={{ background: "#F8FAFC", borderRadius: "8px", padding: "10px 14px", borderLeft: `3px solid ${renk}` }}>
+                <div style={{ fontSize: "11px", color: "#64748B", fontWeight: "600", marginBottom: "2px" }}>{label}</div>
+                <div style={{ fontSize: "17px", fontWeight: "700", color: renk }}>{val}</div>
+                <div style={{ fontSize: "10px", color: "#94A3B8", marginTop: "2px" }}>{aciklama}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Sınırlayan faktör */}
+          <div style={{
+            background: "#EFF6FF", borderRadius: "8px", padding: "10px 14px",
+            fontSize: "12px", color: "#1E40AF", borderLeft: "3px solid #3B82F6",
+          }}>
+            <span style={{ fontWeight: "700" }}>Sınırlayan Faktör: </span>{sinirlayanFaktor}
+          </div>
+
+          {/* Uç tipi önerisi */}
+          {ucTipiOneri && (
+            <div style={{ marginTop: "10px", fontSize: "12px", color: "#475569", display: "flex", gap: "8px", alignItems: "center" }}>
+              <span style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", color: "#15803D", borderRadius: "6px", padding: "3px 10px", fontWeight: "700", fontSize: "11px" }}>
+                ÖNERİLEN UÇ
+              </span>
+              <span><strong>{ucTipiOneri.ucTr}</strong> — {ucTipiOneri.aciklama}</span>
+            </div>
+          )}
         </div>
       )}
 

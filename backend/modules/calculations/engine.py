@@ -509,11 +509,21 @@ def rop_hesapla(tip: str, ucs: float, cap_mm: float, kohezyon: str = "",
             # Non-rock layer with UCS recorded (edge case): legacy linear path.
             baz *= max(R.ucs_azaltma_min, 1.0 - (ucs / 100.0) * R.ucs_azaltma_katsayi)
 
-    # RQD-based reduction for rock (only when RQD is measured, i.e. > 0)
-    # Higher RQD = more intact rock = slower face cutting.
+    # RQD step function for rock (v4.6: replaces old linear model)
+    # Fractured rock (low RQD) → faster; massive rock (high RQD) → slower.
+    # rqd=0 means unmeasured → no modifier applied.
+    # Source: Hoek & Brown (1980); parity with hesaplamalar.js rqd_adim_tablosu.
     if sinif == "kaya" and rqd > 0:
-        rqd_faktor = max(R.rqd_azaltma_min, 1.0 - rqd * R.rqd_azaltma_katsayi)
-        baz *= rqd_faktor
+        rqd_tablo = R.rqd_adim_tablosu  # {75: 0.83, 50: 0.95, 25: 1.08, 0: 1.15}
+        if rqd >= 75:
+            rqd_mod = rqd_tablo[75]
+        elif rqd >= 50:
+            rqd_mod = rqd_tablo[50]
+        elif rqd >= 25:
+            rqd_mod = rqd_tablo[25]
+        else:
+            rqd_mod = rqd_tablo[0]
+        baz *= rqd_mod
 
     # Diameter penalty
     baz *= max(R.cap_azaltma_min, 1.0 - (cap_m - R.referans_cap_m) * R.cap_azaltma_katsayi)
@@ -540,19 +550,26 @@ def rop_hesapla(tip: str, ucs: float, cap_mm: float, kohezyon: str = "",
 
     rop = max(baz, R.min_rop)
 
-    # Makine-zemin etkileşimi: tork oranından fizik tabanlı ROP düzeltmesi
+    # Makine-zemin etkileşimi: tork oranından fizik tabanlı ROP düzeltmesi (v4.6 piecewise)
     # ratio >= 1.0: fazla kapasite → hafif ROP artışı (besleme hızı kontrolü)
-    #   F = min(1.20, 1.0 + 0.40 × (ratio − 1.0))
-    # ratio < 1.0: yetersiz tork → kuvvet-yarıçap integrali orantılı düşer
-    #   F = ratio^1.5  (ratio=0.7→0.41, ratio=0.5→0.35, ratio=0.3→0.16)
-    # Kaynak: drilling mechanics, zımba yükleme analojisi; parity with hesaplamalar.js
+    #   F = min(1.25, 1.0 + 0.50 × (ratio − 1.0))
+    # 0.6 <= ratio < 1.0: yetersiz tork → F = ratio^1.5 (floor 0.20)
+    # ratio < 0.6: near-stall → F = ratio^2.0 (floor 0.05)
+    # Kaynak: drilling mechanics, zımba yükleme analojisi; parity with hesaplamalar.js v4.6
     if gerekli_tork > 0 and makine_torku > 0:
         ratio = makine_torku / gerekli_tork
         if ratio >= 1.0:
-            f_makine = min(1.20, 1.0 + 0.40 * (ratio - 1.0))
+            f_makine = min(1.25, 1.0 + 0.50 * (ratio - 1.0))
+        elif ratio >= 0.6:
+            f_makine = max(0.20, ratio ** 1.5)
         else:
-            f_makine = max(0.02, ratio ** 1.5)
+            f_makine = max(0.05, ratio ** 2.0)
         rop *= f_makine
+
+    # Default site calibration when no project calibration active
+    # Mirrors hesaplamalar.js: saha_verimlilik × operator_faktoru × makine_kondisyon
+    saha_faktor = R.saha_verimlilik * R.operator_faktoru * R.makine_kondisyon
+    rop = max(rop * saha_faktor, R.min_rop)
 
     return rop
 
@@ -886,6 +903,22 @@ def tam_cevrim_suresi(layers: list, cap_mm: float, kazik_boyu: float,
     gunluk_uretim_adet = max(1, int(math.floor(CV.gunluk_calisma_saat / t_toplam_cevrim))) if t_toplam_cevrim > 0 else 1
     kazik_basi_gun = round(t_toplam_cevrim / CV.gunluk_calisma_saat * 10) / 10
 
+    # ── Cycle efficiency and limiting factor (v4.6) ───────────────────────────
+    cevrim_verimi = round(t_delme / t_toplam_cevrim * 100) if t_toplam_cevrim > 0 else 0
+
+    bilesenler = [
+        {"ad": "Net delme",        "sure": t_delme},
+        {"ad": "Beton",            "sure": t_beton},
+        {"ad": "Donatı",           "sure": t_donati},
+        {"ad": "Casing işlemleri", "sure": t_casing_ops},
+        {"ad": "Kurulum",          "sure": t_kurulum},
+        {"ad": "Rekonumlama",      "sure": t_rekonumlama},
+        {"ad": "Beklenmedik",      "sure": t_beklenmedik},
+    ]
+    en_buyuk = max(bilesenler, key=lambda b: b["sure"])
+    pct = round(en_buyuk["sure"] / t_toplam_cevrim * 100) if t_toplam_cevrim > 0 else 0
+    sinirlayanFaktor = f"{en_buyuk['ad']} ({pct}%)"
+
     return {
         "t_delme":              round(t_delme * 10) / 10,
         "t_beton":              round(t_beton * 10) / 10,
@@ -898,6 +931,8 @@ def tam_cevrim_suresi(layers: list, cap_mm: float, kazik_boyu: float,
         "kazik_basi_gun":       kazik_basi_gun,
         "gunluk_uretim_adet":   gunluk_uretim_adet,
         "katman_rop_detaylari": katman_rop_detaylari,
+        "cevrim_verimi":        cevrim_verimi,
+        "sinirlayanFaktor":     sinirlayanFaktor,
     }
 
 
