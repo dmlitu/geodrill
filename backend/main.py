@@ -69,6 +69,8 @@ def _run_schema_migrations():
         # v3.0: CPT ve Su alanları zemin katmanlarına
         "ALTER TABLE soil_layers ADD COLUMN IF NOT EXISTS cpt_qc REAL DEFAULT 0.0",
         "ALTER TABLE soil_layers ADD COLUMN IF NOT EXISTS su REAL DEFAULT 0.0",
+        # v3.1: Soil layer kaya durumu alanı
+        "ALTER TABLE soil_layers ADD COLUMN IF NOT EXISTS kaya_durumu VARCHAR(30)",
         # v3.0: Crowd force makine tablosuna
         "ALTER TABLE equipment ADD COLUMN IF NOT EXISTS crowd_force REAL DEFAULT 0.0",
         # v3.1 SaaS: User tablosuna yeni alanlar
