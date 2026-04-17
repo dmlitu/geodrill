@@ -1,19 +1,20 @@
-import { useState, useEffect, useCallback, Component } from "react"
-import AnalizSonucu from "./AnalizSonucu"
+import { useState, useEffect, useCallback, Component, lazy, Suspense, useRef } from "react"
 import MakinePark from "./MakinePark"
 import ZeminLogu from "./ZeminLogu"
 import ProjeForm from "./ProjeForm"
-import LandingPage from "./LandingPage"
-import RegisterPage from "./RegisterPage"
 import { ToastProvider } from "./Toast"
 import { DEMO_PROJE, DEMO_ZEMIN, DEMO_MAKINELER } from "./DemoProje"
-import FiyatAnalizi from "./FiyatAnalizi"
-import ProjeKalibrasyonu from "./ProjeKalibrasyonu"
-import OncekiAnalizler from "./OncekiAnalizler"
-import Ayarlar from "./Ayarlar"
-import DashboardPage from "./Dashboard"
-import OnboardingWizard from "./Onboarding"
-import { downloadExcelReport } from "./api"
+
+// Lazy-loaded: only downloaded when the user actually navigates to that section
+const AnalizSonucu = lazy(() => import("./AnalizSonucu"))
+const FiyatAnalizi = lazy(() => import("./FiyatAnalizi"))
+const ProjeKalibrasyonu = lazy(() => import("./ProjeKalibrasyonu"))
+const OncekiAnalizler = lazy(() => import("./OncekiAnalizler"))
+const DashboardPage = lazy(() => import("./Dashboard"))
+const LandingPage = lazy(() => import("./LandingPage"))
+const RegisterPage = lazy(() => import("./RegisterPage"))
+const OnboardingWizard = lazy(() => import("./Onboarding"))
+const Ayarlar = lazy(() => import("./Ayarlar"))
 import {
   login, logout, getToken,
   listProjects, getProject,
@@ -620,6 +621,8 @@ function Dashboard({ username, onLogout }) {
   const [zemin, setZemin] = useState([])
   const [makineler, setMakineler] = useState([])
   const [yukleniyor, setYukleniyor] = useState(true)
+  const [zeminYukleniyor, setZeminYukleniyor] = useState(false)
+  const zeminYukleniyorRef = useRef(false)
   const [onboarding, setOnboarding] = useState(false)
   const [dark, setDark] = useState(() => localStorage.getItem("gd_theme") === "dark")
   const [kalibrasyon, setKalibrasyon] = useState({
@@ -650,11 +653,11 @@ function Dashboard({ username, onLogout }) {
         ])
 
         if (projeler.length > 0) {
-          // En son güncellenen projeyi yükle (API zaten desc döndürüyor)
-          const sonPraje = await getProject(projeler[0].id)
-          setProjeId(sonPraje.id)
-          setProje(fromSnake(sonPraje))
-          setZemin((sonPraje.soil_layers || []).map(fromSnakeLayer))
+          // Temel proje bilgilerini summary'den al — zemin katmanları
+          // "Güncel Proje" sekmesi açıldığında lazy yüklenir (waterfall önleme)
+          const son = projeler[0]
+          setProjeId(son.id)
+          setProje(fromSnake(son))
         } else {
           // İlk kez giriş — onboarding wizard göster
           const onboarded = localStorage.getItem("gd_onboarded")
@@ -714,11 +717,33 @@ function Dashboard({ username, onLogout }) {
     }
   }
 
+  // Zemin katmanlarını "Güncel Proje" açıldığında lazy yükle
+  const yukleProjeDetay = useCallback(async (id) => {
+    if (!id || zeminYukleniyorRef.current) return
+    zeminYukleniyorRef.current = true
+    setZeminYukleniyor(true)
+    try {
+      const tam = await getProject(id)
+      setProjeId(tam.id)
+      setProje(fromSnake(tam))
+      setZemin((tam.soil_layers || []).map(fromSnakeLayer))
+    } catch (e) {
+      console.error("Proje detayı yüklenemedi:", e)
+    } finally {
+      setZeminYukleniyor(false)
+      zeminYukleniyorRef.current = false
+    }
+  }, [])
+
   const handleNav = (id) => {
     if (id === "yeniAnaliz") {
       handleYeniAnaliz()
     } else {
       setActivePage(id)
+      // Zemin henüz yüklenmemişse lazy yükle
+      if (id === "guncel" && projeId && zemin.length === 0) {
+        yukleProjeDetay(projeId)
+      }
     }
   }
 
@@ -739,11 +764,13 @@ function Dashboard({ username, onLogout }) {
   return (
     <div style={{display: "flex", minHeight: "100vh"}}>
       {onboarding && (
-        <OnboardingWizard
-          username={username}
-          onDemoYukle={handleDemoYukle}
-          onComplete={() => { setOnboarding(false); setActivePage("guncel") }}
-        />
+        <Suspense fallback={null}>
+          <OnboardingWizard
+            username={username}
+            onDemoYukle={handleDemoYukle}
+            onComplete={() => { setOnboarding(false); setActivePage("guncel") }}
+          />
+        </Suspense>
       )}
       <Sidebar active={activePage} onNav={handleNav} open={sidebarOpen} onClose={() => setSidebarOpen(false)} projeAdi={proje.projeAdi} />
       <div style={{flex: 1, display: "flex", flexDirection: "column", minWidth: 0}}>
@@ -751,17 +778,19 @@ function Dashboard({ username, onLogout }) {
         <main style={{flex: 1, padding: "32px 28px", background: "var(--bg-base)", overflowY: "auto"}}>
           <div key={activePage} style={{ animation: "fadeUp 0.3s ease" }}>
             {activePage === "dashboard" && (
-              <DashboardPage
-                username={username}
-                onYeniAnaliz={handleYeniAnaliz}
-                onProjeAc={(idOrPage) => {
-                  if (typeof idOrPage === "number") {
-                    handleDuzenle(idOrPage)
-                  } else {
-                    setActivePage(idOrPage || "onceki")
-                  }
-                }}
-              />
+              <Suspense fallback={<SkeletonLoader />}>
+                <DashboardPage
+                  username={username}
+                  onYeniAnaliz={handleYeniAnaliz}
+                  onProjeAc={(idOrPage) => {
+                    if (typeof idOrPage === "number") {
+                      handleDuzenle(idOrPage)
+                    } else {
+                      setActivePage(idOrPage || "onceki")
+                    }
+                  }}
+                />
+              </Suspense>
             )}
             {activePage === "guncel" && (
               <>
@@ -781,45 +810,65 @@ function Dashboard({ username, onLogout }) {
                     </button>
                   ))}
                 </div>
-                {wizardTab === "proje" && (
-                  <ProjeForm data={proje} onChange={handleProjeChange} projeId={projeId} onProjeIdChange={setProjeId} />
-                )}
-                {wizardTab === "zemin" && (
-                  <ZeminLogu data={zemin} onChange={setZemin} yeraltiSuyu={proje.yeraltiSuyu} kazikBoyu={proje.kazikBoyu} projeId={projeId} />
-                )}
-                {wizardTab === "makine" && (
-                  <MakinePark data={makineler} onChange={setMakineler} />
-                )}
-                {wizardTab === "analiz" && (
-                  <ErrorBoundary>
-                    <AnalizSonucu proje={proje} zemin={zemin} makineler={makineler} projeId={projeId} kalibrasyon={kalibrasyon} />
-                  </ErrorBoundary>
-                )}
-                {wizardTab === "wizardFiyat" && (
-                  <ErrorBoundary>
-                    <FiyatAnalizi proje={proje} zemin={zemin} projeId={projeId} />
-                  </ErrorBoundary>
-                )}
-                {wizardTab === "kalibrasyon" && (
-                  <ErrorBoundary>
-                    <ProjeKalibrasyonu proje={proje} zemin={zemin} kalibrasyon={kalibrasyon} onKalibrasyon={setKalibrasyon} />
-                  </ErrorBoundary>
+                {zeminYukleniyor ? (
+                  <SkeletonLoader />
+                ) : (
+                  <>
+                    {wizardTab === "proje" && (
+                      <ProjeForm data={proje} onChange={handleProjeChange} projeId={projeId} onProjeIdChange={setProjeId} />
+                    )}
+                    {wizardTab === "zemin" && (
+                      <ZeminLogu data={zemin} onChange={setZemin} yeraltiSuyu={proje.yeraltiSuyu} kazikBoyu={proje.kazikBoyu} projeId={projeId} />
+                    )}
+                    {wizardTab === "makine" && (
+                      <MakinePark data={makineler} onChange={setMakineler} />
+                    )}
+                    {wizardTab === "analiz" && (
+                      <ErrorBoundary>
+                        <Suspense fallback={<SkeletonLoader />}>
+                          <AnalizSonucu proje={proje} zemin={zemin} makineler={makineler} projeId={projeId} kalibrasyon={kalibrasyon} />
+                        </Suspense>
+                      </ErrorBoundary>
+                    )}
+                    {wizardTab === "wizardFiyat" && (
+                      <ErrorBoundary>
+                        <Suspense fallback={<SkeletonLoader />}>
+                          <FiyatAnalizi proje={proje} zemin={zemin} projeId={projeId} />
+                        </Suspense>
+                      </ErrorBoundary>
+                    )}
+                    {wizardTab === "kalibrasyon" && (
+                      <ErrorBoundary>
+                        <Suspense fallback={<SkeletonLoader />}>
+                          <ProjeKalibrasyonu proje={proje} zemin={zemin} kalibrasyon={kalibrasyon} onKalibrasyon={setKalibrasyon} />
+                        </Suspense>
+                      </ErrorBoundary>
+                    )}
+                  </>
                 )}
               </>
             )}
             {activePage === "onceki" && (
-              <OncekiAnalizler onDuzenle={handleDuzenle} />
+              <Suspense fallback={<SkeletonLoader />}>
+                <OncekiAnalizler onDuzenle={handleDuzenle} />
+              </Suspense>
             )}
             {activePage === "raporlar" && (
-              <OncekiAnalizler onDuzenle={handleDuzenle} />
+              <Suspense fallback={<SkeletonLoader />}>
+                <OncekiAnalizler onDuzenle={handleDuzenle} />
+              </Suspense>
             )}
             {activePage === "fiyat" && (
               <ErrorBoundary>
-                <FiyatAnalizi proje={proje} zemin={zemin} />
+                <Suspense fallback={<SkeletonLoader />}>
+                  <FiyatAnalizi proje={proje} zemin={zemin} />
+                </Suspense>
               </ErrorBoundary>
             )}
             {activePage === "ayarlar" && (
-              <Ayarlar username={username} dark={dark} onToggleDark={toggleDark} />
+              <Suspense fallback={<SkeletonLoader />}>
+                <Ayarlar username={username} dark={dark} onToggleDark={toggleDark} />
+              </Suspense>
             )}
           </div>
         </main>
@@ -861,10 +910,12 @@ export default function App() {
   if (authPage === "register")
     return (
       <LangProvider>
-        <RegisterPage
-          onLogin={handleLogin}
-          onGoLogin={() => setAuthPage("login")}
-        />
+        <Suspense fallback={null}>
+          <RegisterPage
+            onLogin={handleLogin}
+            onGoLogin={() => setAuthPage("login")}
+          />
+        </Suspense>
       </LangProvider>
     )
 
@@ -881,10 +932,12 @@ export default function App() {
 
   return (
     <LangProvider>
-      <LandingPage
-        onGoLogin={() => setAuthPage("login")}
-        onGoRegister={() => setAuthPage("register")}
-      />
+      <Suspense fallback={null}>
+        <LandingPage
+          onGoLogin={() => setAuthPage("login")}
+          onGoRegister={() => setAuthPage("register")}
+        />
+      </Suspense>
     </LangProvider>
   )
 }
