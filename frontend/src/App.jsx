@@ -1,20 +1,19 @@
-import { useState, useEffect, useCallback, Component, lazy, Suspense, useRef } from "react"
+import { useState, useEffect, useCallback, Component, Suspense, useRef } from "react"
 import MakinePark from "./MakinePark"
 import ZeminLogu from "./ZeminLogu"
 import ProjeForm from "./ProjeForm"
 import { ToastProvider } from "./Toast"
 import { DEMO_PROJE, DEMO_ZEMIN, DEMO_MAKINELER } from "./DemoProje"
 
-// Lazy-loaded: only downloaded when the user actually navigates to that section
-const AnalizSonucu = lazy(() => import("./AnalizSonucu"))
-const FiyatAnalizi = lazy(() => import("./FiyatAnalizi"))
-const ProjeKalibrasyonu = lazy(() => import("./ProjeKalibrasyonu"))
-const OncekiAnalizler = lazy(() => import("./OncekiAnalizler"))
-const DashboardPage = lazy(() => import("./Dashboard"))
-const LandingPage = lazy(() => import("./LandingPage"))
-const RegisterPage = lazy(() => import("./RegisterPage"))
-const OnboardingWizard = lazy(() => import("./Onboarding"))
-const Ayarlar = lazy(() => import("./Ayarlar"))
+import AnalizSonucu from "./AnalizSonucu"
+import FiyatAnalizi from "./FiyatAnalizi"
+import ProjeKalibrasyonu from "./ProjeKalibrasyonu"
+import OncekiAnalizler from "./OncekiAnalizler"
+import DashboardPage from "./Dashboard"
+import LandingPage from "./LandingPage"
+import RegisterPage from "./RegisterPage"
+import OnboardingWizard from "./Onboarding"
+import Ayarlar from "./Ayarlar"
 import {
   login, logout, getToken,
   listProjects, getProject,
