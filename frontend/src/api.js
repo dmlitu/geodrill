@@ -29,13 +29,14 @@ export function setOnUnauthorized(fn) {
 async function _doFetch(path, options) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  const url = `${BASE}${path}`
   try {
-    return await fetch(`${BASE}${path}`, { ...options, signal: controller.signal })
+    return await fetch(url, { ...options, signal: controller.signal })
   } catch (err) {
-    console.error(`[api] fetch error ${path}:`, err)
+    console.error(`[api] fetch error — url: ${url} — ${err.name}: ${err.message}`, err)
     if (err.name === "AbortError") throw new Error("İstek zaman aşımına uğradı (30 s). Bağlantınızı kontrol edin.")
     if (!navigator.onLine) throw new Error("İnternet bağlantısı yok.")
-    throw new Error("Sunucuya ulaşılamıyor. Lütfen daha sonra tekrar deneyin.")
+    throw new Error(`Sunucuya ulaşılamıyor (${BASE}). Lütfen daha sonra tekrar deneyin.`)
   } finally {
     clearTimeout(timer)
   }

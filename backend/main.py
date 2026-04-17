@@ -112,6 +112,11 @@ _raw_origins = os.environ.get(
 )
 ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
+# Always allow local dev servers regardless of the env var value
+for _local in ("http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"):
+    if _local not in ALLOWED_ORIGINS:
+        ALLOWED_ORIGINS.append(_local)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
