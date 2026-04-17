@@ -46,6 +46,9 @@ def seed_default_users():
                     hashed_password=hash_password(password),
                 ))
         db.commit()
+    except Exception as exc:
+        logger.warning("seed_default_users failed (non-fatal): %s", exc)
+        db.rollback()
     finally:
         db.close()
 
@@ -86,10 +89,13 @@ def _run_schema_migrations():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    _run_schema_migrations()
-    seed_default_users()
-    logger.info("GeoDrill API started successfully")
+    try:
+        Base.metadata.create_all(bind=engine)
+        _run_schema_migrations()
+        seed_default_users()
+        logger.info("GeoDrill API started successfully — port %s", os.environ.get("PORT", "10000"))
+    except Exception as exc:
+        logger.error("Startup error (non-fatal): %s", exc, exc_info=True)
     yield
     logger.info("GeoDrill API shutting down")
 

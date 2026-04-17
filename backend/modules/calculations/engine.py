@@ -927,6 +927,7 @@ def tam_cevrim_suresi(layers: list, cap_mm: float, kazik_boyu: float,
         "katman_rop_detaylari": katman_rop_detaylari,
         "cevrim_verimi":        cevrim_verimi,
         "sinirlayanFaktor":     sinirlayanFaktor,
+        "uc_degisim_sayisi":    uc_deg,
     }
 
 

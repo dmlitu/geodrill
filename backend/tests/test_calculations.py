@@ -325,17 +325,16 @@ class TestTamCevrimSuresi:
         assert cs_30["t_toplam_cevrim"] > cs_18["t_toplam_cevrim"]
 
     def test_kaya_gecis_alet_degisimi(self):
-        """Zemin→kaya geçişi → alet değişim süresi eklenir"""
-        z_tekkat = [katman(0, 15, "Kaya", "Kaya", ucs=30)]
+        """Zemin→kaya geçişi → alet değişim sayacı 1 olmalı, tekkat profilde 0"""
+        z_tekkat = [katman(0, 15, "Kumtaşı", "Kaya", ucs=30)]
         z_gecis  = [
             katman(0, 5,  "Kil",     "Kohezyonlu", spt=14),
             katman(5, 15, "Kumtaşı", "Kaya",       ucs=30),
         ]
-        # Her iki profil aynı ROP ile hesaplanır ama geçişli profil alet değişimi ekler
         cs_tekkat = tam_cevrim_suresi(z_tekkat, 800, 15, 0)
         cs_gecis  = tam_cevrim_suresi(z_gecis, 800, 15, 0)
-        # Geçişli profil alet değişimi nedeniyle daha uzun veya eşit olmalı
-        assert cs_gecis["t_delme"] >= cs_tekkat["t_delme"] - 0.1
+        assert cs_tekkat["uc_degisim_sayisi"] == 0
+        assert cs_gecis["uc_degisim_sayisi"] == 1
 
 
 # ─── makine_uygunluk ─────────────────────────────────────────────────────────
