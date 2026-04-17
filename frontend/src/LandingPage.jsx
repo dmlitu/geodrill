@@ -179,7 +179,7 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
     return <HakkimizdaSayfasi onGoHome={goHome} onGoLogin={onGoLogin} onGoPage={goPage} setDemoAcik={setDemoAcik} />
   }
   if (activePage === "blog") {
-    return <BlogSayfasi onGoHome={goHome} onGoPost={goPost} onGoPage={goPage} posts={BLOG_POSTS} />
+    return <BlogSayfasi onGoHome={goHome} onGoLogin={onGoLogin} onGoPost={goPost} onGoPage={goPage} posts={ALL_BLOG_POSTS} />
   }
   if (activePage === "sss") {
     return <SSSSayfasi onGoHome={goHome} onGoLogin={onGoLogin} onGoPage={goPage} setDemoAcik={setDemoAcik} />
@@ -1310,16 +1310,17 @@ const ALL_BLOG_POSTS = [
   },
 ]
 
-function BlogSayfasi({ onGoHome, onGoPost, onGoPage, posts }) {
+function BlogSayfasi({ onGoHome, onGoLogin, onGoPost, onGoPage, posts }) {
   const [aktifKategori, setAktifKategori] = useState("Tümü")
   const kategoriler = ["Tümü", "Saha Deneyimi", "Teknik Rehber", "Mühendislik Notu"]
-  const filtered = aktifKategori === "Tümü" ? ALL_BLOG_POSTS : ALL_BLOG_POSTS.filter(p => p.kategori === aktifKategori)
-  const featured = ALL_BLOG_POSTS.find(p => p.featured)
+  const sourcePosts = posts?.length ? posts : ALL_BLOG_POSTS
+  const filtered = aktifKategori === "Tümü" ? sourcePosts : sourcePosts.filter(p => p.kategori === aktifKategori)
+  const featured = sourcePosts.find(p => p.featured)
   const { t } = useLang()
 
   return (
     <div style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", background: "#fff", color: "#0C4A6E", minHeight: "100vh" }}>
-      <SubPageNav onGoHome={onGoHome} onGoPage={onGoPage} activeId="blog" />
+      <SubPageNav onGoHome={onGoHome} onGoLogin={onGoLogin} onGoPage={onGoPage} activeId="blog" />
 
       {/* Hero */}
       <section style={{ background: "linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 40%, #F8FAFF 100%)", padding: "64px 48px 48px", borderBottom: "1px solid #E0F2FE" }}>
