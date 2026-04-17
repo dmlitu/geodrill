@@ -116,6 +116,7 @@ class SoilLayer(Base):
     rqd = Column(Float, default=0.0)
     cpt_qc = Column(Float, default=0.0)  # CPT qc (MPa)
     su = Column(Float, default=0.0)      # undrained shear strength (kPa)
+    kaya_durumu = Column(String(30), nullable=True)  # Masif / Orta kırıklı / Çok kırıklı / Ayrışmış
     aciklama = Column(Text, default="")
 
     project = relationship("Project", back_populates="soil_layers")

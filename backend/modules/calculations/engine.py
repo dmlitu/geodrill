@@ -452,17 +452,37 @@ def casing_metre(layers: list, yas: float) -> float:
     return round(toplam * 10) / 10
 
 
+# ─── Rock Mass Helpers ───────────────────────────────────────────────────────
+
+def _effective_rqd(rqd: float, kaya_durumu: str = "") -> float:
+    """
+    Return effective RQD value.
+    If RQD is measured (> 0), returns it directly.
+    If RQD = 0 but kaya_durumu is given, returns the proxy RQD for that class.
+    If neither is known, returns 0 (no rock mass factor applied).
+
+    Source: Deere & Deere (1988) RQD typical ranges by rock quality class.
+    """
+    if rqd > 0:
+        return rqd
+    proxy = KATSAYILAR.tork.kaya_durumu_rqd_proxy
+    return float(proxy.get(kaya_durumu, 0))
+
+
 # ─── Rate of Penetration ─────────────────────────────────────────────────────
 
 def rop_hesapla(tip: str, ucs: float, cap_mm: float, kohezyon: str = "",
                 spt: float = 0, yas: float = 0, baslangic: float = 0,
-                rqd: float = 0, makine_torku: float = 0, gerekli_tork: float = 0) -> float:
+                rqd: float = 0, makine_torku: float = 0, gerekli_tork: float = 0,
+                kaya_durumu: str = "") -> float:
     """
     Estimated penetration rate (m/hr). Class C.
 
     v3.0 additions: SPT-based ROP reduction for dense granular soils; GWT correction.
     v3.3 additions: RQD-based reduction for rock; recalibrated power-law (ucs_ref=40, n=0.55);
                     configurable SPT floor; base ROP values updated for standard-field rates.
+    v6.0 additions: kaya_durumu param; RQD step function recalibrated; range expansion for
+                    fractured rock (highly fractured sandstone validated at 8–10 m/hr).
 
     Parameters
     ----------
@@ -481,7 +501,10 @@ def rop_hesapla(tip: str, ucs: float, cap_mm: float, kohezyon: str = "",
     baslangic : float
         Layer start depth (m) for GWT comparison.
     rqd : float
-        Rock Quality Designation (0–100). 0 = not measured (no penalty applied).
+        Rock Quality Designation (0–100). 0 = not measured (no modifier applied).
+    kaya_durumu : str
+        Rock condition class: "Masif" | "Orta kırıklı" | "Çok kırıklı" | "Ayrışmış".
+        Used as proxy when rqd = 0.
 
     Returns
     -------
@@ -509,17 +532,18 @@ def rop_hesapla(tip: str, ucs: float, cap_mm: float, kohezyon: str = "",
             # Non-rock layer with UCS recorded (edge case): legacy linear path.
             baz *= max(R.ucs_azaltma_min, 1.0 - (ucs / 100.0) * R.ucs_azaltma_katsayi)
 
-    # RQD step function for rock (v4.6: replaces old linear model)
-    # Fractured rock (low RQD) → faster; massive rock (high RQD) → slower.
-    # rqd=0 means unmeasured → no modifier applied.
-    # Source: Hoek & Brown (1980); parity with hesaplamalar.js rqd_adim_tablosu.
-    if sinif == "kaya" and rqd > 0:
-        rqd_tablo = R.rqd_adim_tablosu  # {75: 0.83, 50: 0.95, 25: 1.08, 0: 1.15}
-        if rqd >= 75:
+    # ── RQD step function for rock (v6.0: more aggressive for fractured rock) ──
+    # Uses effective RQD — from measured RQD or kaya_durumu proxy.
+    # rqd=0 and no kaya_durumu → no modifier applied (neutral).
+    # Source: Hoek & Brown (1980); validated against fractured sandstone 8–10 m/hr.
+    eff_rqd = _effective_rqd(rqd, kaya_durumu) if sinif == "kaya" else 0.0
+    if sinif == "kaya" and eff_rqd > 0:
+        rqd_tablo = R.rqd_adim_tablosu  # {75: 0.75, 50: 1.00, 25: 1.40, 0: 1.65}
+        if eff_rqd >= 75:
             rqd_mod = rqd_tablo[75]
-        elif rqd >= 50:
+        elif eff_rqd >= 50:
             rqd_mod = rqd_tablo[50]
-        elif rqd >= 25:
+        elif eff_rqd >= 25:
             rqd_mod = rqd_tablo[25]
         else:
             rqd_mod = rqd_tablo[0]
@@ -544,12 +568,17 @@ def rop_hesapla(tip: str, ucs: float, cap_mm: float, kohezyon: str = "",
             baz *= GW.rop_kaya
 
     # Kaya katmanı alt sınırı: tüm azaltmalar sonrası ROP, BAZ_ROP × minimum_rop_factor'ın altına düşemez.
-    # UCS + RQD birleşik etkisinin aşırı düşük sonuç üretmesini engeller.
     if sinif == "kaya":
         baz = max(baz, baz_tablo * R.minimum_rop_factor)
 
     # ── Saha aralığı sınırlaması (malzeme düzeltmeleri sonrası) ─────────────
-    aralik = R.aralik.get(hesap_tip) or R.aralik.get("varsayilan") or [R.min_rop, 50.0]
+    # Fractured rock gets expanded range upper bound (natural joint exploitation).
+    aralik = list(R.aralik.get(hesap_tip) or R.aralik.get("varsayilan") or [R.min_rop, 50.0])
+    if sinif == "kaya" and eff_rqd > 0:
+        if eff_rqd < 25:
+            aralik[1] *= R.parcali_kaya_aralik_genisleme   # highly fractured: ×1.5
+        elif eff_rqd < 50:
+            aralik[1] *= R.orta_kaya_aralik_genisleme      # moderately fractured: ×1.25
     baz = clamp(baz, aralik[0], aralik[1])
 
     rop = max(baz, R.min_rop)
@@ -650,17 +679,19 @@ def gerekli_tork_aralik(layers: list, cap_mm: float,
         # K_depth: depth factor based on layer midpoint (FHWA GEC 10 §7.4)
         k_depth = derinlik_katsayisi(baslangic, bitis)
 
-        # K_uncertainty: RQD-based variability for rock layers
+        # K_rockMass: rock mass factor — reduces effective strength for fractured rock.
+        # Uses effective RQD (measured or kaya_durumu proxy).
+        # When both RQD=0 and no kaya_durumu: K_rqd = 1.00 (assume intact, conservative).
+        # Source: Hoek (1994); Deere (1963); FHWA GEC 10 §7.4.
+        kaya_durumu_row = row.get("kaya_durumu") or ""
         rqd_faktor = 1.0
         if sinif == "kaya":
-            if rqd > 0 or ucs > 0:
+            eff_rqd_t = _effective_rqd(rqd, kaya_durumu_row)
+            if eff_rqd_t > 0:
                 for esik in (75, 50, 25, 0):
-                    if rqd >= esik:
+                    if eff_rqd_t >= esik:
                         rqd_faktor = K.rqd_faktor[esik]
                         break
-            else:
-                # No rock quality data → use worst-case RQD factor
-                rqd_faktor = K.rqd_faktor[0]
 
         # Full torque formula: T = tau × (pi × D³ / 12) × K_app × K_method × K_gw × K_depth × K_rqd
         # FHWA GEC 10 §7.4: Kelly bucket base shear → pi*D³/12 (not /8 disk model)
@@ -821,7 +852,8 @@ def tam_cevrim_suresi(layers: list, cap_mm: float, kazik_boyu: float,
         rop = rop_hesapla(
             row.get("zem_tipi", ""), ucs_row, cap_mm, koh_row,
             spt=spt_row, yas=0, baslangic=bas_row, rqd=rqd_row,
-            makine_torku=makine_torku, gerekli_tork=gerekli_tork
+            makine_torku=makine_torku, gerekli_tork=gerekli_tork,
+            kaya_durumu=row.get("kaya_durumu") or "",
         )
         katmanlar.append({
             "k": k, "rop": rop, "hesap_tip": hesap_tip,

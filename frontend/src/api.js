@@ -348,6 +348,7 @@ function toSnakeLayer(r) {
     rqd: Number(r.rqd) || 0,
     cpt_qc: Number(r.cptQc) || 0,
     su: Number(r.su) || 0,
+    kaya_durumu: r.kayaDurumu ?? r.kaya_durumu ?? null,
     aciklama: r.aciklama ?? "",
   }
 }
@@ -365,6 +366,7 @@ export function fromSnakeLayer(r) {
     rqd: r.rqd ?? 0,
     cptQc: r.cpt_qc ?? 0,
     su: r.su ?? 0,
+    kayaDurumu: r.kaya_durumu ?? "",
     aciklama: r.aciklama ?? "",
   }
 }

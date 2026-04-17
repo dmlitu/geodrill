@@ -70,6 +70,7 @@ def _layer_to_dict(l) -> dict:
         "spt": l.spt, "ucs": l.ucs, "rqd": l.rqd,
         "cpt_qc": getattr(l, "cpt_qc", 0) or 0,
         "su": getattr(l, "su", 0) or 0,
+        "kaya_durumu": getattr(l, "kaya_durumu", None) or "",
         "formasyon": l.formasyon, "aciklama": l.aciklama,
     }
 

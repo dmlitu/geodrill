@@ -14,6 +14,13 @@ const ZEMIN_TIPLERI = [
 ]
 const KOHEZYON_TIPLERI = ["Kohezyonlu", "Kohezyonsuz", "Kaya"]
 const KAYA_TIPLERI = ["Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya"]
+const KAYA_DURUMU_SECENEKLERI = [
+  { value: "",             label: "—",            title: "Kaya durumu belirtilmemiş" },
+  { value: "Masif",        label: "Masif",        title: "Masif — çok az çatlaklı, RQD 75–100" },
+  { value: "Orta kırıklı", label: "Orta kırıklı", title: "Orta kırıklı, RQD 50–75" },
+  { value: "Çok kırıklı",  label: "Çok kırıklı",  title: "Çok kırıklı / yoğun kırık, RQD < 25" },
+  { value: "Ayrışmış",     label: "Ayrışmış",     title: "Ayrışmış / bozuşmuş kaya, RQD ≈ 0" },
+]
 
 const ZEMIN_KOHEZYON_MAP = {
   "Kil": "Kohezyonlu", "Silt": "Kohezyonlu",
@@ -140,7 +147,7 @@ const DEFAULT_ROW = () => ({
   baslangic: 0, bitis: 3,
   formasyon: "", zemTipi: "Dolgu",
   kohezyon: "Kohezyonsuz",
-  spt: 0, ucs: 0, rqd: 0, aciklama: "",
+  spt: 0, ucs: 0, rqd: 0, kayaDurumu: "", aciklama: "",
 })
 
 // ─── Borehole Profile SVG ─────────────────────────────────────────────────────
@@ -371,7 +378,7 @@ function PdfOnizlemeModal({ katmanlar, onUygula, onIptal }) {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
               <tr style={{ background: "#F8FAFC", borderBottom: "2px solid #E2E8F0" }}>
-                {["#", t("colDepth"), t("colFormation"), t("colSoilType"), t("colCohesion"), t("colSPT"), t("colUCS"), t("colRQD")].map(h => (
+                {["#", t("colDepth"), t("colFormation"), t("colSoilType"), t("colCohesion"), t("colSPT"), t("colUCS"), t("colRQD"), "Kaya Durumu"].map(h => (
                   <th key={h} style={{
                     padding: "10px 12px", textAlign: "left", fontWeight: "700",
                     color: "#64748B", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.3px",
@@ -410,6 +417,7 @@ function PdfOnizlemeModal({ katmanlar, onUygula, onIptal }) {
                     <td style={{ padding: "9px 12px", fontVariantNumeric: "tabular-nums" }}>{r.spt || "—"}</td>
                     <td style={{ padding: "9px 12px", fontVariantNumeric: "tabular-nums" }}>{r.ucs || "—"}</td>
                     <td style={{ padding: "9px 12px", fontVariantNumeric: "tabular-nums" }}>{r.rqd || "—"}</td>
+                    <td style={{ padding: "9px 12px", color: "#475569", fontSize: "12px" }}>{r.kayaDurumu || "—"}</td>
                   </tr>
                 )
               })}
@@ -748,6 +756,9 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
                 <th style={{ ...thSt, width: "60px" }}>
                   <span title="Rock quality designation">{t("colRQD")} %</span>
                 </th>
+                <th style={{ ...thSt, minWidth: "110px" }}>
+                  <span title="Kaya kütlesi durumu (RQD verilmemişse proxy olarak kullanılır)">Kaya Durumu</span>
+                </th>
                 <th style={{ ...thSt, minWidth: "100px" }}>{t("colConsistency")}</th>
                 <th style={{ ...thSt, width: "72px" }}>{t("colStability")}</th>
                 <th style={{ ...thSt, width: "80px" }}>{t("colTipType")}</th>
@@ -872,6 +883,24 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
                         title={!isKaya ? "Zemin için RQD uygulanmaz" : (rh.rqd || "RQD %")}
                         onChange={e => updateRow(row.id, "rqd", parseInt(e.target.value) || 0)}
                       />
+                    </td>
+
+                    {/* Kaya Durumu — only active for rock layers */}
+                    <td style={tdSt}>
+                      <select
+                        style={{
+                          ...inp, width: "108px", fontSize: "12px", cursor: isKaya ? "pointer" : "default",
+                          ...(!isKaya ? dimmed : {}),
+                        }}
+                        value={row.kayaDurumu || ""}
+                        disabled={!isKaya}
+                        title={!isKaya ? "Zemin için kaya durumu uygulanmaz" : "Kaya kütlesi kırıklılık durumu"}
+                        onChange={e => updateRow(row.id, "kayaDurumu", e.target.value)}
+                      >
+                        {KAYA_DURUMU_SECENEKLERI.map(opt => (
+                          <option key={opt.value} value={opt.value} title={opt.title}>{opt.label}</option>
+                        ))}
+                      </select>
                     </td>
 
                     {/* Kıvam / Density */}

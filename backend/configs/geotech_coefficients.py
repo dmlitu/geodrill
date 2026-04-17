@@ -94,14 +94,28 @@ class TorkCoefficients:
         "Sert Kaya":     60.0,
     })
 
-    # RQD variability factors: lower RQD → higher uncertainty → conservative upward margin.
-    # Source: FHWA GEC 10 §7.4 rock quality + conservative engineering judgment.
-    # Applied as K_uncertainty in the full torque formula.
+    # Rock mass reduction factors (K_rockMass): lower RQD → lower effective strength.
+    # Fractured rock mass is weaker than intact UCS implies — pre-existing joints
+    # reduce the effective resistance to drilling tool face-cutting.
+    # Source: Hoek (1994) rock mass strength; ISRM (1978) RQD classification;
+    #         Deere (1963) RQD definition; engineering judgment for fore-pile drilling.
+    # Applied as K_rockMass = K_rqd in the full torque formula (replaces K_uncertainty).
+    # When RQD = 0 and no kaya_durumu: K_rqd = 1.00 (assume intact, conservative).
     rqd_faktor: Dict[int, float] = field(default_factory=lambda: {
-        75: 1.00,   # good quality rock — nominal
-        50: 1.10,   # fair quality — +10%
-        25: 1.20,   # poor quality — +20%
-        0:  1.35,   # very poor / highly fractured — +35%
+        75: 1.00,   # RQD ≥ 75 — massive/excellent rock: full UCS applies
+        50: 0.65,   # RQD 50–75 — moderate fracturing: ~35% strength reduction
+        25: 0.40,   # RQD 25–50 — poor quality: ~60% reduction
+        0:  0.22,   # RQD < 25 — highly fractured/crushed: ~78% reduction
+    })
+
+    # kaya_durumu proxy RQD values: used when RQD is not measured but rock condition is known.
+    # User selects from: Masif / Orta kırıklı / Çok kırıklı / Ayrışmış
+    # Source: Deere & Deere (1988) RQD typical ranges by rock quality class.
+    kaya_durumu_rqd_proxy: Dict[str, int] = field(default_factory=lambda: {
+        "Masif":        80,   # very few fractures, RQD typically 75–100
+        "Orta kırıklı": 55,   # moderate fracturing, RQD typically 50–75
+        "Çok kırıklı":  15,   # heavily fractured, RQD typically 0–25
+        "Ayrışmış":      5,   # weathered/decomposed rock, RQD ≈ 0
     })
 
     # Application factor K_app (tool geometry, efficiency, non-homogeneity). Class C.
@@ -315,23 +329,33 @@ class RopCoefficients:
     ucs_referans_mpa: float = 30.0     # reference UCS (MPa); v4.6 40→30
     ucs_kuvvet_min: float = 0.22       # minimum ROP factor for rock
 
-    # ── RQD step-function for rock ROP (v4.6 replaces linear model) ─────────
+    # ── RQD step-function for rock ROP (v6.0 recalibrated for realistic field rates) ──
     # Physical basis: fractured rock (low RQD) → natural discontinuities assist tool
-    # advance. Massive intact rock (high RQD) → full face-cutting required → slower.
+    # advance — tool exploits joints rather than cutting full face.
+    # Massive intact rock (high RQD) → full face-cutting required → slower.
     # When rqd=0 (not measured): no modifier applied (neutral, no penalty/benefit).
-    # Source: Hoek & Brown (1980); ISRM rock mass classification.
+    # Source: Hoek & Brown (1980); ISRM rock mass classification;
+    #         field validation: highly fractured sandstone ≈ 8–10 m/hr.
     #
-    # Step table: {rqd_threshold: modifier}
-    #   rqd >= 75 → 0.83  (massive/excellent — full face-cut, slower)
-    #   rqd >= 50 → 0.95  (good quality — few discontinuities, slightly slower)
-    #   rqd >= 25 → 1.08  (fair — some discontinuities help)
-    #   rqd >  0  → 1.15  (poor/very poor — highly fractured, faster)
+    # v6.0 values (more aggressive than v4.6 to match field observations):
+    #   rqd >= 75 → 0.75  (massive — full face-cut required, significantly slower)
+    #   rqd >= 50 → 1.00  (reference — slight discontinuities, neutral effect)
+    #   rqd >= 25 → 1.40  (moderately fractured — joints help advance)
+    #   rqd >  0  → 1.65  (highly fractured — discontinuities dominant, fast)
     rqd_adim_tablosu: Dict[int, float] = field(default_factory=lambda: {
-        75: 0.83,
-        50: 0.95,
-        25: 1.08,
-         0: 1.15,
+        75: 0.75,
+        50: 1.00,
+        25: 1.40,
+         0: 1.65,
     })
+
+    # ── Range expansion for fractured rock ──────────────────────────────────
+    # When rock is highly fractured (eff_rqd < 25), expand the ROP range upper bound
+    # to allow realistic higher penetration rates (natural joint exploitation).
+    # When moderately fractured (eff_rqd 25–49), smaller expansion.
+    # Source: field observation; validated against fractured sandstone 8–10 m/hr.
+    parcali_kaya_aralik_genisleme: float = 1.50   # highly fractured: range × 1.5
+    orta_kaya_aralik_genisleme: float = 1.25      # moderately fractured: range × 1.25
 
     # Legacy linear RQD params — retained for backward-compat, not used in v4.6+ code
     rqd_azaltma_katsayi: float = 0.002

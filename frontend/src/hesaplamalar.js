@@ -62,10 +62,22 @@ export const KATSAYILAR = {
       "Sert Kaya":     60.0,  // sert kaya alt sınırı
     },
 
-    // ── RQD belirsizlik faktörleri ───────────────────────────────────────────
-    // Daha düşük RQD → daha yüksek belirsizlik → muhafazakâr yukarı marj
-    // Kaynak: FHWA GEC 10 §7.4 kaya kalitesi + muhafazakâr yargı
-    rqd_faktor: { 75: 1.00, 50: 1.10, 25: 1.20, 0: 1.35 },
+    // ── Kaya kütlesi azaltma faktörleri (K_rockMass) ────────────────────────
+    // Düşük RQD → daha düşük efektif direnç → düşük tork.
+    // Kırıklı kaya kütlesi, sağlam kaya UCS'sinin ima ettiğinden daha zayıftır.
+    // Kaynak: Hoek (1994) kaya kütlesi dayanımı; ISRM (1978) RQD sınıflaması.
+    // RQD=0 ve kaya_durumu yok → K_rqd=1.00 (tam direnç, muhafazakâr).
+    rqd_faktor: { 75: 1.00, 50: 0.65, 25: 0.40, 0: 0.22 },
+
+    // ── Kaya durumu → RQD proxy değerleri ───────────────────────────────────
+    // RQD ölçülmemiş ama kaya kondisyonu biliniyorsa.
+    // Kaynak: Deere & Deere (1988) kaya kalitesi sınıfları.
+    kaya_durumu_rqd_proxy: {
+      "Masif":        80,   // çok az kırık, RQD tipik 75–100
+      "Orta kırıklı": 55,   // orta kırıklılık, RQD tipik 50–75
+      "Çok kırıklı":  15,   // çok kırıklı, RQD tipik 0–25
+      "Ayrışmış":      5,   // ayrışmış kaya, RQD ≈ 0
+    },
 
     // ── Uygulama faktörü ─────────────────────────────────────────────────────
     // K_app: Kelly bucket base shear — FHWA GEC 10 §7.4 πD³/12 formülü için kalibrasyon
@@ -186,18 +198,18 @@ export const KATSAYILAR = {
     spt_azaltma_katsayi:  0.008, // eşik üzerinde darbe başına
     spt_azaltma_min:      0.40,  // granüler SPT azaltması tabanı
 
-    // ── RQD adım fonksiyonu (kaya katmanları için) ───────────────────────────
-    // Fiziksel gerekçe (v4.6):
+    // ── RQD adım fonksiyonu (v6.0 — saha ile kalibre edildi) ───────────────
+    // Fiziksel gerekçe:
     //   Parçalı kaya (düşük RQD) → doğal süreksizlikler delgiyi kolaylaştırır → HIZLANIR.
     //   Masif kaya (yüksek RQD) → tam yüzey kesimi gerekir → YAVAŞLAR.
-    //   rqd=0 (ölçülmemiş) → modifikatör uygulanmaz; ceza veya fayda yok.
-    //   Eski doğrusal model (yüksek RQD→yavaş ama 0.004 katsayılı) yerini adım fn'ye bıraktı.
-    // Kaynak: Hoek & Brown (1980) kaya kütlesi; ISRM kaya sınıflaması.
+    //   rqd=0 ve kaya_durumu yok → modifikatör uygulanmaz (tarafsız).
+    // v6.0: değerler saha verisiyle kalibre edildi (yüksek kırıklı kumtaşı ≈ 8–10 m/h).
+    // Kaynak: Hoek & Brown (1980); ISRM kaya sınıflaması.
     rqd_adim_tablosu: {
-      75: 0.83,   // RQD ≥ 75 — masif/mükemmel kaya → yüzey kesimi tam, yavaş
-      50: 0.95,   // RQD ≥ 50 — iyi kalite → az süreksizlik, hafif yavaş
-      25: 1.08,   // RQD ≥ 25 — orta parçalı → bazı süreksizlikler yardımcı
-       0: 1.15,   // RQD > 0 & < 25 — çok parçalı → süreksizlikler baskın, hızlı
+      75: 0.75,   // RQD ≥ 75 — masif: tam yüzey kesimi, belirgin yavaşlama
+      50: 1.00,   // RQD ≥ 50 — referans: hafif süreksizlikler, nötr
+      25: 1.40,   // RQD ≥ 25 — orta kırıklı: süreksizlikler yardımcı, hızlı
+       0: 1.65,   // RQD > 0 & < 25 — çok kırıklı: süreksizlikler baskın, çok hızlı
     },
 
     // Eski doğrusal parametreler — geriye dönük uyumluluk için korundu (artık kullanılmıyor)
@@ -207,8 +219,13 @@ export const KATSAYILAR = {
     min_rop:              0.20,  // mutlak alt sınır (çok sert kaya), m/saat
 
     // Kaya alt sınır faktörü: tüm azaltmalar sonrası ROP, BAZ_ROP × bu değerin altına inemez.
-    // v5.1: 0.65→0.70 (aşırı pessimistik kaya sürelerini engeller).
     minimum_rop_factor:   0.70,
+
+    // ── Kırıklı kaya için aralık genişlemesi ─────────────────────────────────
+    // Kırıklı kaya doğal süreksizliklerle hızlı deler → üst sınır genişletilir.
+    // Kaynak: saha gözlemi; yüksek kırıklı kumtaşı 8–10 m/h doğrulaması.
+    parcali_kaya_aralik_genisleme: 1.50,   // çok kırıklı (RQD < 25): aralık × 1.5
+    orta_kaya_aralik_genisleme:    1.25,   // orta kırıklı (RQD 25–49): aralık × 1.25
   },
 
   // ── Tam çevrim süresi katsayıları ────────────────────────────────────────
@@ -346,6 +363,21 @@ export const KATSAYILAR = {
 // Geriye dönük uyumluluk takma adı: eski KATSAYILAR.sure → KATSAYILAR.cevrim
 KATSAYILAR.sure = KATSAYILAR.cevrim
 
+// ─── Kaya Kütlesi Yardımcı Fonksiyonları ─────────────────────────────────────
+
+/**
+ * Efektif RQD değerini döndürür.
+ * RQD ölçülmüşse (> 0) direkt kullanılır.
+ * RQD = 0 ama kaya_durumu belirtilmişse proxy değer döner.
+ * Her ikisi de yok → 0 (modifikatör uygulanmaz).
+ */
+export function effectiveRqd(rqd, kayaDurumu = "") {
+  const r = parseFloat(rqd || 0)
+  if (r > 0) return r
+  const proxy = KATSAYILAR.tork.kaya_durumu_rqd_proxy
+  return proxy[kayaDurumu] ?? 0
+}
+
 // ─── Zemin Sınıflandırması ────────────────────────────────────────────────────
 
 const STANDART_TIPLER = [
@@ -442,11 +474,15 @@ export function formasyonSinifi(row) {
   const su   = parseFloat(row.su   || 0)
 
   if (sinif === "kaya") {
-    // Default UCS kaya tipi bazlı
-    const hesapTip = zeminHesapTipi(zemTipi, kohezyon)
-    const ucsEff   = ucs > 0 ? ucs : (KATSAYILAR.tork.kaya_ucs_varsayilan[hesapTip] || 15)
-    if (ucsEff < 10)  return "ayrismis_kaya"
-    if (ucsEff < 50 && (rqd < 50 || rqd === 0)) return "parcali_kaya"
+    const hesapTip  = zeminHesapTipi(zemTipi, kohezyon)
+    const ucsEff    = ucs > 0 ? ucs : (KATSAYILAR.tork.kaya_ucs_varsayilan[hesapTip] || 15)
+    const kayaDurumu = row.kayaDurumu || row.kaya_durumu || ""
+    const effRqd    = effectiveRqd(rqd, kayaDurumu)
+    // Ayrışmış kaya veya çok zayıf UCS veya kullanıcı "Ayrışmış" seçtiyse
+    if (ucsEff < 10 || kayaDurumu === "Ayrışmış") return "ayrismis_kaya"
+    // Çok kırıklı kaya → parçalı sınıf
+    if (kayaDurumu === "Çok kırıklı") return "parcali_kaya"
+    if (ucsEff < 50 && (effRqd < 50 || effRqd === 0)) return "parcali_kaya"
     return "sert_kaya"
   }
 
@@ -865,7 +901,7 @@ export function sivilasmaRiski(tip, kohezyon, spt, yas, baslangic, bitis) {
  * @param {number} baslangic - Katman başlangıç derinliği (m)
  * @param {number} rqd       - Rock Quality Designation (0-100); 0 = ölçülmemiş → ceza yok
  */
-export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, baslangic = 0, rqd = 0, kalibrasyon = null, makineTorku = 0, gerekliTork = 0) {
+export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, baslangic = 0, rqd = 0, kalibrasyon = null, makineTorku = 0, gerekliTork = 0, kayaDurumu = "") {
   const R        = KATSAYILAR.rop
   const capM     = capMm / 1000
   const hesapTip = zeminHesapTipi(tip, kohezyon)
@@ -887,17 +923,16 @@ export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, b
     }
   }
 
-  // ── RQD adım fonksiyonu (v4.6) ────────────────────────────────────────────
-  // Fiziksel gerekçe: parçalı kaya (düşük RQD) doğal süreksizlikleri kullanarak
-  // daha hızlı deler; masif kaya (yüksek RQD) tam yüzey kesimi gerektirir.
-  // rqd=0 (ölçülmemiş) → modifikatör uygulanmaz (ceza/fayda yok, tarafsız).
-  // Kaynak: Hoek & Brown (1980); ISRM kaya kütlesi sınıflaması.
-  if (sinif === "kaya" && rqd > 0) {
+  // ── RQD adım fonksiyonu (v6.0) — efektif RQD kullanır ───────────────────
+  // Efektif RQD: ölçülmüş RQD varsa direkt; yoksa kaya_durumu proxy değeri.
+  // effRqd=0 → modifikatör uygulanmaz (tarafsız).
+  const effRqd = sinif === "kaya" ? effectiveRqd(rqd, kayaDurumu) : 0
+  if (sinif === "kaya" && effRqd > 0) {
     const rqdTablo = R.rqd_adim_tablosu
-    const rqdMod = rqd >= 75 ? rqdTablo[75]
-                 : rqd >= 50 ? rqdTablo[50]
-                 : rqd >= 25 ? rqdTablo[25]
-                 :             rqdTablo[0]
+    const rqdMod = effRqd >= 75 ? rqdTablo[75]
+                 : effRqd >= 50 ? rqdTablo[50]
+                 : effRqd >= 25 ? rqdTablo[25]
+                 :                rqdTablo[0]
     baz *= rqdMod
   }
 
@@ -924,9 +959,15 @@ export function ropHesapla(tip, ucs, capMm, kohezyon = null, spt = 0, yas = 0, b
     baz = Math.max(baz, bazTablo * R.minimum_rop_factor)
 
   // ── Saha aralığı sınırlaması (malzeme düzeltmeleri sonrası) ─────────────
-  // Baz ROP'u zemin tipine göre gerçek saha aralığına sıkıştır.
-  const aralik = R.aralik?.[hesapTip] ?? R.aralik?.varsayilan ?? [R.min_rop, 50]
-  baz = clamp(baz, aralik[0], aralik[1])
+  // Kırıklı kaya için üst sınır genişletilir (doğal süreksizlik etkisi).
+  const aralikTablo = R.aralik?.[hesapTip] ?? R.aralik?.varsayilan ?? [R.min_rop, 50]
+  let aralikMin = aralikTablo[0]
+  let aralikMax = aralikTablo[1]
+  if (sinif === "kaya" && effRqd > 0) {
+    if (effRqd < 25)       aralikMax *= R.parcali_kaya_aralik_genisleme  // × 1.5
+    else if (effRqd < 50)  aralikMax *= R.orta_kaya_aralik_genisleme     // × 1.25
+  }
+  baz = clamp(baz, aralikMin, aralikMax)
 
   let rop = Math.max(baz, R.min_rop)
 
@@ -998,12 +1039,17 @@ export function gerekliTorkAralik(zemin, capMm, isTipi = "Fore Kazık", yas = 0)
     const kGw    = zeminSuyuKatsayisi(sinif, baslangic, yas)
     const kDepth = derinlikKatsayisi(baslangic, bitis)
 
-    // K_uncertainty: kaya katmanlar için RQD belirsizlik faktörü
+    // K_rockMass: kaya kütlesi azaltma faktörü — kırıklı kayada tork düşer.
+    // Efektif RQD (ölçülmüş veya kaya_durumu proxy) kullanır.
+    // RQD=0 ve kaya_durumu yok → K_rqd=1.00 (tam direnç, muhafazakâr).
+    const kayaDurumu = row.kayaDurumu || row.kaya_durumu || ""
     let rqdFaktor = 1.0
     if (sinif === "kaya") {
-      const testRqd = (rqd > 0 || ucs > 0) ? rqd : -1
-      for (const e of [75, 50, 25, 0]) {
-        if (testRqd >= e) { rqdFaktor = K.rqd_faktor[e]; break }
+      const effRqdT = effectiveRqd(rqd, kayaDurumu)
+      if (effRqdT > 0) {
+        for (const e of [75, 50, 25, 0]) {
+          if (effRqdT >= e) { rqdFaktor = K.rqd_faktor[e]; break }
+        }
       }
     }
 
@@ -1124,7 +1170,8 @@ export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, isTipi = "Fore
     const hesapTip = zeminHesapTipi(row.zemTipi, row.kohezyon)
     const rop      = ropHesapla(
       row.zemTipi, row.ucs || 0, capMm, row.kohezyon,
-      row.spt || 0, 0, row.baslangic || 0, row.rqd || 0, kalibrasyon, makineTorku, gerekliTork
+      row.spt || 0, 0, row.baslangic || 0, row.rqd || 0, kalibrasyon, makineTorku, gerekliTork,
+      row.kayaDurumu || row.kaya_durumu || ""
     )
     katmanlar.push({
       k, rop, hesapTip,
@@ -1624,7 +1671,8 @@ export function katmanTeknikCikti(zemin, capMm, isTipi = "Fore Kazık", yas = 0)
 
     // ROP ve süre katkısı
     const rop         = ropHesapla(row.zemTipi, ucs, capMm, row.kohezyon,
-                          row.spt || 0, 0, baslangic, rqd)
+                          row.spt || 0, 0, baslangic, rqd, null, 0, 0,
+                          row.kayaDurumu || row.kaya_durumu || "")
     const surKatkisi  = kalinlik > 0 ? Math.round(kalinlik / rop * 100) / 100 : 0
 
     const hesapTip = zeminHesapTipi(row.zemTipi, row.kohezyon)

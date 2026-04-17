@@ -110,6 +110,7 @@ class SoilLayerCreate(BaseModel):
     rqd: float = Field(0.0, ge=0, le=100)
     cpt_qc: float = Field(0.0, ge=0)
     su: float = Field(0.0, ge=0)
+    kaya_durumu: Optional[str] = None  # Masif / Orta kırıklı / Çok kırıklı / Ayrışmış
     aciklama: str = ""
 
     _KAYA_TIPLERI = {"Ayrışmış Kaya", "Kumtaşı", "Kireçtaşı", "Sert Kaya"}
