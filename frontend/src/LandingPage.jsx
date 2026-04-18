@@ -68,6 +68,41 @@ function SectionHeading({ title, centered = false, maxWidth = "720px" }) {
   )
 }
 
+function AnimatedStat({ target, suffix = "", label, sublabel, color = "#0284C7", dark = false }) {
+  const elRef = useRef(null)
+  const [count, setCount] = useState(0)
+  const startedRef = useRef(false)
+  useEffect(() => {
+    const el = elRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !startedRef.current) {
+        startedRef.current = true
+        const start = performance.now()
+        const step = (now) => {
+          const progress = Math.min((now - start) / 1200, 1)
+          const ease = 1 - Math.pow(1 - progress, 3)
+          setCount(Math.round(ease * target))
+          if (progress < 1) requestAnimationFrame(step)
+        }
+        requestAnimationFrame(step)
+        obs.disconnect()
+      }
+    }, { threshold: 0.3 })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [target])
+  return (
+    <div ref={elRef} style={{ textAlign: "center", padding: "40px 20px" }}>
+      <div style={{ fontFamily: "'Fraunces', serif", fontSize: "clamp(44px, 5vw, 60px)", fontWeight: "900", color, lineHeight: 1, marginBottom: "8px" }}>
+        {count}{suffix}
+      </div>
+      <div style={{ fontSize: "14px", fontWeight: "700", color: dark ? "rgba(255,255,255,0.88)" : "#0C4A6E", marginBottom: "4px" }}>{label}</div>
+      <div style={{ fontSize: "12px", color: dark ? "rgba(255,255,255,0.38)" : "#94A3B8" }}>{sublabel}</div>
+    </div>
+  )
+}
+
 // ─── Demo Talep Formu (Slide-in Panel) ───────────────────────────────────────
 
 function DemoForm({ open, onClose }) {
@@ -581,39 +616,27 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
 
             <h1 style={{
               fontFamily: "'Fraunces', serif",
-              fontSize: "clamp(38px, 6vw, 68px)",
+              fontSize: "clamp(36px, 5.5vw, 60px)",
               fontWeight: "900",
-              lineHeight: "1.06",
-              margin: "0 0 18px",
+              lineHeight: "1.08",
+              margin: "0 0 20px",
               letterSpacing: "-0.03em",
               color: "#0C4A6E",
-              maxWidth: "720px",
+              maxWidth: "640px",
             }}>
-              Sondaj verisini
+              Fore kazık kararını
               <br />
-              <em style={{ color: "#0EA5E9", fontStyle: "italic" }}>dakikalar içinde</em>
-              uygulanabilir karara dönüştürün.
+              <em style={{ color: "#0EA5E9", fontStyle: "italic" }}>veriye dayandırın.</em>
             </h1>
 
             <p style={{
-              color: "#334155",
-              fontSize: "18px",
-              lineHeight: "1.7",
-              margin: "0 0 14px",
-              maxWidth: "620px",
-              fontWeight: "600",
-            }}>
-              GeoDrill; zemin logu, makine seçimi, delgi süresi ve maliyet analizini tek akışta birleştirir.
-            </p>
-
-            <p style={{
-              color: "#64748B",
-              fontSize: "15px",
+              color: "#475569",
+              fontSize: "17px",
               lineHeight: "1.75",
               margin: "0 0 32px",
-              maxWidth: "610px",
+              maxWidth: "560px",
             }}>
-              Excel dosyaları, dağınık saha notları ve tekrar eden hesaplar yerine; ekibinizin teklif öncesi daha hızlı, daha tutarlı ve daha güvenli karar vermesini sağlar.
+              Zemin logu, makine seçimi ve maliyet analizi — tek akışta. Teklif öncesi belirsizliği azaltmak için tasarlandı.
             </p>
 
             <div className="hero-actions" style={{ display: "flex", gap: "14px", alignItems: "center", flexWrap: "wrap", marginBottom: "22px" }}>
@@ -623,7 +646,6 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
 
             <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", color: "#64748B", fontSize: "13px", fontWeight: "600" }}>
               <span>✓ Teknik ekip için tasarlandı</span>
-              <span>✓ Hızlı onboarding akışı</span>
               <span>✓ Teklif öncesi net öngörü</span>
             </div>
           </div>
@@ -949,6 +971,39 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
       </RevealSection>
 
       <RevealSection>
+        <section className="section-pad" style={{ padding: "80px 48px", background: "white" }}>
+          <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+            <SectionEyebrow centered>KULLANICI GERİ BİLDİRİMLERİ</SectionEyebrow>
+            <SectionHeading centered title="Mühendisler ne diyor?" maxWidth="480px" />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px" }}>
+              {TESTIMONIALS.map((item, i) => (
+                <div key={i} style={{
+                  background: "#F8FAFF",
+                  border: "1px solid #E0F2FE",
+                  borderRadius: "16px",
+                  padding: "32px 28px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "20px",
+                }}>
+                  <div style={{ fontSize: "36px", color: "#BAE6FD", fontFamily: "'Fraunces', serif", lineHeight: 1 }}>"</div>
+                  <p style={{ fontSize: "14px", color: "#475569", lineHeight: "1.8", margin: 0, fontStyle: "italic", flexGrow: 1 }}>{item.quote}</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", borderTop: "1px solid #E0F2FE", paddingTop: "18px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: `linear-gradient(135deg, ${item.renk}, #38BDF8)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: "800", color: "white", flexShrink: 0 }}>{item.avatar}</div>
+                    <div>
+                      <div style={{ fontSize: "14px", fontWeight: "700", color: "#0C4A6E" }}>{item.ad}</div>
+                      <div style={{ fontSize: "11px", color: "#94A3B8" }}>{item.unvan}</div>
+                    </div>
+                    <div style={{ marginLeft: "auto", padding: "3px 10px", borderRadius: "20px", background: "#E0F2FE", color: "#0284C7", fontSize: "10px", fontWeight: "700", letterSpacing: "0.05em" }}>BETA</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </RevealSection>
+
+      <RevealSection>
         <section className="section-pad" style={{ padding: "88px 48px", background: "#F8FAFF" }}>
           <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
             <div style={{ display: "flex", alignItems: "end", justifyContent: "space-between", gap: "20px", flexWrap: "wrap", marginBottom: "32px" }}>
@@ -972,35 +1027,22 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
       </RevealSection>
 
       <RevealSection>
-        <section className="section-pad" style={{ padding: "88px 48px", background: "white" }}>
-          <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
-            <SectionEyebrow centered>{t("moreTagline")}</SectionEyebrow>
-            <SectionHeading centered title={t("discoverTitle")} />
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" }}>
+        <section style={{ background: "#0C4A6E", position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: "700px", height: "200px", background: "radial-gradient(ellipse, rgba(14,165,233,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
+          <div style={{ maxWidth: "1180px", margin: "0 auto", position: "relative" }}>
+            <div style={{ textAlign: "center", paddingTop: "48px", marginBottom: "4px" }}>
+              <span style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "3px", color: "rgba(255,255,255,0.35)" }}>ÜRÜN RAKAMLARI</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
               {[
-                { id: "hakkimizda", label: t("discoverItem1Label"), desc: t("discoverItem1Desc"), icon: "🏗️", color: "#0284C7" },
-                { id: "blog", label: t("discoverItem2Label"), desc: "Saha verileri, makine seçimi ve geoteknik karar süreçleri üzerine pratik içeriklere göz atın.", icon: "📝", color: "#0369A1" },
-                { id: "sss", label: t("discoverItem3Label"), desc: "Desteklenen veri tipleri, hesap güveni ve raporlama akışı hakkında net yanıtlar görün.", icon: "❓", color: "#0EA5E9" },
-                { id: "iletisim", label: t("discoverItem4Label"), desc: "Demo planlamak, iş ortaklığı konuşmak veya teknik sorularınızı ekibe doğrudan iletmek için.", icon: "✉️", color: "#38BDF8" },
-              ].map(item => (
-                <button key={item.id} onClick={() => goPage(item.id)} style={{
-                  background: "white", border: "1px solid #E0F2FE", borderRadius: "14px",
-                  padding: "28px 24px", textAlign: "left", cursor: "pointer",
-                  transition: "border-color 0.2s, transform 0.2s, box-shadow 0.2s",
-                  fontFamily: "'Plus Jakarta Sans', sans-serif",
-                  borderTop: `3px solid ${item.color}`,
-                }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 12px 32px rgba(14,165,233,0.1)"; e.currentTarget.style.borderColor = "#BAE6FD"; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = "#E0F2FE"; }}
-                >
-                  <div style={{ fontSize: "28px", marginBottom: "14px" }}>{item.icon}</div>
-                  <div style={{ fontSize: "16px", fontWeight: "700", color: "#0C4A6E", marginBottom: "8px" }}>{item.label}</div>
-                  <p style={{ fontSize: "13px", color: "#64748B", lineHeight: "1.65", margin: "0 0 16px" }}>{item.desc}</p>
-                  <div style={{ fontSize: "12px", fontWeight: "700", color: item.color, display: "flex", alignItems: "center", gap: "4px" }}>
-                    {t("discoverLabel")}
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-                  </div>
-                </button>
+                { target: 9, suffix: "", label: "Zemin Tipi", sublabel: "Dolgu'dan Sert Kaya'ya", color: "#7DD3FC" },
+                { target: 8, suffix: "+", label: "Hesap Modülü", sublabel: "Tork · ROP · Casing · Maliyet", color: "#38BDF8" },
+                { target: 3, suffix: "", label: "Rapor Formatı", sublabel: "PDF · CSV · Yazdır", color: "#7DD3FC" },
+                { target: 3, suffix: "", label: "Dil Desteği", sublabel: "Türkçe · English · Русский", color: "#38BDF8" },
+              ].map((s, i) => (
+                <div key={s.label} style={{ borderRight: i < 3 ? "1px solid rgba(255,255,255,0.07)" : "none" }}>
+                  <AnimatedStat target={s.target} suffix={s.suffix} label={s.label} sublabel={s.sublabel} color={s.color} dark />
+                </div>
               ))}
             </div>
           </div>
@@ -1064,16 +1106,85 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
         </section>
       </RevealSection>
 
-      <footer style={{
-        background: "#0C4A6E",
-        padding: "32px 48px",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        flexWrap: "wrap", gap: "16px",
-      }}>
-        <Logo dark />
-        <p style={{ color: "rgba(255,255,255,0.35)", fontSize: "12px", margin: 0, letterSpacing: "0.02em" }}>
-          © {new Date().getFullYear()} GeoDrill Insight · {t("footerCopyright")}
-        </p>
+      <footer style={{ background: "#07304A", padding: "56px 48px 28px" }}>
+        <style>{`
+          .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 48px;
+            margin-bottom: 44px;
+          }
+          @media (max-width: 900px) {
+            .footer-grid { grid-template-columns: 1fr 1fr; gap: 32px; }
+          }
+          @media (max-width: 560px) {
+            .footer-grid { grid-template-columns: 1fr; gap: 28px; }
+            footer { padding: 40px 24px 24px !important; }
+          }
+          .footer-link {
+            background: none; border: none; padding: 0;
+            color: rgba(255,255,255,0.55); font-size: 13px;
+            cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif;
+            text-align: left; display: block; margin-bottom: 10px;
+            transition: color 0.15s;
+          }
+          .footer-link:hover { color: rgba(255,255,255,0.9); }
+        `}</style>
+        <div style={{ maxWidth: "1180px", margin: "0 auto" }}>
+          <div className="footer-grid">
+            <div>
+              <Logo dark />
+              <p style={{ color: "rgba(255,255,255,0.45)", fontSize: "13px", lineHeight: "1.8", margin: "18px 0 20px", maxWidth: "280px" }}>
+                Geoteknik karar destek sistemi. Zemin logunu makine seçimine ve maliyet analizine bağlar.
+              </p>
+              <a href="mailto:info@geodrillinsight.com" style={{ color: "#7DD3FC", fontSize: "13px", fontWeight: "600", textDecoration: "none" }}>
+                info@geodrillinsight.com
+              </a>
+            </div>
+
+            <div>
+              <div style={{ fontSize: "10px", fontWeight: "700", letterSpacing: "3px", color: "rgba(255,255,255,0.28)", marginBottom: "18px" }}>ÜRÜN</div>
+              {["Analiz Sonucu", "Zemin Logu", "Makine Parkı", "Raporlar (PDF/CSV)"].map(link => (
+                <button key={link} className="footer-link" onClick={onGoLogin}>{link}</button>
+              ))}
+            </div>
+
+            <div>
+              <div style={{ fontSize: "10px", fontWeight: "700", letterSpacing: "3px", color: "rgba(255,255,255,0.28)", marginBottom: "18px" }}>ŞİRKET</div>
+              {[["Hakkımızda", "hakkimizda"], ["Blog", "blog"], ["SSS", "sss"], ["İletişim", "iletisim"]].map(([label, id]) => (
+                <button key={id} className="footer-link" onClick={() => goPage(id)}>{label}</button>
+              ))}
+            </div>
+
+            <div>
+              <div style={{ fontSize: "10px", fontWeight: "700", letterSpacing: "3px", color: "rgba(255,255,255,0.28)", marginBottom: "18px" }}>PLATFORMA GİRİŞ</div>
+              <button onClick={onGoLogin} style={{
+                width: "100%", padding: "10px 16px", marginBottom: "8px",
+                border: "1px solid rgba(255,255,255,0.18)", borderRadius: "6px",
+                background: "transparent", color: "rgba(255,255,255,0.75)",
+                fontSize: "13px", fontWeight: "600", cursor: "pointer",
+                fontFamily: "'Plus Jakarta Sans', sans-serif", textAlign: "center",
+                transition: "border-color 0.15s, color 0.15s",
+              }}>Giriş Yap</button>
+              <button onClick={() => setDemoAcik(true)} style={{
+                width: "100%", padding: "10px 16px",
+                border: "none", borderRadius: "6px",
+                background: "linear-gradient(135deg, #0284C7, #0EA5E9)",
+                color: "white", fontSize: "13px", fontWeight: "700", cursor: "pointer",
+                fontFamily: "'Plus Jakarta Sans', sans-serif", textAlign: "center",
+              }}>Demo Talep Et</button>
+            </div>
+          </div>
+
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: "22px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
+            <p style={{ color: "rgba(255,255,255,0.22)", fontSize: "12px", margin: 0 }}>
+              © {new Date().getFullYear()} GeoDrill Insight · {t("footerCopyright")}
+            </p>
+            <p style={{ color: "rgba(255,255,255,0.22)", fontSize: "12px", margin: 0 }}>
+              geodrillinsight.com
+            </p>
+          </div>
+        </div>
       </footer>
     </div>
   )
@@ -1099,6 +1210,30 @@ function Logo({ dark }) {
 }
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
+
+const TESTIMONIALS = [
+  {
+    quote: "SPT verilerinden elle tork hesabı yaparken saatler harcıyorduk. Bu akış, teklif hazırlığını gerçekten hızlandırdı.",
+    ad: "A. Kaya",
+    unvan: "Kıdemli Geoteknik Mühendisi",
+    avatar: "AK",
+    renk: "#0284C7",
+  },
+  {
+    quote: "Makine uygunluk matrisini görmek bizi şaşırttı. Eleme sürecimiz artık çok daha sistematik ve savunulabilir.",
+    ad: "S. Öztürk",
+    unvan: "Saha Operasyonları Sorumlusu",
+    avatar: "SÖ",
+    renk: "#0369A1",
+  },
+  {
+    quote: "Casing karar mantığı ve risk renklendirmesi sayesinde proje risklerini müşteriye anlatmak kolaylaştı.",
+    ad: "M. Arslan",
+    unvan: "İnşaat Mühendisi",
+    avatar: "MA",
+    renk: "#0EA5E9",
+  },
+]
 
 const STRATA_BANDS = [
   { h: "18px", color: "#E0F2FE", opacity: 0.8 },
