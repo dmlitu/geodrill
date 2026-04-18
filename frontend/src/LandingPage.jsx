@@ -68,6 +68,38 @@ function SectionHeading({ title, centered = false, maxWidth = "720px" }) {
   )
 }
 
+function AppChrome({ url = "geodrillinsight.com" }) {
+  return (
+    <div style={{
+      background: "#0F1F35",
+      padding: "10px 14px",
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      borderBottom: "1px solid rgba(255,255,255,0.06)",
+      flexShrink: 0,
+    }}>
+      <div style={{ display: "flex", gap: "5px", flexShrink: 0 }}>
+        {["#FF5F57", "#FFBD2E", "#28CA42"].map(c => (
+          <div key={c} style={{ width: "9px", height: "9px", borderRadius: "50%", background: c, opacity: 0.9 }} />
+        ))}
+      </div>
+      <div style={{
+        flex: 1,
+        background: "rgba(255,255,255,0.07)",
+        borderRadius: "5px",
+        padding: "4px 10px",
+        fontSize: "10px",
+        color: "rgba(255,255,255,0.35)",
+        fontFamily: "'DM Mono', monospace",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+      }}>🔒 {url}</div>
+    </div>
+  )
+}
+
 function AnimatedStat({ target, suffix = "", label, sublabel, color = "#0284C7", dark = false }) {
   const elRef = useRef(null)
   const [count, setCount] = useState(0)
@@ -362,17 +394,21 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
         }
 
         .preview-card {
-          background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFF 100%);
-          border: 1px solid #E0F2FE;
-          border-radius: 18px;
-          box-shadow: 0 16px 40px rgba(12,74,110,0.08);
+          background: white;
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow:
+            0 0 0 1px rgba(12,74,110,0.08),
+            0 8px 20px rgba(12,74,110,0.08),
+            0 28px 56px rgba(12,74,110,0.16),
+            0 56px 96px rgba(12,74,110,0.08);
         }
 
         .mini-stat {
-          background: white;
-          border: 1px solid #E0F2FE;
-          border-radius: 12px;
-          padding: 18px 16px;
+          background: #F0F9FF;
+          border: 1.5px solid #BAE6FD;
+          border-radius: 10px;
+          padding: 14px 12px;
         }
 
         @keyframes pulseBlue {
@@ -650,70 +686,71 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
             </div>
           </div>
 
-          <div className="hero-panel preview-card" style={{ padding: "28px", position: "relative" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "18px" }}>
-              <div>
-                <div style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "0.16em", color: "#0EA5E9", marginBottom: "6px" }}>SAHA ÖN İNCELEME</div>
-                <div style={{ fontFamily: "'Fraunces', serif", fontSize: "22px", fontWeight: "800", color: "#0C4A6E" }}>Demo görünümü</div>
-              </div>
-              <div style={{ padding: "6px 10px", borderRadius: "999px", background: "#ECFEFF", color: "#0284C7", fontSize: "11px", fontWeight: "700" }}>
-                Örnek proje
-              </div>
-            </div>
+          <div className="hero-panel preview-card">
+            <AppChrome url="geodrillinsight.com/proje/14/analiz" />
+            <div style={{ padding: "22px" }}>
 
-            <div style={{ background: "#0C4A6E", borderRadius: "14px", padding: "18px", color: "white", marginBottom: "16px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "16px", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
                 <div>
-                  <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.65)", marginBottom: "6px" }}>Proje</div>
-                  <div style={{ fontSize: "16px", fontWeight: "700", marginBottom: "8px" }}>Maslak Ofis Temeli · Fore Kazık</div>
-                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                    {["SPT + UCS veri seti", "3 kritik katman", "Su tablası mevcut"].map(tag => (
-                      <span key={tag} style={{ fontSize: "11px", padding: "5px 8px", borderRadius: "999px", background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)" }}>{tag}</span>
-                    ))}
+                  <div style={{ fontSize: "10px", fontWeight: "700", letterSpacing: "0.18em", color: "#0EA5E9", marginBottom: "5px" }}>SAHA ÖN İNCELEME</div>
+                  <div style={{ fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: "800", color: "#0C4A6E" }}>Analiz Sonucu</div>
+                </div>
+                <div style={{ padding: "5px 10px", borderRadius: "999px", background: "#DCFCE7", color: "#16A34A", fontSize: "11px", fontWeight: "700" }}>
+                  ● Canlı
+                </div>
+              </div>
+
+              <div style={{ background: "linear-gradient(135deg, #0C4A6E 0%, #0369A1 100%)", borderRadius: "12px", padding: "16px", color: "white", marginBottom: "14px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.55)", marginBottom: "5px" }}>Proje</div>
+                    <div style={{ fontSize: "15px", fontWeight: "700", marginBottom: "10px" }}>Maslak Ofis Temeli · Fore Kazık</div>
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                      {["SPT + UCS", "3 kritik katman", "Su tablası"].map(tag => (
+                        <span key={tag} style={{ fontSize: "10px", padding: "3px 8px", borderRadius: "999px", background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.85)" }}>{tag}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", marginBottom: "3px" }}>Uygunluk</div>
+                    <div style={{ fontFamily: "'Fraunces', serif", fontSize: "36px", fontWeight: "900", color: "#7DD3FC", lineHeight: 1 }}>92</div>
                   </div>
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)", marginBottom: "4px" }}>Uygunluk skoru</div>
-                  <div style={{ fontFamily: "'Fraunces', serif", fontSize: "34px", fontWeight: "900", color: "#7DD3FC", lineHeight: 1 }}>92</div>
-                </div>
               </div>
-            </div>
 
-            <div className="mini-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "16px" }}>
-              {[
-                { label: "Tahmini delgi süresi", value: "18.4 sa" },
-                { label: "Önerilen makine", value: "BG 28 H" },
-                { label: "Saatlik maliyet", value: "₺14.850" },
-              ].map(item => (
-                <div key={item.label} className="mini-stat">
-                  <div style={{ fontSize: "11px", color: "#94A3B8", marginBottom: "8px" }}>{item.label}</div>
-                  <div style={{ fontSize: "16px", fontWeight: "800", color: "#0C4A6E" }}>{item.value}</div>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ background: "#F8FAFF", border: "1px solid #E0F2FE", borderRadius: "12px", padding: "16px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", marginBottom: "12px", alignItems: "center" }}>
-                <div style={{ fontSize: "13px", fontWeight: "700", color: "#0C4A6E" }}>Sistem önerisi</div>
-                <div style={{ fontSize: "11px", color: "#16A34A", fontWeight: "700" }}>Yüksek güven</div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div className="mini-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "14px" }}>
                 {[
-                  "Kumtaşı geçişinde yüksek tork ihtiyacı işaretlendi.",
-                  "Casing boyu su tablası etkisine göre otomatik güncellendi.",
-                  "Makine parkınızdaki iki model teknik olarak elendi.",
-                ].map(text => (
-                  <div key={text} style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
-                    <div style={{ width: "18px", height: "18px", borderRadius: "50%", background: "#E0F2FE", display: "flex", alignItems: "center", justifyContent: "center", color: "#0284C7", fontSize: "11px", flexShrink: 0 }}>✓</div>
-                    <div style={{ fontSize: "12px", lineHeight: "1.65", color: "#475569" }}>{text}</div>
+                  { label: "Delgi süresi", value: "18.4 sa" },
+                  { label: "Öneri makine", value: "BG 28 H" },
+                  { label: "Saat maliyeti", value: "₺14.850" },
+                ].map(item => (
+                  <div key={item.label} className="mini-stat">
+                    <div style={{ fontSize: "10px", color: "#64748B", marginBottom: "6px" }}>{item.label}</div>
+                    <div style={{ fontSize: "14px", fontWeight: "800", color: "#0C4A6E" }}>{item.value}</div>
                   </div>
                 ))}
               </div>
-            </div>
 
-            <p style={{ margin: "16px 0 0", color: "#94A3B8", fontSize: "12px", lineHeight: "1.6" }}>
-              Demo sırasında kendi proje veriniz veya örnek saha senaryosu üzerinden bu akışı birlikte inceliyoruz.
-            </p>
+              <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: "10px", padding: "14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", marginBottom: "10px", alignItems: "center" }}>
+                  <div style={{ fontSize: "12px", fontWeight: "700", color: "#0C4A6E" }}>Sistem önerisi</div>
+                  <div style={{ fontSize: "10px", color: "#16A34A", fontWeight: "700", background: "#DCFCE7", padding: "2px 8px", borderRadius: "999px" }}>Yüksek güven</div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {[
+                    "Kumtaşı geçişinde yüksek tork ihtiyacı işaretlendi.",
+                    "Casing boyu su tablası etkisine göre güncellendi.",
+                    "2 makine modeli teknik olarak elendi.",
+                  ].map(text => (
+                    <div key={text} style={{ display: "flex", alignItems: "flex-start", gap: "7px" }}>
+                      <div style={{ width: "16px", height: "16px", borderRadius: "50%", background: "#16A34A", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "9px", flexShrink: 0, marginTop: "1px" }}>✓</div>
+                      <div style={{ fontSize: "12px", lineHeight: "1.6", color: "#374151" }}>{text}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
       </section>
@@ -895,46 +932,56 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
               </div>
             </div>
 
-            <div className="preview-card" style={{ padding: "24px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "center", marginBottom: "20px" }}>
-                <div>
-                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#94A3B8", letterSpacing: "0.14em", marginBottom: "6px" }}>ÜRÜN ÖN İZLEME</div>
-                  <div style={{ fontFamily: "'Fraunces', serif", fontSize: "24px", fontWeight: "800", color: "#0C4A6E" }}>Karar paneli</div>
-                </div>
-                <div style={{ padding: "6px 10px", borderRadius: "999px", background: "#F0F9FF", color: "#0284C7", fontSize: "11px", fontWeight: "700" }}>Canlı yorumlanır</div>
-              </div>
+            <div className="preview-card">
+              <AppChrome url="geodrillinsight.com/proje/42/analiz" />
+              <div style={{ padding: "22px" }}>
 
-              <div style={{ border: "1px solid #E0F2FE", borderRadius: "14px", overflow: "hidden", marginBottom: "16px" }}>
-                <div style={{ background: "#F8FAFF", padding: "12px 16px", borderBottom: "1px solid #E0F2FE", display: "grid", gridTemplateColumns: "1.3fr 0.8fr 0.8fr", gap: "8px" }}>
-                  <span style={{ fontSize: "11px", fontWeight: "700", color: "#94A3B8" }}>KATMAN</span>
-                  <span style={{ fontSize: "11px", fontWeight: "700", color: "#94A3B8" }}>RİSK</span>
-                  <span style={{ fontSize: "11px", fontWeight: "700", color: "#94A3B8" }}>AKSİYON</span>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "18px" }}>
+                  <div>
+                    <div style={{ fontSize: "10px", fontWeight: "700", color: "#94A3B8", letterSpacing: "0.16em", marginBottom: "5px" }}>ÜRÜN ÖN İZLEME</div>
+                    <div style={{ fontFamily: "'Fraunces', serif", fontSize: "22px", fontWeight: "800", color: "#0C4A6E" }}>Karar paneli</div>
+                  </div>
+                  <div style={{ padding: "5px 10px", borderRadius: "999px", background: "#DCFCE7", color: "#16A34A", fontSize: "10px", fontWeight: "700" }}>● Canlı yorumlanır</div>
                 </div>
-                {[
-                  ["Dolgu + gevşek kum", "Orta", "Kısa casing"],
-                  ["Silt / kil geçişi", "Düşük", "Standart ilerleme"],
-                  ["Kumtaşı lensi", "Yüksek", "Yüksek tork uyarısı"],
-                ].map(row => (
-                  <div key={row[0]} style={{ padding: "14px 16px", borderBottom: "1px solid #F0F9FF", display: "grid", gridTemplateColumns: "1.3fr 0.8fr 0.8fr", gap: "8px", alignItems: "center" }}>
-                    <span style={{ fontSize: "13px", color: "#0C4A6E", fontWeight: "600" }}>{row[0]}</span>
-                    <span style={{ fontSize: "12px", color: row[1] === "Yüksek" ? "#DC2626" : row[1] === "Orta" ? "#D97706" : "#16A34A", fontWeight: "700" }}>{row[1]}</span>
-                    <span style={{ fontSize: "12px", color: "#64748B" }}>{row[2]}</span>
-                  </div>
-                ))}
-              </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px" }}>
-                {[
-                  { title: "Makine adayları", value: "4 → 2 uygun" },
-                  { title: "Tahmini teklif bandı", value: "₺2.8M - ₺3.1M" },
-                  { title: "Kritik veri eksiği", value: "UCS doğrulama" },
-                  { title: "Önerilen sonraki adım", value: "Operasyon planı" },
-                ].map(item => (
-                  <div key={item.title} style={{ background: "#F8FAFF", border: "1px solid #E0F2FE", borderRadius: "12px", padding: "14px" }}>
-                    <div style={{ fontSize: "11px", color: "#94A3B8", marginBottom: "7px" }}>{item.title}</div>
-                    <div style={{ fontSize: "14px", color: "#0C4A6E", fontWeight: "700" }}>{item.value}</div>
+                <div style={{ border: "1.5px solid #E0F2FE", borderRadius: "12px", overflow: "hidden", marginBottom: "14px" }}>
+                  <div style={{ background: "#0F1F35", padding: "10px 14px", display: "grid", gridTemplateColumns: "1.3fr 0.8fr 0.8fr", gap: "8px" }}>
+                    <span style={{ fontSize: "10px", fontWeight: "700", color: "rgba(255,255,255,0.45)", letterSpacing: "0.08em" }}>KATMAN</span>
+                    <span style={{ fontSize: "10px", fontWeight: "700", color: "rgba(255,255,255,0.45)", letterSpacing: "0.08em" }}>RİSK</span>
+                    <span style={{ fontSize: "10px", fontWeight: "700", color: "rgba(255,255,255,0.45)", letterSpacing: "0.08em" }}>AKSİYON</span>
                   </div>
-                ))}
+                  {[
+                    ["Dolgu + gevşek kum", "Orta", "Kısa casing"],
+                    ["Silt / kil geçişi", "Düşük", "Standart ilerleme"],
+                    ["Kumtaşı lensi", "Yüksek", "Yüksek tork uyarısı"],
+                  ].map((row, ri) => (
+                    <div key={row[0]} style={{ padding: "12px 14px", borderBottom: ri < 2 ? "1px solid #F0F9FF" : "none", display: "grid", gridTemplateColumns: "1.3fr 0.8fr 0.8fr", gap: "8px", alignItems: "center", background: ri % 2 === 0 ? "white" : "#FAFCFF" }}>
+                      <span style={{ fontSize: "13px", color: "#0C4A6E", fontWeight: "600" }}>{row[0]}</span>
+                      <span style={{
+                        fontSize: "11px", fontWeight: "700",
+                        color: row[1] === "Yüksek" ? "#DC2626" : row[1] === "Orta" ? "#D97706" : "#16A34A",
+                        background: row[1] === "Yüksek" ? "#FEF2F2" : row[1] === "Orta" ? "#FFFBEB" : "#F0FDF4",
+                        padding: "2px 8px", borderRadius: "999px", display: "inline-block",
+                      }}>{row[1]}</span>
+                      <span style={{ fontSize: "12px", color: "#64748B" }}>{row[2]}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
+                  {[
+                    { title: "Makine adayları", value: "4 → 2 uygun", accent: "#0284C7" },
+                    { title: "Tahmini teklif bandı", value: "₺2.8M – ₺3.1M", accent: "#0369A1" },
+                    { title: "Kritik veri eksiği", value: "UCS doğrulama", accent: "#D97706" },
+                    { title: "Sonraki adım", value: "Operasyon planı", accent: "#16A34A" },
+                  ].map(item => (
+                    <div key={item.title} style={{ background: "#F8FAFF", border: `1.5px solid #E0F2FE`, borderLeft: `3px solid ${item.accent}`, borderRadius: "8px", padding: "12px" }}>
+                      <div style={{ fontSize: "10px", color: "#94A3B8", marginBottom: "6px", fontWeight: "600" }}>{item.title}</div>
+                      <div style={{ fontSize: "13px", color: "#0C4A6E", fontWeight: "700" }}>{item.value}</div>
+                    </div>
+                  ))}
+                </div>
+
               </div>
             </div>
           </div>
