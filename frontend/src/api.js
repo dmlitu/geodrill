@@ -1,4 +1,5 @@
-const BASE = import.meta.env.VITE_API_URL || "https://geodrill-api.onrender.com"
+// API base URL — production fallback'i tek noktada tut. Diğer modüller bu BASE'i import etsin.
+export const BASE = import.meta.env.VITE_API_URL || "https://geodrill-api.onrender.com"
 const REQUEST_TIMEOUT_MS = 30_000
 
 // ─── Token helpers ────────────────────────────────────────────────────────────

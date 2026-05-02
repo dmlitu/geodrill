@@ -14,11 +14,13 @@ connect_args = {"check_same_thread": False} if is_sqlite else {}
 
 pool_kwargs = {}
 if not is_sqlite:
+    # Neon free tier ~100 toplam bağlantıyı destekler; küçük SaaS için 5 + 10 yeter.
+    # SQLAlchemy 2.0 önerisi: pool_pre_ping (kopuk bağlantı tespiti), pool_recycle 30dk.
     pool_kwargs = {
-        "pool_size": 20,
-        "max_overflow": 40,
+        "pool_size": 5,
+        "max_overflow": 10,
         "pool_pre_ping": True,
-        "pool_recycle": 3600,
+        "pool_recycle": 1800,
     }
 
 engine = create_engine(DATABASE_URL, connect_args=connect_args, **pool_kwargs)

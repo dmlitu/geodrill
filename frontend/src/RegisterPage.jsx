@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { register, login } from "./api"
+import { register, login, BASE } from "./api"
 import { useLang } from "./LangContext"
 
 export default function RegisterPage({ onLogin, onGoLogin }) {
@@ -31,7 +31,7 @@ export default function RegisterPage({ onLogin, onGoLogin }) {
         body.company_slug = makeSlug(companyName)
       }
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/auth/register`,
+        `${BASE}/auth/register`,
         { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
       )
       if (!res.ok) {

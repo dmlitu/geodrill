@@ -24,6 +24,11 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // Stale-closure bug'larını lint zamanında yakala (React hooks dokümantasyonu önerir).
+      'react-hooks/exhaustive-deps': 'error',
+      'react-hooks/rules-of-hooks': 'error',
+      // Debug log'lar üretime sızmasın; warn/error korunur (api.js error logları için).
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
 ])

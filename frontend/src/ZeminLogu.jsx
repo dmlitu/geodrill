@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useCallback } from "react"
-import { bulkReplaceSoilLayers, fromSnakeLayer, getToken } from "./api"
+import { bulkReplaceSoilLayers, fromSnakeLayer, getToken, BASE } from "./api"
 import ConfirmDialog from "./ConfirmDialog"
 import { useToast } from "./Toast"
 import { zeminHesapTipi } from "./hesaplamalar"
@@ -520,9 +520,8 @@ export default function ZeminLogu({ data, onChange, yeraltiSuyu, kazikBoyu, proj
     try {
       const fd = new FormData(); fd.append("file", file)
       const token = getToken()
-      const apiBase = import.meta.env.VITE_API_URL || "https://geodrill-api.onrender.com"
       const res = await fetch(
-        `${apiBase}/projects/${projeId}/soil-layers/import-pdf`,
+        `${BASE}/projects/${projeId}/soil-layers/import-pdf`,
         { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd }
       )
       if (!res.ok) { const err = await res.json(); throw new Error(err.detail || "Hata") }

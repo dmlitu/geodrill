@@ -4,8 +4,7 @@ import {
 } from "./hesaplamalar"
 import { useToast } from "./Toast"
 import { useLang } from "./LangContext"
-
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000"
+import { BASE } from "./api"
 
 // ─── Piyasa benchmark referansları ───────────────────────────────────────────
 const BENCHMARK = {

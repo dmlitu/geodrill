@@ -242,8 +242,6 @@ export default function AnalizSonucu({ proje, zemin, makineler, projeId, kalibra
     )
   }
 
-  console.log("[GeoDrill] zemin:", zemin, "analiz:", analiz)
-
   const {
     tork, torkAralik, casingDur, gerekce, casingM, sure, cevrim, guven, mBasi, topMazot,
     kritik, gunlukUretim, kazikBasiGun, toplamGun, ucOneri, makineUygunluklari, stabiliteSkor,

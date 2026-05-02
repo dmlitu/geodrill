@@ -4,13 +4,14 @@ Endpoint: POST /projects/{project_id}/soil-layers/import-pdf
 Accepts multipart PDF upload, extracts text, parses with Claude.
 """
 import os, sys
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from sqlalchemy.orm import Session
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from database import get_db
 from models import Project
 from auth import get_current_user
+from routers.auth import limiter
 
 router = APIRouter()
 
@@ -87,7 +88,9 @@ Metin:
         raise HTTPException(500, f"Claude API hatası: {e}")
 
 @router.post("/projects/{project_id}/soil-layers/import-pdf")
+@limiter.limit("5/minute")
 async def import_soil_from_pdf(
+    request: Request,
     project_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),

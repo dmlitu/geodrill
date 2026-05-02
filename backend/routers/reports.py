@@ -18,13 +18,14 @@ import sys
 import os
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from auth import get_current_user
 from database import get_db
 import models
+from routers.auth import limiter
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -99,7 +100,9 @@ def mazot_tahmini(tork, kazik_boyu):
 # ─── CSV Export ───────────────────────────────────────────────────────────────
 
 @router.get("/projects/{project_id}/soil-layers/export")
+@limiter.limit("30/minute")
 def export_soil_layers_csv(
+    request: Request,
     project_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
@@ -146,7 +149,9 @@ def export_soil_layers_csv(
 # ─── PDF Report ───────────────────────────────────────────────────────────────
 
 @router.get("/projects/{project_id}/report")
+@limiter.limit("10/minute")
 def generate_pdf_report(
+    request: Request,
     project_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),

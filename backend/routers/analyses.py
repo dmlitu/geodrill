@@ -16,16 +16,21 @@ Endpoints:
   GET  /analyses/recent                         — last N analyses across all projects
 """
 import sys, os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from auth import get_current_user
 from database import get_db
 import models
 import schemas
+from routers.auth import limiter
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -53,8 +58,8 @@ def _check_plan_limit(user: models.User, db: Session):
     if not sub or sub.analyses_limit == 0:
         return  # enterprise unlimited or no subscription
 
-    # Monthly reset check
-    now = datetime.utcnow()
+    # Monthly reset check — naive ↔ aware uyumu için utc-naive karşılaştırması
+    now = _utcnow().replace(tzinfo=None)
     if sub.reset_date and (now - sub.reset_date).days >= 30:
         sub.analyses_used = 0
         sub.reset_date = now
@@ -110,7 +115,9 @@ def list_analyses(
     response_model=schemas.AnalysisSummary,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("60/minute")
 def save_analysis(
+    request: Request,
     project_id: int,
     payload: schemas.AnalysisCreate,
     current_user: models.User = Depends(get_current_user),
@@ -122,7 +129,7 @@ def save_analysis(
     analysis = models.Analysis(
         project_id=project_id,
         user_id=current_user.id,
-        ad=payload.ad or f"Analiz {datetime.utcnow().strftime('%d.%m.%Y %H:%M')}",
+        ad=payload.ad or f"Analiz {_utcnow().strftime('%d.%m.%Y %H:%M')}",
         notlar=payload.notlar,
         motor_version=payload.motor_version,
         tork_nominal=payload.tork_nominal,

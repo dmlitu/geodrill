@@ -85,8 +85,10 @@ def _run_schema_migrations():
         try:
             with engine.begin() as conn:   # her migration kendi transaction'ı
                 conn.execute(text(sql))
-        except Exception:
-            pass  # SQLite eski sürüm uyumu veya beklenmedik hata
+        except Exception as exc:
+            # SQLite eski sürüm uyumu veya beklenmedik hata — loglayarak devam et,
+            # ama tamamen sessize alma (12-Factor logs as event streams).
+            logger.warning("schema migration skipped: %s -- %s", sql, exc)
 
 
 @asynccontextmanager
@@ -114,10 +116,12 @@ _raw_origins = os.environ.get(
 )
 ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
-# Always allow local dev servers regardless of the env var value
-for _local in ("http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"):
-    if _local not in ALLOWED_ORIGINS:
-        ALLOWED_ORIGINS.append(_local)
+# Local dev origin'leri yalnızca geliştirme ortamında ekle — prod'da least-privilege.
+_ENV = os.getenv("ENV", "dev").lower()
+if _ENV in ("dev", "test", "local"):
+    for _local in ("http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"):
+        if _local not in ALLOWED_ORIGINS:
+            ALLOWED_ORIGINS.append(_local)
 
 app.add_middleware(
     CORSMiddleware,
@@ -133,9 +137,11 @@ async def security_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
+    # X-XSS-Protection deprecated (OWASP recommends removal); CSP yeter.
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    # API tarafı için en sıkı CSP: hiçbir kaynağa frame/script izni yok.
+    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
     return response
 
 from routers.auth import limiter
@@ -168,4 +174,20 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "healthy", "version": "3.1.0"}
+    """Liveness + readiness check. DB bağlantısını da doğrular."""
+    from sqlalchemy import text
+    from fastapi.responses import JSONResponse
+    db_status = "ok"
+    db_error: str | None = None
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception as exc:
+        db_status = "down"
+        db_error = str(exc)[:120]
+
+    body = {"status": "healthy" if db_status == "ok" else "degraded",
+            "version": "3.1.0", "db": db_status}
+    if db_error:
+        body["db_error"] = db_error
+    return JSONResponse(status_code=200 if db_status == "ok" else 503, content=body)

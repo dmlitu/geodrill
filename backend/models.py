@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, ForeignKey,
     Integer, String, Text, JSON,
@@ -6,6 +6,11 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from database import Base
+
+
+def _utcnow() -> datetime:
+    """Timezone-aware UTC now. datetime.utcnow() Python 3.12'de deprecated."""
+    return datetime.now(timezone.utc)
 
 
 # ─── Company ──────────────────────────────────────────────────────────────────
@@ -18,7 +23,7 @@ class Company(Base):
     name = Column(String(200), nullable=False)
     slug = Column(String(100), unique=True, nullable=False, index=True)  # url-safe
     plan = Column(String(20), default="free")   # free | pro | enterprise
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
 
     users = relationship("User", back_populates="company")
     subscription = relationship("Subscription", uselist=False, back_populates="company")
@@ -35,7 +40,7 @@ class Subscription(Base):
     plan = Column(String(20), default="free")          # free | pro | enterprise
     analyses_used = Column(Integer, default=0)          # resets monthly
     analyses_limit = Column(Integer, default=5)         # 5 free / 100 pro / 0=unlimited
-    reset_date = Column(DateTime, default=datetime.utcnow)  # monthly reset date
+    reset_date = Column(DateTime, default=_utcnow)  # monthly reset date
     valid_until = Column(DateTime, nullable=True)       # null = active
 
     company = relationship("Company", back_populates="subscription")
@@ -54,7 +59,7 @@ class User(Base):
     role = Column(String(20), default="member")        # owner | admin | member
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True, index=True)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
 
     company = relationship("Company", back_populates="users")
     projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
@@ -87,8 +92,8 @@ class Project(Base):
     proje_notu = Column(Text, default="")
     teklif_notu = Column(Text, default="")
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     owner = relationship("User", back_populates="projects")
     soil_layers = relationship(
@@ -155,7 +160,7 @@ class Analysis(Base):
     ad = Column(String(200), default="")             # user-given name for this run
     notlar = Column(Text, default="")
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
 
     project = relationship("Project", back_populates="analyses")
     user = relationship("User", back_populates="analyses")
