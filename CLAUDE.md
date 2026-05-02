@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **GeoDrill** is a geotechnical drilling decision support system (Turkish: "Geoteknik Karar Destek Sistemi") for managing pile drilling projects. It calculates torque requirements, casing needs, drilling time, fuel consumption, stability risk, and equipment suitability from soil profile data.
 
+The product is a multi-tenant SaaS with company workspaces, subscription/usage limits, saved analysis snapshots, cost analysis, and a 3-language UI (Turkish, English, Russian).
+
+Engine version: **v3.1** (see `TECHNICAL_CHANGELOG.md`, `ENGINEERING_ASSUMPTIONS.md`, `docs/delgi_suresi_hesap_metodolojisi.md`).
+
 ## Commands
 
 ### Frontend (React 19 + Vite)
@@ -25,151 +29,155 @@ source venv/bin/activate
 uvicorn main:app --reload         # Dev server at http://localhost:8000
 pytest tests/                     # Run all backend tests
 pytest tests/test_auth.py -v      # Run a single test file
+pytest tests/test_calculations.py::test_specific -v   # Single test
 ```
 
 API docs available at http://localhost:8000/docs when server is running.
 
 ## Architecture
 
-### Project Structure
+### High-Level Layout
+
 ```
 geodrill/
-├── backend/                # FastAPI + SQLAlchemy (Python)
-│   ├── routers/            # Route modules
-│   │   ├── auth.py         # Login, register, /me
-│   │   ├── projects.py     # Project CRUD
-│   │   ├── soil.py         # Soil layer bulk operations
-│   │   ├── equipment.py    # Equipment CRUD + bulk
-│   │   └── reports.py      # PDF/CSV export + calculation functions
-│   ├── tests/              # pytest integration tests
-│   │   ├── conftest.py     # In-memory SQLite fixtures
-│   │   ├── test_auth.py
-│   │   ├── test_projects.py
-│   │   └── test_soil.py
-│   ├── main.py             # App entry, CORS, startup seed
+├── backend/                # FastAPI + SQLAlchemy (Python 3)
+│   ├── routers/            # auth, projects, soil, soil_import, equipment,
+│   │                       # reports, companies, analyses, dashboard, cost
+│   ├── modules/calculations/  # v3.x calculation engine (engine.py + soil_resistance.py)
+│   ├── configs/            # geotech_coefficients.py — KATSAYILAR table
+│   ├── tests/              # pytest integration tests (in-memory SQLite)
+│   ├── main.py             # App entry, CORS, security headers, lifespan migrations
 │   ├── database.py         # Engine, session, get_db
-│   ├── models.py           # ORM: User, Project, SoilLayer, Equipment
-│   ├── schemas.py          # Pydantic schemas
-│   ├── auth.py             # JWT + bcrypt auth helpers
+│   ├── models.py           # ORM (Company, Subscription, User, Project,
+│   │                       #      SoilLayer, Analysis, Equipment)
+│   ├── schemas.py          # Pydantic v2 schemas
+│   ├── auth.py             # JWT + bcrypt
 │   └── requirements.txt
 ├── frontend/               # React 19 + Vite SPA
 │   ├── src/
-│   │   ├── App.jsx         # Root: auth, routing, state, Sidebar, Header, ErrorBoundary
-│   │   ├── api.js          # API client with snake_case ↔ camelCase transforms
-│   │   ├── hesaplamalar.js # Pure calculation module (torque, risk, casing, time, fuel)
-│   │   ├── hesaplamalar.test.js  # Vitest unit tests (~34 tests)
-│   │   ├── ProjeForm.jsx   # Project metadata editor
-│   │   ├── ZeminLogu.jsx   # Soil layer table editor
-│   │   ├── MakinePark.jsx  # Equipment fleet manager
-│   │   ├── AnalizSonucu.jsx # Analysis results + export (CSV/PDF/print)
-│   │   ├── Gorseller.jsx   # Visualizations (SVG + Recharts)
-│   │   ├── LandingPage.jsx # Marketing/public page
-│   │   ├── RegisterPage.jsx # Sign-up form
-│   │   ├── index.css       # Tailwind imports + CSS vars + animations
-│   │   └── main.jsx        # React entry point
-│   ├── package.json
-│   └── vite.config.js
+│   │   ├── App.jsx         # Root: auth, page routing, sidebar, ErrorBoundary
+│   │   ├── api.js          # API client (JWT, snake↔camel, 401 soft logout, 30s timeout)
+│   │   ├── hesaplamalar.js # Pure calculation module — mirrors backend engine
+│   │   ├── hesaplamalar.test.js  # Vitest unit tests
+│   │   ├── i18n.js / LangContext.jsx / locales/{tr,en,ru}.json
+│   │   ├── Toast.jsx, ConfirmDialog.jsx
+│   │   ├── DemoProje.js, MakineKatalogu.js   # Static demo / catalog data
+│   │   └── (page components — see below)
+│   └── package.json
+├── docs/                   # Methodology notes
+├── ENGINEERING_ASSUMPTIONS.md
+├── TECHNICAL_CHANGELOG.md
 ├── render.yaml             # Render deployment manifest
-├── .gitignore
 └── CLAUDE.md
 ```
 
-### Frontend (`frontend/src/`)
+### Frontend Pages (`frontend/src/`)
 
-Single-page React app. No client-side router — `App.jsx` manages page state via `activePage`. Uses React hooks only (no Redux/Context).
+Single-page React app. **No client-side router** — `App.jsx` manages page state via `activePage`. State (`proje`, `zemin`, `makineler`) lives in `App.jsx` and flows down as props + setters. Auth via localStorage (`gd_token`, `gd_username`). Top-level `LangProvider` and `ToastProvider` wrap the tree.
 
-- **`App.jsx`** — Root component; owns all shared state (`proje`, `zemin`, `makineler`) and passes them as props + setters to child pages. Contains inline LoginPage, Sidebar, Header, and ErrorBoundary components. Auth via localStorage (`gd_token`, `gd_username`). Dashboard nav: Proje Bilgileri → Zemin Logu → Makine Parki → Analiz Sonucu.
-- **`api.js`** — All backend communication. Wraps `fetch` with JWT token injection, auto-logout on 401, snake_case ↔ camelCase conversion. Exports: `login`, `register`, `fetchMe`, `fetchProjects`, `createProject`, `fetchProject`, `updateProject`, `saveZeminBulk`, `fetchEquipment`, `saveEquipmentBulk`, `downloadReport`, `downloadZeminCSV`.
-- **`hesaplamalar.js`** — Pure calculation module (no React/DOM dependencies). Exported functions:
-  - `gerekliTork(zemin[], capMm)` — Max required torque across soil layers (SPT/UCS/RQD-based shear strength)
-  - `stabiliteRiski(tip, kohezyon, spt, yas)` — Returns "Yuksek" / "Orta" / "Dusuk"
-  - `casingDurum(zemin[], yas)` — Casing requirement decision with justification list
-  - `casingMetreHesapla(zemin[], yas)` — Required casing meters (100% high-risk, 50% medium)
-  - `ropHesapla(tip, ucs, capMm)` — Rate of penetration (m/hr) by soil type
-  - `kazikSuresi(zemin[], capMm, kazikBoyu, casingM)` — Single pile drilling time (hours)
-  - `mazotTahmini(tork, kazikBoyu)` — Fuel consumption { mBasi, toplam }
-  - `kritikKatman(zemin[])` — Highest geotechnical complexity layer
-  - `makinaUygunluk(makine, tork, kazikBoyu, kazikCapi, casingGerekli)` — Equipment suitability decision (Uygun/Sartli Uygun/Riskli/Uygun Degil)
-- **`AnalizSonucu.jsx`** — Analysis results page. Read-only — uses `useMemo` for memoized calculations from `hesaplamalar.js`. Shows 5 metric cards, technical recommendations, critical layer details, casing justification, visualizations, equipment suitability matrix. Export: PDF report, zemin CSV, analysis CSV (client-generated), print.
-- **`Gorseller.jsx`** — Four visualization components:
-  - `ZeminProfilDiyagrami` — SVG vertical soil column with water table line, pile tip marker, legend
-  - `TorkDerinlikGrafigi` — Recharts horizontal bar chart (torque vs depth per layer)
-  - `GanttSemasi` — SVG Gantt chart (Mobilizasyon → Kazik Delme → Bekleme/Test → Demobilizasyon)
-  - `SenaryoKarsilastirma` — Recharts dual-axis bar chart (diameter scenarios ±200/±400mm)
-- **`ProjeForm.jsx`** — Project metadata editor. Fields: projeAdi*, projeKodu, sahaKodu, lokasyon, isTipi (Fore Kazik/Ankraj/Mini Kazik), kazikBoyu*, kazikCapi*, kazikAdedi*, yeraltiSuyu, projeNotu, teklifNotu.
-- **`ZeminLogu.jsx`** — Editable soil layer table. Columns: depth range, formasyon, zemTipi (9 types), kohezyon, SPT (0-300), UCS, RQD (0-100), stabilite risk badge, tip recommendation. Validates depth coverage against kazikBoyu on save.
-- **`MakinePark.jsx`** — Equipment fleet CRUD. Pre-populates 3 default rigs (Rig A: Bauer BG 24m/180kNm, Rig B: Soilmec SR 36m/260kNm, Rig C: Klemm KR 20m/130kNm). Bulk save.
-- **`LandingPage.jsx`** — Marketing page with animated soil strata background, feature grid, how-it-works steps, CTA.
-- **`RegisterPage.jsx`** — Registration form (adSoyad, username*, email*, password*, password confirmation). Auto-login on success.
+Page components:
+- **`Dashboard.jsx`** — Landing page after login. Stats, recent analyses, quick actions.
+- **`ProjeForm.jsx`** — Project metadata editor.
+- **`ZeminLogu.jsx`** — Editable soil layer table. v3 fields include CPT qc, su (undrained shear), kaya_durumu (rock mass quality).
+- **`MakinePark.jsx`** — Equipment fleet CRUD (bulk save). v3 fields: crowd_force, kelly_uzunluk.
+- **`ProjeKalibrasyonu.jsx`** — Engine calibration / coefficient overrides per project.
+- **`AnalizSonucu.jsx`** — Read-only analysis results page; uses `useMemo` to derive metrics from `hesaplamalar.js`.
+- **`FiyatAnalizi.jsx`** — Cost analysis (concrete, rebar, labor, fuel) — persisted via `cost` router as `maliyet_json`.
+- **`OncekiAnalizler.jsx`** — Saved analysis snapshots browser (the `Analysis` table).
+- **`Gorseller.jsx`** — Visualization library: ZeminProfilDiyagrami (SVG), TorkDerinlikGrafigi (Recharts), GanttSemasi (SVG), SenaryoKarsilastirma (Recharts dual-axis).
+- **`Onboarding.jsx`** — First-run wizard.
+- **`Ayarlar.jsx`** — Settings (account, language, company).
+- **`LandingPage.jsx`** — Public marketing page.
+- **`RegisterPage.jsx`** / **`BlogPost.jsx`** — Public pages.
 
-### Backend (`backend/`)
+Several non-critical pages are lazy-loaded via `React.lazy` + `Suspense` with a `SkeletonLoader` fallback.
 
-FastAPI with SQLAlchemy ORM. PostgreSQL in production (Render), SQLite for local dev.
+### Backend Routers (`backend/routers/`)
 
-- **`main.py`** — App entry point. Lifespan context manager creates DB tables and seeds 3 demo users on startup. CORS from `ALLOWED_ORIGINS` env. Health check at `GET /` returns API version.
-- **`database.py`** — SQLAlchemy engine + session factory. Reads `DATABASE_URL` env (converts `postgres://` → `postgresql://`). Default: `sqlite:///./geodrill.db`.
-- **`models.py`** — ORM models with cascading deletes:
-  - `User` — id, username (unique), hashed_password, is_active, created_at. Has many: projects, equipment.
-  - `Project` — id, owner_id (FK), proje_adi, proje_kodu, saha_kodu, lokasyon, is_tipi, kazik_boyu, kazik_capi, kazik_adedi, yeralti_suyu, proje_notu, teklif_notu, created_at, updated_at. Has many: soil_layers (ordered by baslangic).
-  - `SoilLayer` — id, project_id (FK), baslangic, bitis, formasyon, zem_tipi, kohezyon, spt, ucs, rqd, aciklama.
-  - `Equipment` — id, owner_id (FK), ad, tip, marka, max_derinlik, max_cap, tork, casing, dar_alan, yakit_sinifi, not.
-- **`schemas.py`** — Pydantic v2 schemas: Token, UserCreate (username 3-50 chars, password min 4), UserOut, SoilLayerCreate (validator: bitis > baslangic), SoilLayerOut, ProjectCreate (kazik_boyu 0-200, kazik_capi 0-5000), ProjectOut (includes soil_layers), ProjectSummary, EquipmentCreate (`not_` aliased to `"not"`), EquipmentOut.
-- **`auth.py`** — bcrypt password hashing, HS256 JWT (8-hour expiry), `get_current_user` dependency. SECRET_KEY from env.
-- **`routers/auth.py`** — POST `/auth/login` (OAuth2 form), POST `/auth/register`, GET `/auth/me`.
-- **`routers/projects.py`** — Full CRUD. GET list returns ProjectSummary (sorted by updated_at DESC). All queries filter by owner_id for multi-tenancy.
-- **`routers/soil.py`** — GET list (ordered by baslangic), PUT `/bulk` (delete-all + insert transaction).
-- **`routers/equipment.py`** — CRUD + PUT `/bulk` (same delete-all + insert pattern).
-- **`routers/reports.py`** — GET `/report` (ReportLab PDF with calculations, styled tables, color-coded risk), GET `/soil-layers/export` (Pandas CSV). Contains Python implementations of all `hesaplamalar.js` functions: `gerekli_tork`, `stabilite_riski`, `casing_metre`, `casing_durum`, `rop_hesapla`, `kazik_suresi`, `mazot_tahmini`, `makine_uygunluk`.
-- **`tests/`** — pytest with in-memory SQLite (StaticPool). `conftest.py` provides `client` and `auth_headers` fixtures. ~15 integration tests covering auth, project CRUD, soil bulk operations, validation errors, and user data isolation.
+| File | Responsibility |
+|---|---|
+| `auth.py` | `POST /auth/login` (rate-limited via slowapi), `POST /auth/register`, `GET /auth/me` |
+| `projects.py` | Full CRUD; list returns `ProjectSummary` sorted by `updated_at` DESC; all queries filter by `owner_id` for multi-tenancy |
+| `soil.py` | `GET` list, `PUT /bulk` (delete-all + insert transaction) |
+| `soil_import.py` | Bulk import from CSV/XLSX uploads |
+| `equipment.py` | CRUD + `PUT /bulk` (same delete-all + insert pattern) |
+| `reports.py` | `GET /report` (ReportLab PDF), `GET /soil-layers/export` (Pandas CSV). Re-runs calculations server-side via the engine module |
+| `companies.py` | Company / tenant management |
+| `analyses.py` | Save / list / fetch analysis snapshots — stores full engine output as `analiz_json` |
+| `dashboard.py` | Aggregated stats for the Dashboard page |
+| `cost.py` | Cost analysis persistence (linked to an Analysis row) |
 
-### API Endpoints Summary
+### Calculation Engine
 
-| Route Prefix | Endpoints | Auth |
-|---|---|---|
-| `/auth` | POST `/login`, POST `/register`, GET `/me` | login/register: no, me: yes |
-| `/projects` | GET list, POST create, GET `/{id}`, PUT `/{id}`, DELETE `/{id}` | yes |
-| `/projects/{id}/soil-layers` | GET list, PUT `/bulk` | yes |
-| `/projects/{id}/soil-layers/export` | GET (CSV download) | yes |
-| `/projects/{id}/report` | GET (PDF download) | yes |
-| `/equipment` | GET list, POST create, PUT `/{id}`, DELETE `/{id}`, PUT `/bulk` | yes |
+The geotechnical formulas exist in **two parallel implementations** that must stay in sync:
+
+1. **Frontend**: `frontend/src/hesaplamalar.js` — pure module, no React/DOM deps.
+2. **Backend**: `backend/modules/calculations/engine.py` (+ `soil_resistance.py`) — used by `reports.py` and `analyses.py`.
+
+The shared coefficient table is in `backend/configs/geotech_coefficients.py` (`KATSAYILAR`). Frontend mirrors these constants inline.
+
+**Key v3.x principles** (see `engine.py` docstring):
+- Torque formula: `T = tau_eff × (π × D³ / 8) × K_app × K_method × K_gw × K_depth × K_uncertainty`
+- Resistance pathway priority: rock → su → CPT → SPT → inferred
+- Four-band equipment suitability: RAHAT UYGUN / UYGUN / SINIRDA / UYGUN DEĞİL
+- Confidence scoring (`guven_analizi`): 0–100 score + A/B/C/D level
+
+**Calculation parity rule:** any change to a formula, coefficient, or band threshold MUST be applied in BOTH `hesaplamalar.js` and `engine.py`. Run `npm run test` (frontend) and `pytest tests/test_calculations.py` (backend) after any change.
+
+### Data Model
+
+Multi-tenant SaaS schema (see `models.py`):
+- `Company` (workspace) → has many `User`s; `Subscription` has plan/limits and monthly `analyses_used` counter.
+- `User` belongs to a `Company`; has many `Project`s, `Equipment`, `Analysis`s.
+- `Project` → many `SoilLayer` (cascade delete, ordered by `baslangic`).
+- `Analysis` is a snapshot: stores `analiz_json` (full engine output) and `maliyet_json` (cost). Indexed scalar columns (`tork_max`, `casing_m`, `sure_saat`, `guven_seviyesi`, `risk_ozeti`) speed up dashboard queries.
+- `Equipment` is owned by `User` (not `Company`).
+
+### Database Migrations
+
+**No Alembic.** Schema evolves via two mechanisms in `main.py` lifespan:
+1. `Base.metadata.create_all()` creates new tables.
+2. `_run_schema_migrations()` runs idempotent `ALTER TABLE … ADD COLUMN IF NOT EXISTS` statements in **separate transactions** — important on PostgreSQL where one failed ALTER aborts the whole transaction. When adding a new column to an existing table, append it to that list.
+
+### API & Frontend Plumbing
+
+- `api.js` is the single backend gateway: JWT injection, 30s `AbortController` timeout, `setOnUnauthorized` hook for soft React logout (avoids `window.location.reload()` which would lose state), and snake_case ↔ camelCase conversion via `fromSnake*` / `toSnake*` helpers.
+- Backend security headers middleware sets `X-Frame-Options: DENY`, HSTS, etc. Login is rate-limited via `slowapi`.
 
 ### Data Flow
 
-1. `App.jsx` loads project → zemin → makineler on login
-2. Page components receive data as props, call setters on save
-3. All API calls go through `api.js` (auth headers + case conversion)
-4. `AnalizSonucu` is read-only: imports `hesaplamalar.js` for calculations
-5. PDF/CSV exports hit backend which re-runs same calculations server-side
-
-### Calculation Parity
-
-`hesaplamalar.js` (frontend) and `reports.py` (backend) implement the same geotechnical formulas. Changes to calculation logic must be updated in **both files** to keep parity.
+1. After login `App.jsx` loads project → soil layers → equipment.
+2. Page components receive data as props and call setters on save (which in turn call `api.js`).
+3. `AnalizSonucu` is read-only: imports `hesaplamalar.js` and memoizes results.
+4. Saving an analysis posts the full engine output to `/analyses` for replay/history.
+5. PDF / CSV exports re-run the calculation server-side using `engine.py` to guarantee parity.
 
 ## Key Conventions
 
-- All UI text is in **Turkish**. Variable names and code comments mix Turkish and English.
-- Demo credentials: `demo/demo`, `firma1/1234`, `admin/admin123` (seeded on startup).
-- `VITE_API_URL` env var configures the backend URL (defaults to `http://localhost:8000`).
-- Styling: Tailwind CSS 4 (via `@tailwindcss/vite`) + inline style objects. Design tokens as CSS variables in `index.css`. Fonts: Fraunces (headings), Plus Jakarta Sans (body), DM Mono (code).
-- `bcrypt` is pinned to 4.0.1 for passlib compatibility.
-- Soil types: Dolgu, Kil, Silt, Kum, Cakil, Ayrismiis Kaya, Kumtasi, Kirectasi, Sert Kaya.
-- Equipment types: Fore Kazik, Ankraj, Mini Kazik.
-- Bulk operations pattern: soil layers and equipment use delete-all + insert (not individual CRUD).
-- No database migrations — tables auto-created via `Base.metadata.create_all()` on startup.
-- No CI/CD pipeline — deployment is Render-native (backend) and Vercel (frontend).
+- All UI text is **Turkish** (with EN/RU translations in `locales/`). Use the `t()` helper from `LangContext` instead of hardcoding strings.
+- Variable names mix Turkish and English (`zemin`, `kazikBoyu`, `proje`, `tork`).
+- Demo credentials (seeded on startup): `demo/demo`, `firma1/1234`, `admin/admin123`.
+- `VITE_API_URL` configures backend URL (default in code points to the Render production API; local dev typically sets it to `http://localhost:8000`).
+- Styling: Tailwind CSS 4 (via `@tailwindcss/vite`) plus inline style objects. Design tokens are CSS variables in `index.css`. Fonts: Fraunces (headings), Plus Jakarta Sans (body), DM Mono (code).
+- `bcrypt` is **pinned to 4.0.1** for `passlib` compatibility — do not upgrade.
+- Soil types (canonical 9 + 2 organic): Dolgu, Kil, Silt, Kum, Çakıl, Ayrışmış Kaya, Kumtaşı, Kireçtaşı, Sert Kaya, Organik Kil, Torf.
+- Equipment types: Fore Kazık, Ankraj, Mini Kazık.
+- Bulk operations pattern: soil layers and equipment use **delete-all + insert** (not per-row CRUD).
+- No CI/CD pipeline — deploy is Render-native (backend) and Vercel (frontend).
 
 ## Deployment
 
-- **Backend**: Render (Python web service + PostgreSQL). Config in `render.yaml`.
+- **Backend**: Render (Python web service). Config in `render.yaml`.
+- **Database**: **Neon** (managed Postgres, AWS eu-central-1 / Frankfurt). Free tier with scale-to-zero. Connection string is set manually in the Render dashboard as `DATABASE_URL` — `render.yaml` does NOT define a `databases:` block (Render Postgres free tier expired and was migrated off; if blueprint sync ever recreates one, ignore it and keep the manual Neon URL).
 - **Frontend**: Vercel (static build from `frontend/`).
 - **Domains**: `geodrillinsight.com`, `www.geodrillinsight.com`, `geodrill-five.vercel.app`.
-- **CORS**: Configured via `ALLOWED_ORIGINS` env on backend (comma-separated).
-- **Env vars on Render**: `DATABASE_URL` (auto-injected from PG service), `SECRET_KEY` (auto-generated), `ALLOWED_ORIGINS`.
+- **CORS**: `ALLOWED_ORIGINS` env on backend (comma-separated). `main.py` always appends `localhost:5173/3000` and `127.0.0.1:5173` regardless.
+- **Render env vars**: `DATABASE_URL` (manual — Neon connection string with `?sslmode=require`), `SECRET_KEY` (auto-generated), `ALLOWED_ORIGINS`, optional `LOG_LEVEL`, optional `ANTHROPIC_API_KEY` (the `anthropic` SDK is installed for AI-assisted features).
 
 ## Dependencies
 
-### Frontend (key packages)
-- React 19.2, Vite 8, Tailwind CSS 4.2, Recharts 3.8, Lucide React 1.7, Vitest 4.1, ESLint 9
+### Frontend
+React 19.2, Vite 8, Tailwind CSS 4.2, Recharts 3.8, Lucide React 1.7, Vitest 4.1, ESLint 9, **xlsx 0.18** (for soil-import parsing).
 
-### Backend (key packages)
-- FastAPI 0.135, SQLAlchemy 2.0, Pydantic 2.12, Uvicorn 0.42, python-jose 3.5 (JWT), passlib 1.7 + bcrypt 4.0.1, ReportLab 4.4 (PDF), Pandas 3.0 (CSV), psycopg2-binary 2.9
+### Backend
+FastAPI 0.135, SQLAlchemy 2.0, Pydantic 2.12, Uvicorn 0.42, python-jose 3.5 (JWT), passlib 1.7 + bcrypt 4.0.1, ReportLab 4.4 (PDF), Pandas 3.0 + numpy 2.4 (CSV/Excel), psycopg2-binary 2.9, **slowapi 0.1** (rate limiting), **pypdf 5.1**, **anthropic 0.40** (AI features).
