@@ -4,11 +4,11 @@ import { useToast } from "./Toast"
 import { useLang } from "./LangContext"
 import { ZeminProfilDiyagrami, TorkDerinlikGrafigi, GanttSemasi, SenaryoKarsilastirma } from "./Gorseller"
 import {
-  gerekliTork, gerekliTorkAralik, stabiliteRiski, casingDurum, casingMetreHesapla,
+  gerekliTorkAralik, stabiliteRiski, casingDurum, casingMetreHesapla,
   kazikSuresi, mazotTahmini, kritikKatman, makinaUygunluk,
   katmanTeknikCikti, operasyonOnerisi,
   tamCevrimSuresi, guvenAnalizi, aciklamaUret,
-  formasyonSinifi, ucTipiVeModifier,
+  ucTipiVeModifier,
 } from "./hesaplamalar"
 
 // ── Kart bileşeni ───────────────────────────────────────

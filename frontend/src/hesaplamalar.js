@@ -1024,7 +1024,7 @@ export function gerekliTorkAralik(zemin, capMm, isTipi = "Fore Kazık", yas = 0)
   for (const row of zemin) {
     const baslangic = parseFloat(row.baslangic || 0)
     const bitis     = parseFloat(row.bitis     || 0)
-    const ucs       = parseFloat(row.ucs       || 0)
+    const _ucs      = parseFloat(row.ucs       || 0)
     const rqd       = parseFloat(row.rqd       || 0)
     const sinif     = zeminSinifi(row.zemTipi, row.kohezyon)
 
@@ -1153,7 +1153,7 @@ export function kritikKatman(zemin) {
  * @returns {{ tDelme, tBeton, tDonati, tCasingOps, tKurulum, tRekonumlama,
  *             tBeklenmedik, tToplamCevrim, kazikBasiGun, gunlukUretimAdet }}
  */
-export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, isTipi = "Fore Kazık", kalibrasyon = null, makineTorku = 0, gerekliTork = 0) {
+export function tamCevrimSuresi(zemin, capMm, kazikBoyu, casingM, _isTipi = "Fore Kazık", kalibrasyon = null, makineTorku = 0, gerekliTork = 0) {
   const CV = KATSAYILAR.cevrim
   // Alet değişimi yalnızca sert formasyon geçişlerinde
   const KAYA_TIPLERI          = ["Kireçtaşı", "Sert Kaya"]
@@ -1420,7 +1420,7 @@ export function guvenAnalizi(zemin, yas, kazikBoyu) {
 export function makinaUygunluk(
   makine, tork, kazikBoyu, kazikCapi,
   casingGerekli, isTipi = "Fore Kazık",
-  zemin = null, yas = 0
+  zemin = null, _yas = 0
 ) {
   const M = KATSAYILAR.makine
   const B = M.bantlar
@@ -1430,7 +1430,7 @@ export function makinaUygunluk(
   let crowdForceOk   = true
   let displacementOk = true
 
-  const makineAd       = makine.ad           || "Makine"
+  const _makineAd      = makine.ad           || "Makine"
   const makineTip      = makine.tip          || ""
   const makineTork     = parseFloat(makine.tork        || 0)
   const makineMaxD     = parseFloat(makine.maxDerinlik || makine.max_derinlik || 0)
@@ -1591,7 +1591,7 @@ export function makinaUygunluk(
  * @param {number} yas - Yeraltı suyu derinliği (m)
  * @returns {string} Profesyonel değerlendirme metni
  */
-export function aciklamaUret(makineAd, karar, torkOran, kritikKatmanRow, guven, isTipi, zemin = null, yas = 0) {
+export function aciklamaUret(makineAd, karar, torkOran, kritikKatmanRow, guven, isTipi, _zemin = null, yas = 0) {
   const oranStr = `%${Math.round(torkOran * 100)}`
 
   // Cümle 1: Karar ifadesi

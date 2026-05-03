@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest"
 import {
   gerekliTork, gerekliTorkAralik, stabiliteRiski, casingDurum, casingMetreHesapla,
-  ropHesapla, kazikSuresi, mazotTahmini, kritikKatman, makinaUygunluk,
+  ropHesapla, kazikSuresi, mazotTahmini, makinaUygunluk,
   katmanTeknikCikti, operasyonOnerisi, zeminSinifi, guvenSinifi, KATSAYILAR,
 } from "./hesaplamalar"
 

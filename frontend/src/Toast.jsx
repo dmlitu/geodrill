@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, createContext, useContext } from "react"
+import { useState, useCallback, useMemo, useEffect, createContext, useContext } from "react"
 
 const ToastContext = createContext()
 
@@ -84,11 +84,11 @@ export function ToastProvider({ children }) {
     setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
 
-  const toast = useCallback({
+  const toast = useMemo(() => ({
     success: (msg, dur) => addToast(msg, "success", dur),
     error: (msg, dur) => addToast(msg, "error", dur || 5000),
     info: (msg, dur) => addToast(msg, "info", dur),
-  }, [addToast])
+  }), [addToast])
 
   return (
     <ToastContext.Provider value={toast}>
@@ -107,6 +107,7 @@ export function ToastProvider({ children }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useToast() {
   return useContext(ToastContext)
 }

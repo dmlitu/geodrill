@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { register, login, BASE } from "./api"
+import { login, BASE } from "./api"
 import { useLang } from "./LangContext"
 
 export default function RegisterPage({ onLogin, onGoLogin }) {

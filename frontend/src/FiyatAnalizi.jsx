@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react"
 import {
-  gerekliTork, casingMetreHesapla, kazikSuresi, mazotTahmini, fiyatAnalizi
+  gerekliTork, casingMetreHesapla, kazikSuresi, mazotTahmini
 } from "./hesaplamalar"
 import { useToast } from "./Toast"
 import { useLang } from "./LangContext"

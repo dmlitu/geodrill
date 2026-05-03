@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { listProjects, getProject, deleteProject, downloadPdfReport, downloadExcelReport, fromSnake, fromSnakeLayer } from "./api"
-import { gerekliTork, casingDurum, casingMetreHesapla, kazikSuresi, mazotTahmini, katmanTeknikCikti, makinaUygunluk } from "./hesaplamalar"
+import { gerekliTork, casingDurum, casingMetreHesapla, kazikSuresi, mazotTahmini, katmanTeknikCikti } from "./hesaplamalar"
 import ConfirmDialog from "./ConfirmDialog"
 import { useToast } from "./Toast"
 import { useLang } from "./LangContext"
@@ -240,7 +240,7 @@ export default function OncekiAnalizler({ onDuzenle }) {
   const toast = useToast()
   const { t } = useLang()
 
-  const yukle = async () => {
+  const yukle = useCallback(async () => {
     setYukleniyor(true)
     try {
       const liste = await listProjects()
@@ -250,9 +250,9 @@ export default function OncekiAnalizler({ onDuzenle }) {
     } finally {
       setYukleniyor(false)
     }
-  }
+  }, [toast, t])
 
-  useEffect(() => { yukle() }, [])
+  useEffect(() => { yukle() }, [yukle])
 
   const handleSil = (id, ad) => setSilOnay({ id, ad })
 

@@ -230,7 +230,7 @@ export default function Dashboard({ username, onYeniAnaliz, onProjeAc }) {
       }
     }
     yukle()
-  }, [])
+  }, [toast])
 
   const saat = new Date().getHours()
   const selamlama = saat < 12 ? "Günaydın" : saat < 18 ? "İyi günler" : "İyi akşamlar"
