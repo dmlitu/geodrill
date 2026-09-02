@@ -1614,8 +1614,8 @@ function HakkimizdaSayfasi({ onGoHome, onGoLogin, onGoPage, setDemoAcik }) {
           <div className="hk-team-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
             {[
               { ad: "Damla Akyüz", unvan: "Kurucu · Zemin Mühendisi", bio: "İTÜ İnşaat Mühendisliği mezunu. 8 yıl saha deneyimi. Fore kazık ve ankraj projelerinde uzman.", avatar: "DA", renk: "#0284C7" },
-              { ad: "Mert Doğan", unvan: "Teknik Direktör · MSc Geoteknik", bio: "Boğaziçi Üniversitesi. Trakya ve Marmara bölgesi zemin etüdleri. ROP kalibrasyonu araştırmacısı.", avatar: "MD", renk: "#0369A1" },
-              { ad: "Selin Yıldız", unvan: "Yazılım Mühendisi", bio: "ODTÜ Bilgisayar Mühendisliği. Hesap motoru ve veri modeli geliştirme. Geoteknik hesaplama sistemleri.", avatar: "SY", renk: "#0EA5E9" },
+              { ad: "Erdin Azak", unvan: "Kıdemli Jeoloji Mühendisi", bio: "Jeoloji Mühendisi. 35 yılı aşkın saha deneyimi. Zemin etüdü, kaya mekaniği ve temel mühendisliği projelerinde uzman.", avatar: "EA", renk: "#0369A1" },
+              { ad: "Olgun Ergenç", unvan: "Jeoloji Mühendisi", bio: "Jeoloji Mühendisi. 10 yılı aşkın saha deneyimi. Zemin etüdü ve geoteknik proje süreçlerinde uzman.", avatar: "OE", renk: "#0EA5E9" },
             ].map(p => (
               <div key={p.ad} className="hk-team">
                 <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "14px" }}>
