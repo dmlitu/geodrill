@@ -171,7 +171,8 @@ class CadParser:
         except CadParseError:
             raise
         except Exception as e:
-            raise CadParseError(f"CAD dosyası ayrıştırılamadı: {e}")
+            logger.warning("CAD: unexpected parse failure for %s: %s", filename, e, exc_info=True)
+            raise CadParseError("CAD dosyası ayrıştırılamadı. Dosya bozuk veya desteklenmeyen bir formatta olabilir.")
 
         return self._normalize(doc, filename, warnings, dropped)
 

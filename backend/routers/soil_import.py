@@ -3,6 +3,7 @@ PDF/text soil log import using Anthropic Claude API.
 Endpoint: POST /projects/{project_id}/soil-layers/import-pdf
 Accepts multipart PDF upload, extracts text, parses with Claude.
 """
+import logging
 import os, sys
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from sqlalchemy.orm import Session
@@ -13,9 +14,12 @@ from models import Project
 from auth import get_current_user
 from routers.auth import limiter
 
+logger = logging.getLogger("geodrill.soil_import")
 router = APIRouter()
 
 def extract_pdf_text(pdf_bytes: bytes) -> str:
+    if pdf_bytes[:5] != b"%PDF-":
+        raise HTTPException(400, "Dosya geçerli bir PDF imzası taşımıyor.")
     try:
         import pypdf
         import io
@@ -25,7 +29,8 @@ def extract_pdf_text(pdf_bytes: bytes) -> str:
     except ImportError:
         raise HTTPException(500, "pypdf kütüphanesi yüklü değil. 'pip install pypdf' çalıştırın.")
     except Exception as e:
-        raise HTTPException(400, f"PDF okunamadı: {e}")
+        logger.warning("PDF parse failed: %s", e, exc_info=True)
+        raise HTTPException(400, "PDF okunamadı. Dosya bozuk veya desteklenmeyen bir formatta olabilir.")
 
 def parse_with_claude(text: str) -> list:
     api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -85,7 +90,8 @@ Metin:
     except ImportError:
         raise HTTPException(500, "anthropic kütüphanesi yüklü değil.")
     except Exception as e:
-        raise HTTPException(500, f"Claude API hatası: {e}")
+        logger.warning("Claude API call failed during soil-log import: %s", e, exc_info=True)
+        raise HTTPException(500, "Zemin logu ayrıştırılırken bir hata oluştu. Lütfen tekrar deneyin.")
 
 @router.post("/projects/{project_id}/soil-layers/import-pdf")
 @limiter.limit("5/minute")

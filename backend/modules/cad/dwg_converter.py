@@ -20,11 +20,14 @@ Upload bytes are never interpolated into a shell string — subprocess.run is
 always called with an argv list and shell=False (the default), and every
 path used is one we generated ourselves inside a per-request temp directory.
 """
+import logging
 import os
 import shutil
 import subprocess
 
 from .security import secure_temp_dir, safe_basename
+
+logger = logging.getLogger("geodrill.cad")
 
 CONVERT_TIMEOUT_SECONDS = int(os.environ.get("GEODRILL_DWG_CONVERT_TIMEOUT", "60"))
 
@@ -43,8 +46,11 @@ def _resolve_converter() -> str:
     override = os.environ.get("GEODRILL_DWG_CONVERTER")
     if override:
         if not os.path.isfile(override) or not os.access(override, os.X_OK):
+            # Server-side config problem — the exact path is an operator
+            # detail, not something to hand back to whoever uploaded a file.
+            logger.error("GEODRILL_DWG_CONVERTER (%s) is not an executable file.", override)
             raise DwgConverterUnavailable(
-                f"GEODRILL_DWG_CONVERTER ({override}) çalıştırılabilir bir dosya değil."
+                "DWG dönüştürücü yapılandırması geçersiz. Lütfen yöneticinizle iletişime geçin."
             )
         return override
     for name in _CANDIDATE_TOOLS:
@@ -96,13 +102,21 @@ def dwg_bytes_to_dxf_text(data: bytes, original_filename: str) -> str:
                 f"DWG dönüştürme {CONVERT_TIMEOUT_SECONDS} saniye içinde tamamlanamadı (zaman aşımı)."
             )
         except OSError as e:
-            raise DwgConverterUnavailable(f"Dönüştürücü çalıştırılamadı: {e}")
+            # e.g. permission denied, exec format error — an operator/host
+            # problem; log the real OS error (may include local paths),
+            # don't hand it to the client.
+            logger.error("DWG converter (%s) failed to start: %s", converter, e)
+            raise DwgConverterUnavailable("Dönüştürücü çalıştırılamadı. Lütfen yöneticinizle iletişime geçin.")
 
         if not os.path.isfile(out_path) or os.path.getsize(out_path) == 0:
             stderr_tail = (proc.stderr or b"").decode("utf-8", errors="replace")[-800:]
+            logger.warning(
+                "DWG conversion produced no output for %r (exit=%s): %s",
+                original_filename, proc.returncode, stderr_tail,
+            )
             raise DwgConversionFailed(
                 "DWG dosyası DXF'e dönüştürülemedi. Dosya bozuk, şifreli veya "
-                f"desteklenmeyen bir sürüm olabilir. (converter exit={proc.returncode}) {stderr_tail}"
+                "desteklenmeyen bir sürüm olabilir."
             )
 
         with open(out_path, "r", encoding="utf-8", errors="replace") as f:
