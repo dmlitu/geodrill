@@ -28,6 +28,10 @@ build/
 .coverage
 htmlcov/
 
+# Real CAD fixtures (client project files) — keep local only
+backend/tests/fixtures/cad/*.dwg
+backend/tests/fixtures/cad/*.dxf
+
 # ─── Node / Frontend ──────────────────────────────────────────────────────────
 node_modules/
 frontend/node_modules/

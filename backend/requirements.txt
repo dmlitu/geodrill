@@ -13,3 +13,4 @@ numpy==2.4.3
 slowapi==0.1.9
 pypdf==5.1.0
 anthropic==0.40.0
+ezdxf==1.4.4

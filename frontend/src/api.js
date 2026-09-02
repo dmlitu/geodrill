@@ -145,6 +145,47 @@ export async function bulkReplaceSoilLayers(projectId, layers) {
   })
 }
 
+// ─── CAD Analizi ──────────────────────────────────────────────────────────────
+
+// Shared multipart uploader (JSON response) — same auth/retry/error
+// conventions as request(), but never sets Content-Type itself so the
+// browser can add the multipart boundary.
+async function _postMultipart(path, formData) {
+  const token = getToken()
+  const headers = { Authorization: `Bearer ${token}` }
+
+  let res = await _doFetch(path, { method: "POST", headers, body: formData })
+
+  if (res.status >= 500) {
+    await new Promise(r => setTimeout(r, 1500))
+    res = await _doFetch(path, { method: "POST", headers, body: formData })
+  }
+
+  if (res.status === 401) {
+    clearToken()
+    if (_onUnauthorized) _onUnauthorized()
+    throw new Error("Oturum süresi doldu. Lütfen tekrar giriş yapın.")
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.detail || `Sunucu hatası (HTTP ${res.status})`)
+  }
+  return res.json()
+}
+
+export async function analyzeCadFile(projectId, file) {
+  const fd = new FormData()
+  fd.append("file", file)
+  return _postMultipart(`/projects/${projectId}/cad/analyze`, fd)
+}
+
+export async function inspectCadFile(projectId, file) {
+  const fd = new FormData()
+  fd.append("file", file)
+  return _postMultipart(`/projects/${projectId}/cad/inspect`, fd)
+}
+
 // ─── Equipment ────────────────────────────────────────────────────────────────
 
 export async function listEquipment() {

@@ -1,0 +1,53 @@
+{
+  "_comment": "Default, editable structural-element detection rules. Override the whole file via GEODRILL_CAD_RULES_PATH. Keywords are matched after Turkish/case/separator normalization (see rules.normalize_token) — 'Fore Kazık', 'FORE_KAZIK' and 'fore-kazik' are all the same token, so list each concept once in its canonical form.",
+
+  "pile": {
+    "layerKeywords": ["KAZIK", "FOREKAZIK", "FORE KAZIK", "PILE", "BOREDPILE", "BORED PILE", "FK", "MINIKAZIK", "MINI KAZIK"],
+    "blockKeywords": ["KAZIK", "PILE", "FORE", "BOREDPILE", "FK"],
+    "textKeywords": ["FORE KAZIK", "KAZIK", "PILE", "BORED PILE", "MINI KAZIK"],
+    "excludeLayerKeywords": ["CEPHE", "KESIT", "DETAY", "LEJANT", "LEGEND", "DONATI", "REBAR", "OLCU", "DIM", "SEMBOL", "NUMBER", "NO"],
+    "minRepeatCount": 5,
+    "numericLayerDiameterHeuristic": true
+  },
+
+  "anchor": {
+    "layerKeywords": ["ANKRAJ", "ZEMIN ANKRAJI", "ZEMINANKRAJI", "IKSA ANKRAJI", "IKSAANKRAJI", "ANCHOR", "GROUND ANCHOR", "GROUNDANCHOR", "TIEBACK", "TIE ROD"],
+    "blockKeywords": ["ANKRAJ", "ANCHOR", "TIEBACK", "GROUND ANCHOR", "GROUNDANCHOR"],
+    "textKeywords": ["ANKRAJ", "ANCHOR", "ANKRAJ BOYU", "TIEBACK"],
+    "excludeLayerKeywords": ["CEPHE", "KESIT", "DETAY", "LEJANT", "LEGEND", "SEMBOL"]
+  },
+
+  "confidence": {
+    "block_layer_geometry_match": 0.99,
+    "layer_keyword_geometry_match": 0.95,
+    "block_keyword_match": 0.85,
+    "layer_keyword_only": 0.80,
+    "geometry_numeric_layer_diameter": 0.55,
+    "geometry_only": 0.45,
+    "text_corroboration_bonus": 0.05
+  },
+
+  "confidenceBands": {
+    "HIGH": [0.85, 1.01],
+    "MEDIUM": [0.6, 0.85],
+    "LOW": [0.0, 0.6]
+  },
+
+  "duplicateToleranceByUnit": {
+    "mm": 150,
+    "cm": 15,
+    "m": 0.15,
+    "in": 6,
+    "ft": 0.5,
+    "unknown": 0.15
+  },
+
+  "textProximityByUnit": {
+    "mm": 2000,
+    "cm": 200,
+    "m": 2.0,
+    "in": 80,
+    "ft": 6.5,
+    "unknown": 2.0
+  }
+}

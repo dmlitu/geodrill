@@ -44,6 +44,7 @@ geodrill/
 │   ├── routers/            # auth, projects, soil, soil_import, equipment,
 │   │                       # reports, companies, analyses, dashboard, cost
 │   ├── modules/calculations/  # v3.x calculation engine (engine.py + soil_resistance.py)
+│   ├── modules/cad/        # DWG/DXF pile & anchor detection engine (see below)
 │   ├── configs/            # geotech_coefficients.py — KATSAYILAR table
 │   ├── tests/              # pytest integration tests (in-memory SQLite)
 │   ├── main.py             # App entry, CORS, security headers, lifespan migrations
@@ -87,6 +88,7 @@ Page components:
 - **`Gorseller.jsx`** — Visualization library: ZeminProfilDiyagrami (SVG), TorkDerinlikGrafigi (Recharts), GanttSemasi (SVG), SenaryoKarsilastirma (Recharts dual-axis).
 - **`Onboarding.jsx`** — First-run wizard.
 - **`Ayarlar.jsx`** — Settings (account, language, company).
+- **`CadAnalizi.jsx`** — Wizard tab: upload a DWG/DXF, shows pile/anchor counts + expandable diagnostics from `POST /projects/{id}/cad/analyze`.
 - **`LandingPage.jsx`** — Public marketing page.
 - **`RegisterPage.jsx`** / **`BlogPost.jsx`** — Public pages.
 
@@ -106,6 +108,19 @@ Several non-critical pages are lazy-loaded via `React.lazy` + `Suspense` with a 
 | `analyses.py` | Save / list / fetch analysis snapshots — stores full engine output as `analiz_json` |
 | `dashboard.py` | Aggregated stats for the Dashboard page |
 | `cost.py` | Cost analysis persistence (linked to an Analysis row) |
+| `cad.py` | `POST /projects/{id}/cad/analyze` (pile/anchor detection), `POST /projects/{id}/cad/inspect` (raw layer/block/entity diagnostic dump) |
+
+### CAD Analysis Engine (`backend/modules/cad/`)
+
+Uploads a project's iksa (shoring) DWG/DXF and detects piles and ground anchors from **layer/block/geometry signals first, TEXT only as corroboration** — never from a computer-vision pass. Full pipeline docstring lives in `modules/cad/__init__.py`; read it before touching this code. Key points:
+
+- **DWG parsing**: no Python library reads binary DWG directly. `dwg_converter.py` shells out to an external converter (`dwg2dxf` from GNU LibreDWG — `brew install libredwg` / `apt install libredwg-tools` — or a proprietary `ODAFileConverter`), resolved via `GEODRILL_DWG_CONVERTER` env var or `$PATH`. No hard-coded paths, no `shell=True`, upload bytes never touch a shell string.
+- **Malformed DXF recovery**: real converter output can have isolated corrupted entities (observed on real production files — an unsupported legacy `ARCALIGNEDTEXT` object garbles the stream). `dxf_repair.py` resynchronizes at the DXF group-code-0 entity boundary and drops just the bad entity, rather than failing the whole upload. Tried in order: strict `ezdxf.readfile` → `ezdxf.recover` → this lenient repair → clean `CadParseError` (HTTP 400, never a 500 crash).
+- **Detection**: `detectors/pile.py` / `detectors/anchor.py`, driven by `cadDetectionRules.json` (editable keyword lists, Turkish-normalized via `rules.normalize_token`; override the whole file via `GEODRILL_CAD_RULES_PATH`). Confidence is scored 0–1 (HIGH/MEDIUM/LOW bands); anything below the MEDIUM floor is reported in `uncertainCandidates` with `needsReview: true` instead of being folded into the count — the engine is designed to say "not sure" rather than guess.
+- **Nested blocks**: `PileDetector._from_nested_containers` walks block-in-block nesting via ezdxf's `virtual_entities()` (which composes the WCS transform correctly), so a pile block that only ever appears inside another "container" block is still found. Not yet mirrored for `AnchorDetector`.
+- **Duplicate elimination**: `duplicate_resolver.py` merges same-type candidates within a unit-aware coordinate tolerance (`cadDetectionRules.json` → `duplicateToleranceByUnit`); block-vs-internal-geometry double counting is prevented structurally in the detectors instead (a claimed block's own geometry is never re-examined).
+- **No persistence yet**: `/cad/analyze` is stateless — it doesn't write to the DB. The response shape already carries `x/y/z`, `layer`, `blockName`, `sourceHandles` for a future CAD-viewer overlay / saved-analysis table.
+- Real fixtures (not committed — see `backend/tests/fixtures/cad/README.md`) exercise `test_cad_real_files.py`.
 
 ### Calculation Engine
 

@@ -8,6 +8,7 @@ import { DEMO_PROJE, DEMO_ZEMIN, DEMO_MAKINELER } from "./DemoProje"
 import AnalizSonucu from "./AnalizSonucu"
 import FiyatAnalizi from "./FiyatAnalizi"
 import ProjeKalibrasyonu from "./ProjeKalibrasyonu"
+import CadAnalizi from "./CadAnalizi"
 import OncekiAnalizler from "./OncekiAnalizler"
 import DashboardPage from "./Dashboard"
 import LandingPage from "./LandingPage"
@@ -136,6 +137,7 @@ function getWizardTabs(t) {
     { id: "analiz", label: t("tabAnalysis"), icon: "📊" },
     { id: "wizardFiyat", label: t("tabPrice"), icon: "💰" },
     { id: "kalibrasyon", label: t("tabCalibration"), icon: "🎯" },
+    { id: "cad", label: t("tabCad"), icon: "📐" },
   ]
 }
 
@@ -843,6 +845,13 @@ function Dashboard({ username, onLogout }) {
                       <ErrorBoundary>
                         <Suspense fallback={<SkeletonLoader />}>
                           <ProjeKalibrasyonu proje={proje} zemin={zemin} kalibrasyon={kalibrasyon} onKalibrasyon={setKalibrasyon} />
+                        </Suspense>
+                      </ErrorBoundary>
+                    )}
+                    {wizardTab === "cad" && (
+                      <ErrorBoundary>
+                        <Suspense fallback={<SkeletonLoader />}>
+                          <CadAnalizi projeId={projeId} />
                         </Suspense>
                       </ErrorBoundary>
                     )}

@@ -27,6 +27,7 @@ from routers import companies as companies_router
 from routers import analyses as analyses_router
 from routers import dashboard as dashboard_router
 from routers import cost as cost_router
+from routers import cad as cad_router
 
 
 def seed_default_users():
@@ -165,6 +166,7 @@ app.include_router(companies_router.router)
 app.include_router(analyses_router.router)
 app.include_router(dashboard_router.router)
 app.include_router(cost_router.router)
+app.include_router(cad_router.router, tags=["cad"])
 
 
 @app.get("/")
