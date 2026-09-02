@@ -297,6 +297,53 @@ function BpLogo({ dark }) {
 // ─── Makale İçerikleri ────────────────────────────────────────────────────────
 
 const ARTICLE_CONTENT = {
+  7: [
+    { type: "p", text: "Anadolu Yakası'nda, özellikle Kadıköy-Maltepe-Kartal hattında yürütülen fore kazık projelerinde ayrışmış kaya formasyonu sık karşılaşılan ama kağıt üzerindeki RQD değeriyle sahadaki gerçek delgi davranışı arasında en çok fark görülen zemin tiplerinden biridir. Otuz beş yılı aşkın saha deneyiminde biriken gözlemleri burada paylaşıyorum." },
+    { type: "callout", icon: "🪨", title: "Saha Gözlemi", text: "Aynı sondaj raporunda RQD %35 olarak kaydedilen iki farklı katman, birbirinden tamamen farklı delgi süresi verebilir. Karar tek başına RQD yüzdesine değil, süreksizlik dolgu malzemesine ve ayrışma derecesine dayanmalıdır." },
+    { type: "h2", text: "Ayrışmış Kaya Formasyonunun Sahada Tanınması" },
+    { type: "p", text: "Ayrışmış kaya, taze kaya ile zemin arasında geçiş niteliği taşır. Kırık yüzeyleri kil/silt dolgu ile kaplı, matriks kısmen zayıflamış, ancak orijinal kaya dokusu hâlâ görülebilir durumdadır. Sondaj karotunda RQD hesaplanırken kısa parçaların ayrışma nedeniyle mi yoksa sondaj mekanizmasının kırılganlığı artırmasından mı kaynaklandığı ayırt edilmelidir; bu ayrım büyük ölçüde deneyimli bir gözlemciye kalır." },
+    { type: "h2", text: "RQD'nin Kağıt Üzerinde ve Sahada Farkı" },
+    { type: "p", text: "RQD tek başına bir kaya kütlesinin delgi zorluğunu tam yansıtmaz. Aynı RQD bandında, süreksizlik yüzeylerindeki dolgu malzemesi kil ise alet aşınması ve titreşim azalır, delgi nispeten öngörülebilir ilerler; dolgu kaba kum/çakıl ise beklenmedik sıkışma ve alet takılmaları daha sık görülür." },
+    { type: "h3", text: "Alet Aşınması ve Süre Sapmaları" },
+    { type: "p", text: "Ayrışmış kaya formasyonunda kova ile kaya kesici arasında sık geçiş yapılması gerekebilir; bu da hesap motorunun öngördüğü sabit alet değişimi süresinin (0,5 saat) bazı katmanlarda yetersiz kalmasına yol açabilir. Sahada bu tür katmanlar için ek %15-20 süre payı bırakılması önerilir." },
+    {
+      type: "table",
+      headers: ["Gözlenen Durum", "RQD Aralığı", "Saha Notu"],
+      rows: [
+        ["Kil dolgulu süreksizlik", "%25 – %50", "Delgi nispeten öngörülebilir, aşınma düşük"],
+        ["Kum/çakıl dolgulu süreksizlik", "%25 – %50", "Alet takılması riski yüksek, ek süre payı gerekir"],
+        ["Yoğun ayrışma, matriks zayıf", "%0 – %25", "Kova yeterli olabilir, kaya kesiciye gerek kalmayabilir"],
+        ["Kısmi ayrışma, sağlam bloklar", "%50 – %75", "Kaya kesici / DTH geçişi büyük olasılıkla gerekir"],
+      ],
+    },
+    { type: "h2", text: "35 Yılda Değişen ve Değişmeyenler" },
+    { type: "p", text: "Ekipman ve yazılım araçları büyük ölçüde gelişti; ancak sondaj karotunu elle inceleyip süreksizlik dolgu tipini gözlemlemenin yerini hiçbir otomatik hesap tam olarak alamıyor. GeoDrill gibi araçlar doğru girdiyle güvenilir bir tahmin bandı veriyor, ama o girdinin kalitesi sahada karar veren mühendisin gözlemine bağlı kalıyor." },
+    { type: "li", baslik: "Pratik Öneriler", items: ["RQD'yi tek başına değil, süreksizlik dolgu tipiyle birlikte değerlendirin", "Kum/çakıl dolgulu süreksizlik varsa alet değişimi süresine %15-20 pay ekleyin", "Karotu mümkünse sahada elle inceleyip ayrışma notunu Zemin Logu'na ekleyin", "Aynı formasyonda geçmiş proje verisiyle karşılaştırma yapmadan tahmine güvenmeyin"] },
+  ],
+  8: [
+    { type: "p", text: "GeoDrill'in tork hesabı, direnç yolu belirlerken öncelik sırasını kaya dayanımı → ölçülmüş drenajsız kayma dayanımı (Su) → CPT qc → SPT N → çıkarımsal tahmin şeklinde uygular. CPT qc verisinin SPT N'den önde tutulmasının nedeni, sürekli profil vermesi ve operatör/ekipman kaynaklı değişkenliğin SPT'ye kıyasla çok daha düşük olmasıdır." },
+    { type: "h2", text: "Neden CPT qc Önceliklidir?" },
+    { type: "p", text: "SPT, darbeli bir test olduğu için tokmak verimi, çubuk uzunluğu ve operatör tekniği gibi faktörlerden etkilenir; aynı zeminde farklı ekiplerin ölçtüğü N değerleri arasında belirgin sapma olabilir. CPT ise standart hızda ilerleyen bir koni ile sürekli direnç ölçer, bu da qc'yi daha tekrarlanabilir ve derinlikle sürekli bir girdi haline getirir." },
+    { type: "callout", icon: "📈", title: "Güven Puanına Katkı", text: "Yalnızca SPT ile hesap güven puanı 20 üzerinden başlarken, CPT qc eklenmesi +35 puan katkı sağlar — tek bir parametre değişikliği hesap bandını Orta'dan Yüksek'e taşıyabilir." },
+    { type: "h2", text: "qc Verisini Doğru Toplamak" },
+    { type: "h3", text: "Birim ve Ölçek Kontrolü" },
+    { type: "p", text: "CPT raporlarında qc genellikle MPa cinsinden verilir, ancak bazı eski raporlarda kg/cm² birimi kullanılabilir (1 MPa ≈ 10,2 kg/cm²). Zemin Logu'na veri girerken birim dönüşümünün doğru yapıldığından emin olunmalı; yanlış birimle girilen qc, tork hesabını kat kat büyütüp küçültebilir." },
+    { type: "h3", text: "Katman Sınırlarıyla Eşleştirme" },
+    { type: "p", text: "CPT sürekli bir profil verdiği için katman sınırlarına en yakın temsil eden ortalama veya karakteristik qc değerinin seçilmesi gerekir. Tek bir uç noktayı (lokal pik veya çukur) katmanın geneline mal etmek, o katmanın tork katkısını gerçek dışı yüksek ya da düşük gösterebilir." },
+    {
+      type: "table",
+      headers: ["Veri Kaynağı", "Güven Puanı Katkısı", "Not"],
+      rows: [
+        ["Yalnızca SPT N", "20 (taban)", "Operatör/ekipman kaynaklı değişkenlik yüksek"],
+        ["CPT qc eklenmiş", "+35", "Sürekli profil, düşük değişkenlik"],
+        ["Ölçülmüş Su (drenajsız)", "+25", "Kohezif zeminlerde doğrudan direnç verisi"],
+        ["Kaya dayanımı (UCS)", "Öncelikli", "Mevcutsa diğer tüm yolların önüne geçer"],
+      ],
+    },
+    { type: "h2", text: "Sonuç" },
+    { type: "p", text: "CPT qc verisi mevcutsa, doğru birimle ve katman sınırına uygun şekilde girildiğinden emin olunmalı. Bu tek adım, hem tork hesabının doğruluğunu hem de raporun güven bandını belirgin şekilde iyileştirir." },
+    { type: "li", baslik: "Uygulama Adımları", items: ["CPT raporundaki qc biriminin MPa olduğunu doğrulayın, gerekiyorsa dönüştürün", "Her katman için temsil eden qc değerini yerel pik/çukurlara değil ortalamaya göre seçin", "CPT verisi varsa SPT N'yi referans olarak değil, doğrulama amaçlı kullanın", "Zemin Logu'na girilen qc'nin Analiz Sonucu'ndaki güven puanına yansıdığını kontrol edin"] },
+  ],
   1: [
     { type: "p", text: "Trakya Havzası, Türkiye'nin kuzeybatısında yer alan Paleosen-Eosen yaşlı sedimanter kayaçlardan oluşmaktadır. Silivri, Çerkezköy, Tekirdağ ve Lüleburgaz çevresinde yürütülen fore kazık projelerinde bu formasyonun delgi karakterini doğru modellemek; zaman, maliyet ve ekipman planlaması açısından kritik önem taşır." },
     { type: "callout", icon: "📊", title: "Temel Gözlem", text: "40'tan fazla proje verisine dayanan analizimizde Ø800 mm çaplı fore kazıklarda 1 m Dolgu + 14 m Kumtaşı için ortalama delgi süresi 1,3–1,7 saat arasında ölçülmüştür." },
@@ -373,11 +420,13 @@ const ARTICLE_CONTENT = {
 }
 
 const YAZAR_BIO = {
-  MD: "Geoteknik mühendisliğinde 10+ yıl deneyim. Trakya ve Marmara bölgelerinde 200'den fazla fore kazık projesinde zemin araştırması ve tasarım danışmanlığı.",
+  EA: "Jeoloji mühendisliğinde 35 yılı aşkın deneyim. Zemin etüdü, kaya mekaniği ve temel mühendisliği alanlarında saha danışmanlığı yapmaktadır.",
+  OE: "Jeoloji mühendisliğinde 10 yılı aşkın deneyim. Zemin etüdü ve geoteknik proje süreçlerinde çalışmaktadır.",
   DA: "Zemin mekaniği ve temel mühendisliği uzmanı. SPT bazlı zemin sınıflaması ve makine seçim metodolojileri üzerine çalışmalar yürütmektedir.",
 }
 
 const YAZAR_UZUN_BIO = {
-  MD: "10 yılı aşkın geoteknik mühendislik deneyimiyle fore kazık, ankraj ve mini kazık projelerinde uzmanlaşmış. Trakya, Marmara ve İç Anadolu bölgelerinde 200'den fazla projede zemin araştırması ve tasarım danışmanlığı yaptı. GeoDrill platformunu sektördeki hesaplama standartlarını dijitalleştirmek amacıyla geliştirdi. FHWA GEC 10, EN 1536 ve Eurocode 7 çerçevesinde kalibrasyon çalışmaları yürüttü.",
+  EA: "35 yılı aşkın jeoloji mühendisliği deneyimiyle zemin etüdü, kaya mekaniği ve temel mühendisliği projelerinde uzmanlaşmış. Saha araştırması ve zemin risk değerlendirmesi konularında GeoDrill ekibine danışmanlık yapmaktadır.",
+  OE: "Jeoloji mühendisliğinde 10 yılı aşkın deneyimiyle zemin etüdü ve geoteknik proje süreçlerinde çalışmaktadır. GeoDrill platformunun saha verisi ve hesap motoru geliştirme sürecinde rol almaktadır.",
   DA: "Zemin mekaniği ve temel mühendisliği alanında uzman. SPT bazlı zemin sınıflaması, makine seçim metodolojileri ve veri kalitesi değerlendirmesi üzerine çalışmalar yürütmektedir. GeoDrill platformunun hesap motoru geliştirme sürecinde aktif rol aldı.",
 }
