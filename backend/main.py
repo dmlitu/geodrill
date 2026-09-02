@@ -143,6 +143,12 @@ async def security_headers(request: Request, call_next):
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     # API tarafı için en sıkı CSP: hiçbir kaynağa frame/script izni yok.
     response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+    # Bu origin hiçbir zaman tarayıcıda sayfa olarak render edilmiyor (saf JSON
+    # API), ama defense-in-depth için browser feature'larını da kapatıyoruz.
+    response.headers["Permissions-Policy"] = (
+        "geolocation=(), camera=(), microphone=(), payment=(), usb=(), "
+        "interest-cohort=()"
+    )
     return response
 
 from routers.auth import limiter
