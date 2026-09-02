@@ -48,6 +48,13 @@ def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
 
 
+# Precomputed at import time so a "user not found" login always pays the
+# same bcrypt cost as a real "wrong password" check — otherwise the two
+# cases are distinguishable by response time, letting an attacker enumerate
+# valid usernames without ever seeing a different error message.
+_DUMMY_HASH = bcrypt.hashpw(b"geodrill-timing-mitigation", bcrypt.gensalt()).decode("utf-8")
+
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (
@@ -63,7 +70,8 @@ def get_user_by_username(db: Session, username: str) -> Optional[models.User]:
 
 def authenticate_user(db: Session, username: str, password: str) -> Optional[models.User]:
     user = get_user_by_username(db, username)
-    if not user or not verify_password(password, user.hashed_password):
+    password_ok = verify_password(password, user.hashed_password if user else _DUMMY_HASH)
+    if not user or not password_ok:
         return None
     return user
 
