@@ -101,6 +101,15 @@ async def lifespan(app: FastAPI):
         logger.info("GeoDrill API started successfully — port %s", os.environ.get("PORT", "10000"))
     except Exception as exc:
         logger.error("Startup error (non-fatal): %s", exc, exc_info=True)
+
+    try:
+        from modules.cad.health import check_cad_environment, format_startup_log
+        cad_status = check_cad_environment()
+        log_fn = logger.info if cad_status["dwg_converter"] == "ok" else logger.warning
+        log_fn(format_startup_log(cad_status))
+    except Exception as exc:
+        logger.error("CAD environment check failed (non-fatal): %s", exc, exc_info=True)
+
     yield
     logger.info("GeoDrill API shutting down")
 
@@ -198,4 +207,14 @@ def health():
             "version": "3.1.0", "db": db_status}
     if db_error:
         body["db_error"] = db_error
+
+    # CAD subsystem is reported but never flips overall health/HTTP status —
+    # a missing DWG converter degrades one feature, it doesn't take the API down.
+    try:
+        from modules.cad.health import check_cad_environment
+        cad = check_cad_environment()
+        body["cad"] = {"dxf_parser": cad["dxf_parser"], "dwg_converter": cad["dwg_converter"]}
+    except Exception:
+        body["cad"] = {"dxf_parser": "unknown", "dwg_converter": "unknown"}
+
     return JSONResponse(status_code=200 if db_status == "ok" else 503, content=body)
