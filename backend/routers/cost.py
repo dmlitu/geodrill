@@ -15,17 +15,19 @@ Hesap kalemleri:
 
 Çıktı: toplam maliyet, birim fiyatlar, piyasa karşılaştırması, kalem dökümü.
 """
+import logging
 import sys, os
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from auth import get_current_user
 from database import get_db
 import models
+from routers.auth import limiter
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from modules.calculations.engine import (
@@ -33,6 +35,7 @@ from modules.calculations.engine import (
     casing_metre, tam_cevrim_suresi,
 )
 
+logger = logging.getLogger("geodrill.cost")
 router = APIRouter(tags=["cost"])
 
 # ── Piyasa benchmark (₺, 2024 Q4 Türkiye ortalaması) ─────────────────────────
@@ -200,7 +203,9 @@ def _hesapla(project, layers, p: MaliyetParametreleri) -> MaliyetSonuc:
 # ── Endpoint: hesapla + kaydet ────────────────────────────────────────────────
 
 @router.post("/projects/{project_id}/cost", response_model=MaliyetSonuc)
+@limiter.limit("60/minute")
 def calculate_cost(
+    request: Request,
     project_id: int,
     payload: MaliyetParametreleri,
     current_user: models.User = Depends(get_current_user),
@@ -224,8 +229,9 @@ def calculate_cost(
 
     try:
         sonuc = _hesapla(project, layers, payload)
-    except Exception as e:
-        raise HTTPException(500, detail=f"Hesaplama hatası: {e}")
+    except Exception:
+        logger.exception("Cost calculation failed for project %s", project_id)
+        raise HTTPException(500, detail="Maliyet hesaplaması sırasında bir hata oluştu")
 
     # Mevcut açık analize ekle (en son kaydedilen)
     if payload.kaydet:
