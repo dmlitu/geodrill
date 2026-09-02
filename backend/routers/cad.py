@@ -8,13 +8,22 @@ Follows the same shape as routers/soil_import.py: multipart upload, JWT auth,
 per-user project ownership check, rate limiting, in-memory processing (no
 persisted upload) — nothing here is stored to disk beyond the CAD pipeline's
 own throwaway temp directory used for DWG->DXF conversion.
+
+CadAnalyzer.analyze() / inspect_document() are synchronous, CPU-bound calls
+(DWG conversion subprocess + pure-Python DXF parsing can run several seconds
+on a real engineering drawing). Both handlers run them in Starlette's worker
+thread pool via run_in_threadpool — otherwise a single slow CAD upload would
+block FastAPI's event loop and stall every other concurrent request on this
+process (health checks included) for the same duration.
 """
+import asyncio
 import logging
 import os
 import sys
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from database import get_db
@@ -26,6 +35,14 @@ from modules.cad.parser import CadParseError
 
 router = APIRouter()
 logger = logging.getLogger("geodrill.cad")
+
+# Outer safety net, independent of the DWG-converter subprocess's own
+# timeout (GEODRILL_DWG_CONVERT_TIMEOUT, default 60s): bounds the *whole*
+# analyze/inspect call, including the pure-Python DXF parse and detection
+# stages that have no timeout of their own. Generous relative to measured
+# real-file timings (a few seconds) — this exists for a pathological/
+# adversarial file, not normal operation.
+CAD_PROCESSING_TIMEOUT_SECONDS = int(os.environ.get("GEODRILL_CAD_PROCESSING_TIMEOUT", "180"))
 
 
 def _get_owned_project(db: Session, project_id: int, user) -> Project:
@@ -53,7 +70,16 @@ async def analyze_cad(
     _get_owned_project(db, project_id, current_user)
     data = await _read_upload(file)
     try:
-        result = CadAnalyzer().analyze(data, file.filename)
+        result = await asyncio.wait_for(
+            run_in_threadpool(CadAnalyzer().analyze, data, file.filename),
+            timeout=CAD_PROCESSING_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        logger.error(
+            "CAD analyze exceeded %ss for project %s, file=%r — aborting",
+            CAD_PROCESSING_TIMEOUT_SECONDS, project_id, file.filename,
+        )
+        raise HTTPException(503, "CAD dosyasının işlenmesi beklenenden çok uzun sürdü. Lütfen tekrar deneyin.")
     except CadParseError as e:
         raise HTTPException(400, str(e))
     except Exception:
@@ -74,7 +100,16 @@ async def inspect_cad(
     _get_owned_project(db, project_id, current_user)
     data = await _read_upload(file)
     try:
-        result = inspect_document(data, file.filename)
+        result = await asyncio.wait_for(
+            run_in_threadpool(inspect_document, data, file.filename),
+            timeout=CAD_PROCESSING_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        logger.error(
+            "CAD inspect exceeded %ss for project %s, file=%r — aborting",
+            CAD_PROCESSING_TIMEOUT_SECONDS, project_id, file.filename,
+        )
+        raise HTTPException(503, "CAD dosyasının işlenmesi beklenenden çok uzun sürdü. Lütfen tekrar deneyin.")
     except CadParseError as e:
         raise HTTPException(400, str(e))
     except Exception:

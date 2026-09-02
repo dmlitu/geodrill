@@ -4,12 +4,17 @@ shape documented in the CAD feature spec.
 """
 from __future__ import annotations
 
+import logging
+import time
+
 from .detectors.anchor import AnchorDetector
 from .detectors.pile import PileDetector
 from .duplicate_resolver import resolve_duplicates
 from .parser import CadParser
 from .rules import DetectionRules, load_rules
 from .text_analyzer import TextIndex
+
+logger = logging.getLogger("geodrill.cad.timing")
 
 _ELEMENT_KEY = {"pile": "piles", "anchor": "anchors"}
 
@@ -27,8 +32,24 @@ class CadAnalyzer:
         return self.rules.confidence_bands.get("MEDIUM", [0.6, 0.85])[0]
 
     def analyze(self, data: bytes, filename: str) -> dict:
+        # Stage timing — logged once per call so a slow production upload is
+        # diagnosable from server logs (which stage actually ate the time)
+        # instead of only ever showing up as a generic client-side timeout.
+        t_start = time.perf_counter()
+        timings: dict[str, float] = {}
+
+        def _lap(label: str, since: float) -> float:
+            now = time.perf_counter()
+            timings[label] = round((now - since) * 1000)
+            return now
+
+        t = t_start
         doc = CadParser().parse(data, filename)  # CadParseError -> router maps to HTTP 400
+        t = _lap("parse_ms", t)  # DWG->DXF convert (if needed) + DXF load/repair + normalize
+
         text_index = TextIndex(doc)
+        t = _lap("text_index_ms", t)
+
         tolerance = self.rules.tolerance_for_unit(doc.units)
 
         response: dict = {
@@ -41,7 +62,9 @@ class CadAnalyzer:
         for detector in self.detectors:
             etype = detector.element_type
             raw = detector.detect(doc, self.rules, text_index)
+            t = _lap(f"{etype}_detect_ms", t)
             resolved = resolve_duplicates(raw, tolerance)
+            t = _lap(f"{etype}_dedup_ms", t)
 
             confirmed = sorted(
                 (c for c in resolved if c.confidence >= min_conf),
@@ -66,6 +89,12 @@ class CadAnalyzer:
         }
         response["uncertainCandidates"] = uncertain
         response["needsReview"] = bool(uncertain) or bool(doc.warnings)
+
+        total_ms = round((time.perf_counter() - t_start) * 1000)
+        logger.info(
+            "CAD analyze timing — file=%r entities=%d total_ms=%d %s",
+            filename, len(doc.model_space_entities), total_ms, timings,
+        )
         return response
 
     @staticmethod
@@ -88,7 +117,9 @@ def inspect_document(data: bytes, filename: str) -> dict:
     layer/block/entity/text diagnostic dump, independent of pile/anchor
     detection. Kept as a free function (not a CadAnalyzer method) since it
     doesn't touch rules/detectors at all."""
+    t0 = time.perf_counter()
     doc = CadParser().parse(data, filename)
+    parse_ms = round((time.perf_counter() - t0) * 1000)
 
     layers = [
         {"name": name, "entityCounts": info.entity_type_counts, "total": info.total}
@@ -119,6 +150,10 @@ def inspect_document(data: bytes, filename: str) -> dict:
         if len(text_samples) >= 200:
             break
 
+    logger.info(
+        "CAD inspect timing — file=%r entities=%d parse_ms=%d",
+        filename, len(doc.model_space_entities), parse_ms,
+    )
     return {
         "file": {"filename": doc.filename, "dxfVersion": doc.dxf_version},
         "units": doc.units,
