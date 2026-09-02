@@ -132,12 +132,12 @@ function getSidebarGroups(t) {
 function getWizardTabs(t) {
   return [
     { id: "proje", label: t("tabProject"), icon: "📋" },
+    { id: "cad", label: t("tabCad"), icon: "📐" },
     { id: "zemin", label: t("tabSoil"), icon: "🪨" },
     { id: "makine", label: t("tabMachine"), icon: "⚙️" },
     { id: "analiz", label: t("tabAnalysis"), icon: "📊" },
     { id: "wizardFiyat", label: t("tabPrice"), icon: "💰" },
     { id: "kalibrasyon", label: t("tabCalibration"), icon: "🎯" },
-    { id: "cad", label: t("tabCad"), icon: "📐" },
   ]
 }
 
@@ -821,6 +821,13 @@ function Dashboard({ username, onLogout }) {
                     {wizardTab === "proje" && (
                       <ProjeForm data={proje} onChange={handleProjeChange} projeId={projeId} onProjeIdChange={setProjeId} />
                     )}
+                    {wizardTab === "cad" && (
+                      <ErrorBoundary>
+                        <Suspense fallback={<SkeletonLoader />}>
+                          <CadAnalizi projeId={projeId} />
+                        </Suspense>
+                      </ErrorBoundary>
+                    )}
                     {wizardTab === "zemin" && (
                       <ZeminLogu data={zemin} onChange={setZemin} yeraltiSuyu={proje.yeraltiSuyu} kazikBoyu={proje.kazikBoyu} projeId={projeId} />
                     )}
@@ -845,13 +852,6 @@ function Dashboard({ username, onLogout }) {
                       <ErrorBoundary>
                         <Suspense fallback={<SkeletonLoader />}>
                           <ProjeKalibrasyonu proje={proje} zemin={zemin} kalibrasyon={kalibrasyon} onKalibrasyon={setKalibrasyon} />
-                        </Suspense>
-                      </ErrorBoundary>
-                    )}
-                    {wizardTab === "cad" && (
-                      <ErrorBoundary>
-                        <Suspense fallback={<SkeletonLoader />}>
-                          <CadAnalizi projeId={projeId} />
                         </Suspense>
                       </ErrorBoundary>
                     )}
