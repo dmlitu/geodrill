@@ -2,7 +2,7 @@
 // DWG/DXF projesi yükleyip otomatik kazık/ankraj tespiti — backend'deki
 // modules/cad motoru (layer/block/geometri kural motoru) ile çalışır.
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { analyzeCadFile } from "./api"
 import { useToast } from "./Toast"
 
@@ -88,8 +88,22 @@ export default function CadAnalizi({ projeId }) {
   const [sonuc, setSonuc] = useState(null)
   const [dosyaAdi, setDosyaAdi] = useState("")
   const [detayAcik, setDetayAcik] = useState(false)
+  const [gecenSaniye, setGecenSaniye] = useState(0)
   const inputRef = useRef(null)
   const toast = useToast()
+
+  // Real elapsed time, not a fake progress bar — the backend does the whole
+  // convert+parse+detect pass in one request/response, so there's no
+  // per-stage signal to show honestly. Large/complex DWG files can
+  // genuinely take upwards of a minute (see CadAnalizi upload timeout),
+  // so a plain frozen "Analiz ediliyor…" reads as stuck; a running clock
+  // at least confirms something is actively happening.
+  useEffect(() => {
+    if (!yukleniyor) { setGecenSaniye(0); return }
+    const start = Date.now()
+    const timer = setInterval(() => setGecenSaniye(Math.floor((Date.now() - start) / 1000)), 1000)
+    return () => clearInterval(timer)
+  }, [yukleniyor])
 
   const handleFile = async (e) => {
     const file = e.target.files[0]
@@ -139,11 +153,19 @@ export default function CadAnalizi({ projeId }) {
             fontFamily: "'Plus Jakarta Sans', sans-serif",
           }}
         >
-          {yukleniyor ? "Analiz ediliyor…" : "DWG / DXF Yükle"}
+          {yukleniyor
+            ? <><span style={{ display: "inline-block", animation: "spin 1s linear infinite", marginRight: "7px" }}>⟳</span>Analiz ediliyor… ({gecenSaniye} sn)</>
+            : "DWG / DXF Yükle"}
         </button>
         {dosyaAdi && (
           <div style={{ marginTop: "10px", fontSize: "12px", color: "var(--text-muted)", fontFamily: "'DM Mono', monospace" }}>
             {dosyaAdi}
+          </div>
+        )}
+        {yukleniyor && gecenSaniye >= 8 && (
+          <div style={{ marginTop: "12px", fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.6", maxWidth: "360px", marginLeft: "auto", marginRight: "auto" }}>
+            Büyük veya karmaşık DWG dosyalarının dönüştürülmesi ve analizi birkaç dakika sürebilir.
+            Bağlantı kopmadı, işlem sürüyor — sayfayı kapatmayın.
           </div>
         )}
       </div>

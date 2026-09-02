@@ -27,15 +27,25 @@ export function setOnUnauthorized(fn) {
 
 // ─── Fetch wrapper ────────────────────────────────────────────────────────────
 
-async function _doFetch(path, options) {
+// timeoutMs / timeoutMessage let a caller override the default budget for
+// calls that are known to legitimately run longer than a normal CRUD
+// request — e.g. CAD analysis (DWG conversion + DXF parsing on a real
+// engineering drawing routinely takes several seconds, and a cold Render
+// free-tier instance can add ~60s of its own spin-up on top of that). The
+// generic "bağlantınızı kontrol edin" message is wrong for that case — the
+// connection is fine, processing is just still running — so a slow call
+// can supply its own, honest message too.
+async function _doFetch(path, options, { timeoutMs = REQUEST_TIMEOUT_MS, timeoutMessage } = {}) {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
   const url = `${BASE}${path}`
   try {
     return await fetch(url, { ...options, signal: controller.signal })
   } catch (err) {
     console.error(`[api] fetch error — url: ${url} — ${err.name}: ${err.message}`, err)
-    if (err.name === "AbortError") throw new Error("İstek zaman aşımına uğradı (30 s). Bağlantınızı kontrol edin.")
+    if (err.name === "AbortError") {
+      throw new Error(timeoutMessage || `İstek zaman aşımına uğradı (${Math.round(timeoutMs / 1000)} s). Bağlantınızı kontrol edin.`)
+    }
     if (!navigator.onLine) throw new Error("İnternet bağlantısı yok.")
     throw new Error(`Sunucuya ulaşılamıyor (${BASE}). Lütfen daha sonra tekrar deneyin.`)
   } finally {
@@ -149,16 +159,17 @@ export async function bulkReplaceSoilLayers(projectId, layers) {
 
 // Shared multipart uploader (JSON response) — same auth/retry/error
 // conventions as request(), but never sets Content-Type itself so the
-// browser can add the multipart boundary.
-async function _postMultipart(path, formData) {
+// browser can add the multipart boundary. timeoutOpts forwards to
+// _doFetch — see its comment for why CAD calls override the default.
+async function _postMultipart(path, formData, timeoutOpts) {
   const token = getToken()
   const headers = { Authorization: `Bearer ${token}` }
 
-  let res = await _doFetch(path, { method: "POST", headers, body: formData })
+  let res = await _doFetch(path, { method: "POST", headers, body: formData }, timeoutOpts)
 
   if (res.status >= 500) {
     await new Promise(r => setTimeout(r, 1500))
-    res = await _doFetch(path, { method: "POST", headers, body: formData })
+    res = await _doFetch(path, { method: "POST", headers, body: formData }, timeoutOpts)
   }
 
   if (res.status === 401) {
@@ -174,16 +185,29 @@ async function _postMultipart(path, formData) {
   return res.json()
 }
 
+// CAD analysis budget: measured locally at 3-6s for real production DWGs
+// (see SECURITY_AUDIT-adjacent CAD perf notes / server-side timing logs in
+// modules/cad/analyzer.py), but a cold Render free-tier instance alone adds
+// ~60s of spin-up before the request is even received, and production CPU
+// can be meaningfully slower than a dev machine. 120s covers cold start +
+// a generous processing margin without leaving the user staring at a spinner
+// indefinitely. The backend's own safety-net timeout is 180s (see
+// GEODRILL_CAD_PROCESSING_TIMEOUT) — deliberately longer than this, so a
+// real backend timeout always produces the backend's own clear error
+// response instead of the frontend giving up first.
+const CAD_TIMEOUT_MS = 120_000
+const CAD_TIMEOUT_MESSAGE = "CAD dosyasının işlenmesi beklenenden uzun sürdü. Büyük veya karmaşık dosyalarda bu birkaç dakika sürebilir — lütfen tekrar deneyin."
+
 export async function analyzeCadFile(projectId, file) {
   const fd = new FormData()
   fd.append("file", file)
-  return _postMultipart(`/projects/${projectId}/cad/analyze`, fd)
+  return _postMultipart(`/projects/${projectId}/cad/analyze`, fd, { timeoutMs: CAD_TIMEOUT_MS, timeoutMessage: CAD_TIMEOUT_MESSAGE })
 }
 
 export async function inspectCadFile(projectId, file) {
   const fd = new FormData()
   fd.append("file", file)
-  return _postMultipart(`/projects/${projectId}/cad/inspect`, fd)
+  return _postMultipart(`/projects/${projectId}/cad/inspect`, fd, { timeoutMs: CAD_TIMEOUT_MS, timeoutMessage: CAD_TIMEOUT_MESSAGE })
 }
 
 // ─── Equipment ────────────────────────────────────────────────────────────────
