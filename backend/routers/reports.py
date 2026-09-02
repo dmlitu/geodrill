@@ -54,6 +54,15 @@ _WHITE  = "#FFFFFF"
 
 # ─── ORM helpers ─────────────────────────────────────────────────────────────
 
+def _safe_filename_part(s: str, fallback: str = "proje") -> str:
+    """proje_kodu is free-text set by the project owner and flows straight
+    into a Content-Disposition header value — strip it down to a plain,
+    quote/CRLF-free token so it can't malform the header."""
+    import re
+    cleaned = re.sub(r"[^A-Za-z0-9_-]+", "_", (s or "")).strip("_")[:80]
+    return cleaned or fallback
+
+
 def _get_project(project_id: int, user_id: int, db: Session) -> models.Project:
     project = db.query(models.Project).filter(
         models.Project.id == project_id,
@@ -135,7 +144,7 @@ def export_soil_layers_csv(
         buf = io.StringIO()
         df.to_csv(buf, index=False, encoding="utf-8-sig")
         buf.seek(0)
-        filename = f"zemin_logu_{project.proje_kodu or project_id}.csv"
+        filename = f"zemin_logu_{_safe_filename_part(project.proje_kodu, str(project_id))}.csv"
         return StreamingResponse(
             iter([buf.getvalue()]),
             media_type="text/csv",
@@ -735,7 +744,7 @@ def _build_pdf_report(project, current_user, db):
     # ── Build ────────────────────────────────────────────────────────────────
     doc.build(content, onFirstPage=_on_page, onLaterPages=_on_page)
     buf.seek(0)
-    proje_kodu = (project.proje_kodu or str(project.id)).replace(" ", "_")
+    proje_kodu = _safe_filename_part(project.proje_kodu, str(project.id))
     filename = f"geodrill_rapor_{proje_kodu}_{datetime.now().strftime('%Y%m%d')}.pdf"
     return StreamingResponse(
         iter([buf.getvalue()]),
