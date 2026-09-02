@@ -57,10 +57,15 @@ def _resolve_converter() -> str:
         found = shutil.which(name)
         if found:
             return found
+    # Configuration detail (which converter, which env var) belongs in the
+    # server log for whoever operates this deployment — not in a message
+    # shown to whoever happened to upload a .dwg file.
+    logger.error(
+        "No DWG->DXF converter found — GEODRILL_DWG_CONVERTER is unset and none of "
+        "%s is on PATH.", _CANDIDATE_TOOLS,
+    )
     raise DwgConverterUnavailable(
-        "DWG dosyalarını okumak için bir dönüştürücü bulunamadı. "
-        "GEODRILL_DWG_CONVERTER ortam değişkenini bir 'dwg2dxf' (GNU LibreDWG) "
-        "veya 'ODAFileConverter' yoluna ayarlayın, ya da .dxf dosyası yükleyin."
+        "DWG dosyası şu anda işlenemedi. Lütfen tekrar deneyin ya da .dxf dosyası yükleyin."
     )
 
 
