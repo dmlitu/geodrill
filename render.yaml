@@ -4,11 +4,17 @@
 services:
   - type: web
     name: geodrill-api
-    runtime: python
+    # Docker instead of the native Python runtime: CAD analysis needs the
+    # dwg2dxf binary (GNU LibreDWG) to read .dwg uploads, and Render's
+    # native Python runtime has no apt/system-package access to install a
+    # compiled dependency like that (confirmed: https://render.com/docs/native-runtimes).
+    # backend/Dockerfile builds dwg2dxf from source and bakes it into the
+    # image, so .dwg upload works out of the box with no manual server
+    # setup. Render's free plan supports Docker web services.
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
     plan: free
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000}
     envVars:
       - key: SECRET_KEY
         generateValue: true
