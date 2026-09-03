@@ -7,6 +7,7 @@ from __future__ import annotations
 import logging
 import time
 
+from .block_inventory import build_block_inventory
 from .detectors.anchor import AnchorDetector
 from .detectors.pile import PileDetector
 from .duplicate_resolver import resolve_duplicates
@@ -54,7 +55,6 @@ class CadAnalyzer:
 
         response: dict = {
             "diagnostics": self._diagnostics(doc),
-            "warnings": list(doc.warnings),
         }
         uncertain: list[dict] = []
         min_conf = self.confirmed_min_confidence
@@ -77,17 +77,45 @@ class CadAnalyzer:
             for i, c in enumerate(weak, start=1):
                 c.id = f"{etype}_uncertain_{i:03d}"
 
+            # Zero vs unknown (see CAD_RESEARCH.md #23/#24): "0 confirmed and
+            # not a shred of evidence anywhere" and "0 confirmed but the
+            # drawing clearly talks about this element — just not clearly
+            # enough to count" are different findings and must not collapse
+            # into the same "0". `count` is only ever a real number when the
+            # analyzer actually reached a conclusion (confirmed>0, or
+            # genuinely nothing found); when weak evidence exists without
+            # clearing the confirmed floor, `count` is null and the status
+            # says so explicitly instead of silently reporting "0".
+            if confirmed:
+                status = "confirmed"
+                count = len(confirmed)
+            elif weak:
+                status = "uncertain"
+                count = None
+            else:
+                status = "none_detected"
+                count = 0
+
             response[_ELEMENT_KEY[etype]] = {
-                "count": len(confirmed),
+                "count": count,
+                "status": status,
                 "items": [c.to_api_dict() for c in confirmed],
             }
             uncertain.extend({**c.to_api_dict(), "elementType": etype} for c in weak)
 
         response["summary"] = {
             "pileCount": response.get("piles", {}).get("count", 0),
+            "pileStatus": response.get("piles", {}).get("status", "none_detected"),
             "anchorCount": response.get("anchors", {}).get("count", 0),
+            "anchorStatus": response.get("anchors", {}).get("status", "none_detected"),
         }
         response["uncertainCandidates"] = uncertain
+
+        # Snapshotted only now, after every detector has run — a detector
+        # can append to doc.warnings mid-detection (e.g. the nested-walk
+        # budget-exhaustion warning in detectors/pile.py), and taking this
+        # copy before the loop silently dropped those from the response.
+        response["warnings"] = list(doc.warnings)
 
         # An elevation/cephe-view pile symbol is real, corroborated
         # evidence (see detectors/pile.py's shaft-symbol signature) — but
@@ -153,12 +181,19 @@ def inspect_document(data: bytes, filename: str) -> dict:
             "insertCount": info.insert_count,
             "isXref": info.is_xref,
             "isAnonymous": info.is_anonymous,
+            "attributeDefs": info.attribute_defs,
         }
         for name, info in sorted(doc.blocks.items(), key=lambda kv: -kv[1].insert_count)
     ]
     entity_totals: dict[str, int] = {}
     for ce in doc.model_space_entities:
         entity_totals[ce.entity_type] = entity_totals.get(ce.entity_type, 0) + 1
+
+    # Raw Inventory Mode (see CAD_RESEARCH.md): AutoCAD-COUNT-style weighted
+    # physical occurrence per block, independent of pile/anchor detection —
+    # dev/admin diagnostic for "is this count real?", not surfaced to the
+    # regular end-user analyze() response.
+    block_inventory = [entry.to_api_dict() for entry in build_block_inventory(doc)]
 
     text_samples = []
     seen = set()
@@ -181,6 +216,7 @@ def inspect_document(data: bytes, filename: str) -> dict:
         "unitSource": doc.unit_source,
         "layers": layers,
         "blocks": blocks,
+        "blockInventory": block_inventory,
         "entityStats": entity_totals,
         "texts": text_samples,
         "modelSpaceStats": {"totalEntities": len(doc.model_space_entities)},

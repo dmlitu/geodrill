@@ -280,12 +280,37 @@ class PileDetector(StructuralElementDetector):
         if ezdxf_doc is None:
             return out
         budget = {"n": self._NESTED_MAX_VIRTUAL_ENTITIES}
+        # `budget` is shared across every top-level container in this loop
+        # (a DoS guard against an adversarial/pathological file's total
+        # walk cost, not a per-container allowance). On a real production
+        # file with hundreds of top-level INSERTs this can run out partway
+        # through modelspace's iteration order — found via forensic
+        # analysis (see CAD_FORENSIC_REPORT.md §7): on one real fixture the
+        # budget is exhausted before reaching container #1321 of 1553,
+        # silently producing zero candidates from every container after
+        # that point, with no signal to the caller. Checking the budget
+        # explicitly here (rather than only inside `_walk_container`,
+        # which already no-ops once exhausted) lets this be reported
+        # instead of hidden — never silently guess/hide uncertainty is the
+        # standing rule for this module.
+        exhausted_at: str | None = None
         for top_insert in ezdxf_doc.modelspace().query("INSERT"):
             name = _safe(lambda: top_insert.dxf.name)
             if not name or name in claimed_blocks:
                 continue
+            if budget["n"] <= 0:
+                exhausted_at = exhausted_at or name
+                continue
             root_layer = _safe(lambda: top_insert.dxf.layer, "0") or "0"
             self._walk_container(top_insert, doc, rules, text_index, proximity, out, budget, {name}, 0, root_layer)
+        if exhausted_at is not None:
+            doc.warnings.append(
+                "İç içe (nested) block tarama sınırına ulaşıldı — dosya çok büyük/karmaşık. "
+                f"'{exhausted_at}' ve modelspace sıralamasında sonrasında gelen bazı top-level bloklar "
+                "iç içe geçmiş kazık taramasına dahil edilemedi; bu bloklarda gözden kaçan kazık "
+                "olabilir. Büyük/karmaşık dosyalarda sonucu 'GET /cad/inspect' → blockInventory ile "
+                "çapraz kontrol edin."
+            )
         return out
 
     def _walk_container(self, insert_entity, doc, rules, text_index, proximity, out, budget, visited, depth, root_layer):

@@ -56,6 +56,10 @@ class CadBlockInfo:
     insert_count: int = 0
     is_xref: bool = False
     is_anonymous: bool = False
+    # ATTDEF tags found in this block's own definition — an attribute
+    # *template* (present whether or not any INSERT ever filled it in).
+    # Real semantic evidence when present: see block_inventory.py.
+    attribute_defs: list[str] = field(default_factory=list)
 
     @property
     def entity_total(self) -> int:

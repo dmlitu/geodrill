@@ -470,6 +470,41 @@ def test_nested_leaf_layer_fallback_to_root_container_layer(monkeypatch):
     assert all(c.confidence_band == "HIGH" for c in nested)  # layer+geometry both hit, thanks to the fallback
 
 
+def test_nested_walk_budget_exhaustion_is_reported_not_silent(monkeypatch):
+    """Forensic finding (see CAD_FORENSIC_REPORT.md §7): `_NESTED_MAX_VIRTUAL_ENTITIES`
+    is a budget shared across *every* top-level container in one document,
+    not a per-container allowance. On a real production file with hundreds
+    of top-level INSERTs, this can run out partway through — silently
+    producing zero candidates from every container processed afterward,
+    with historically no signal to the caller. This must now surface as a
+    warning instead of vanishing without a trace."""
+    from modules.cad.parser import CadParser
+
+    monkeypatch.setattr(PileDetector, "_NESTED_MAX_VIRTUAL_ENTITIES", 5)
+
+    def build(ez_doc):
+        pile_block = ez_doc.blocks.new(name="KAZIK_D65")
+        pile_block.add_circle((0, 0), radius=32.5, dxfattribs={"layer": "0"})
+
+        msp = ez_doc.modelspace()
+        # Several independent top-level containers, each cheap on its own,
+        # but collectively exceeding the (monkeypatched, tiny) shared budget.
+        for c in range(4):
+            container = ez_doc.blocks.new(name=f"GRID_BLOK_{c}")
+            for i in range(3):
+                container.add_blockref("KAZIK_D65", (i * 100, 0), dxfattribs={"layer": "65K"})
+            msp.add_blockref(f"GRID_BLOK_{c}", (c * 1000, 0), dxfattribs={"layer": "0"})
+
+    doc = CadParser().parse(_real_dxf_bytes(build), "budget.dxf")
+    rules = load_rules()
+    cands = PileDetector().detect(doc, rules, TextIndex(doc))
+    nested = [c for c in cands if c.block_name == "KAZIK_D65"]
+    # Not all 12 possible piles were reachable within the tiny budget —
+    # exactly the silent-truncation scenario this test locks in a warning for.
+    assert len(nested) < 12
+    assert any("tarama sınırına ulaşıldı" in w for w in doc.warnings)
+
+
 def test_recursion_reaches_pile_block_through_mixed_non_pure_container():
     """Regression test: an intermediate container that mixes real
     geometry (a LINE, standing in for stray annotation/dimension content)
