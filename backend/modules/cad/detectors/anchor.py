@@ -30,7 +30,7 @@ from collections import defaultdict
 from ..candidates import StructuralCandidate
 from ..document import CadDocument, CadEntity
 from ..geometry import SpatialGrid
-from ..rules import DetectionRules, keyword_hit
+from ..rules import DetectionRules, keyword_hit, normalize_token
 from ..text_analyzer import TextIndex
 from .base import StructuralElementDetector
 
@@ -45,6 +45,7 @@ class AnchorDetector(StructuralElementDetector):
         out = self._from_blocks(doc, rules, text_index, proximity)
         out += self._from_bare_geometry(doc, rules, text_index, proximity)
         out += self._from_repeated_blocks(doc, rules, text_index, proximity)
+        out += self._from_text_only(doc, rules, out)
         return out
 
     # ── Block / INSERT based candidates ────────────────────────────────
@@ -122,6 +123,70 @@ class AnchorDetector(StructuralElementDetector):
             base_score = rules.confidence["block_repetition_text_match"]
             for ce in entities:
                 out.append(self._make_candidate(ce, doc, rules, text_index, proximity, base_score, ["block", "repetition"]))
+        return out
+
+    # ── Text-only fallback, always uncertain (never a confirmed count) ─
+    def _from_text_only(self, doc, rules, existing: list[StructuralCandidate]):
+        """Last-resort signal for a real drafting convention found via
+        forensic analysis (see CAD_FORENSIC_REPORT.md §4): this office
+        labels many individual anchor positions with a distinctive,
+        spatially-unique annotation ('1.SIRA ANKRAJ KOTU', '2.SIRA ANKRAJ
+        KOTU', ... — each occurrence at a different (x, y), confirmed by
+        direct inspection, not a repeated static note) and draws no
+        accompanying symbol next to most of them at all.
+
+        Per this module's own design (text_analyzer.py: text corroborates
+        geometry, it never substitutes for it), this can never justify a
+        confirmed count on its own — so every candidate here is hard-capped
+        at LOW confidence (`text_only_wide_pattern`, below the MEDIUM floor
+        analyzer.py uses for the confirmed count) and always surfaces only
+        in `uncertainCandidates`. This makes real evidence visible to a
+        human reviewer instead of silently dropping it on the floor, without
+        the algorithm ever claiming certainty it doesn't have.
+        """
+        tol = rules.tolerance_for_unit(doc.units)
+        existing_pts = [(c.x, c.y) for c in existing]
+        seen: set[tuple[float, float]] = set()
+        matches: list[CadEntity] = []
+        for t in doc.texts:
+            if not t.text or not t.point:
+                continue
+            if len(t.text) > 80:
+                # A real per-position label is short ('1.SIRA ANKRAJ KOTU',
+                # median 18 chars across both real fixtures) — a general
+                # project note/warnings paragraph that happens to mention
+                # an anchor keyword is not one, and must not be surfaced as
+                # if it marked a single anchor's location.
+                continue
+            if keyword_hit(t.layer, rules.anchor_exclude_layer_keywords):
+                continue
+            nt = normalize_token(t.text)
+            if not any(normalize_token(kw) in nt for kw in rules.anchor_text_keywords):
+                continue
+            key = (round(t.point.x, 1), round(t.point.y, 1))
+            if key in seen:
+                continue  # the same label pasted twice at one spot, not two positions
+            seen.add(key)
+            matches.append(t)
+
+        if len(matches) < rules.anchor_min_repeat_count:
+            return []  # a couple of stray mentions is not a repeated pattern
+
+        score = rules.confidence["text_only_wide_pattern"]
+        out: list[StructuralCandidate] = []
+        for t in matches:
+            if any(abs(t.point.x - ex) <= tol and abs(t.point.y - ey) <= tol for ex, ey in existing_pts):
+                continue  # already represented by a geometry-based candidate nearby
+            out.append(StructuralCandidate(
+                id="", element_type="anchor",
+                x=t.point.x, y=t.point.y, z=t.point.z,
+                layer=t.layer, block_name=None, entity_type="TEXT",
+                source_handles=[t.handle] if t.handle else [],
+                detected_by=["text-only"],
+                confidence=round(score, 4),
+                confidence_band=rules.confidence_band(score),
+                diameter=None, text_hint=t.text,
+            ))
         return out
 
     # ── Bare-geometry fallback, pre-clustered by proximity ─────────────

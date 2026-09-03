@@ -26,6 +26,7 @@
     "layer_keyword_only": 0.80,
     "nested_anonymous_geometry_layer_match": 0.80,
     "block_repetition_text_match": 0.75,
+    "text_only_wide_pattern": 0.50,
     "geometry_numeric_layer_diameter": 0.55,
     "geometry_only": 0.45,
     "text_corroboration_bonus": 0.05

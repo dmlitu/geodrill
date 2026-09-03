@@ -249,6 +249,52 @@ def test_repeated_unnamed_block_below_corroboration_majority_not_promoted():
     assert cands == []
 
 
+# ── Text-only fallback (labels with no accompanying drawn symbol) ───────
+# Forensic finding (see CAD_FORENSIC_REPORT.md §4): this office annotates
+# many real anchor positions with a distinctive, spatially-unique label
+# ('1.SIRA ANKRAJ KOTU', ...) and draws no symbol at all next to most of
+# them. See detectors/anchor.py's `_from_text_only`.
+
+def test_text_only_repeated_labels_surface_as_low_confidence_uncertain():
+    rules = load_rules()
+    texts = [_text("25", i * 300, 0, f"{i + 1}.SIRA ANKRAJ KOTU", handle=f"tx{i}") for i in range(6)]
+    doc = _doc([], blocks={})
+    doc.texts = texts
+    cands = AnchorDetector().detect(doc, rules, TextIndex(doc))
+    assert len(cands) == 6
+    assert all(c.confidence_band == "LOW" for c in cands)
+    assert all(c.detected_by == ["text-only"] for c in cands)
+    assert all(c.entity_type == "TEXT" for c in cands)
+
+
+def test_text_only_below_repeat_threshold_not_promoted():
+    """A couple of stray anchor-keyword mentions (e.g. a one-off detail
+    note) is not a repeated per-position labeling pattern."""
+    rules = load_rules()
+    texts = [_text("25", i * 300, 0, "ANKRAJ LEVHASI : 20.200.200mm", handle=f"tx{i}") for i in range(3)]
+    doc = _doc([], blocks={})
+    doc.texts = texts
+    cands = AnchorDetector().detect(doc, rules, TextIndex(doc))
+    assert cands == []
+
+
+def test_text_only_skips_position_already_covered_by_geometry_candidate():
+    """A label sitting right next to an already-confirmed, geometry-based
+    candidate must not spawn a redundant duplicate at the same spot — the
+    other, un-covered positions still surface normally."""
+    rules = load_rules()
+    block = CadBlockInfo(name="ANKRAJ_TIP1", entity_type_counts={"LINE": 1}, insert_count=1)
+    entities = [_insert("IKSA_ANKRAJI", "ANKRAJ_TIP1", 0, 0, handle="h0")]
+    texts = [_text("25", 0, 0, "1.SIRA ANKRAJ KOTU", handle="tx0")]  # right on top of the block
+    texts += [_text("25", i * 300, 0, f"{i + 1}.SIRA ANKRAJ KOTU", handle=f"tx{i}") for i in range(1, 6)]
+    doc = _doc(entities, blocks={"ANKRAJ_TIP1": block})
+    doc.texts = texts
+    cands = AnchorDetector().detect(doc, rules, TextIndex(doc))
+    text_only = [c for c in cands if c.detected_by == ["text-only"]]
+    assert len(text_only) == 5  # the 6th label (at the block's own position) is skipped
+    assert all(c.x != 0.0 for c in text_only)
+
+
 # ── Nested block (needs a real ezdxf document for virtual_entities) ─────
 
 def _real_dxf_bytes(build_fn) -> bytes:
