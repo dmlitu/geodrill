@@ -162,17 +162,42 @@ the enticing name — a concrete demonstration of why name matching alone
 
 **Anchor totals: dosya1 = 9, dosya2 = 5 — both entirely from the `TENDON`
 layer, both false-positive-checked against the table/borehole traps
-above.** This is materially lower than the pile counts and lower than the
-raw `"ANKRAJ"` text-mention count would suggest. That gap is reported
-honestly rather than closed by inventing a rule that fits these two
-files: anchor representation in this office's drafting convention relies
-far more on annotation text over a coordinate table than on a
-distinctive, repeatable CAD symbol, which is a fundamentally harder,
-lower-precision detection problem than piles. Recommendation: treat the
-current anchor count as a floor, not a final answer, and use
-`GET /cad/inspect`'s raw layer/block dump for manual confirmation on
-anchor-heavy projects until a stronger, still-generalizable signal is
-found in a future drawing sample.
+above.** This is materially lower than the pile counts.
+
+### Text-only fallback: surfacing the rest as uncertain, not as a count
+
+Direct inspection of the label `"1.SIRA ANKRAJ KOTU"` / `"2.SIRA ANKRAJ
+KOTU"` ("row N anchor level") text pattern showed something important: 222
+(dosya1) / 365 (dosya2) occurrences, **every single one at a spatially
+distinct (x, y)** — not a repeated static note — spread across almost the
+*entire drawing width* (X span 108,854 / 214,211 units) in a narrow Y band,
+exactly matching the elevation-view convention already trusted for piles.
+Checking the geometry actually next to each label showed most have **no
+drawn symbol beside them at all** — this office marks a large share of its
+anchor positions with text alone.
+
+That is real, well-corroborated-by-its-own-repetition evidence — but text
+alone is explicitly never sufficient for a confirmed count in this
+codebase's design (`text_analyzer.py`). Rather than either ignore it
+(losing real signal) or promote it (repeating the KOTKESITICIN mistake in
+a new form), `_from_text_only()` in `detectors/anchor.py` surfaces each
+distinct-position, anchor-keyword-matching label as a **hard-capped LOW
+confidence** candidate (`text_only_wide_pattern` = 0.50, always below the
+confirmed floor) — visible in `uncertainCandidates`, never folded into
+`anchorCount`. A length cap (>80 chars) excludes general project-note
+paragraphs that happen to mention "ankraj" (found via this exact
+investigation: a 1,916-character "UYARILAR" warnings note, repeated 7
+times, was initially caught before this filter). A candidate already
+covered by a geometry-based hit (within the unit's duplicate tolerance) is
+skipped so it doesn't duplicate real evidence.
+
+Result: dosya1 surfaces 337 additional uncertain anchor positions, dosya2
+569 — a much more honest picture of this project's true anchor scale than
+"9" or "5" alone, without the algorithm ever claiming certainty it
+doesn't have. Recommendation: treat `anchorCount` as a confirmed floor,
+and have an engineer review `uncertainCandidates` (or `GET /cad/inspect`'s
+raw dump) for the real count on anchor-heavy projects until a stronger,
+still-generalizable geometry signal is found in a future drawing sample.
 
 ## 5. Test coverage added
 
