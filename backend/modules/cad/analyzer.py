@@ -88,6 +88,27 @@ class CadAnalyzer:
             "anchorCount": response.get("anchors", {}).get("count", 0),
         }
         response["uncertainCandidates"] = uncertain
+
+        # An elevation/cephe-view pile symbol is real, corroborated
+        # evidence (see detectors/pile.py's shaft-symbol signature) — but
+        # such a view conventionally illustrates piles that may *also* be
+        # drawn in plan view elsewhere in the same file, counted through a
+        # different signal entirely. Coordinate-proximity dedup can't catch
+        # this (an elevation view lives at its own location on the sheet,
+        # nowhere near the plan-view positions), so flag it for a human
+        # instead of silently risking a doubled count.
+        shaft_symbol_count = sum(
+            1 for item in response.get("piles", {}).get("items", [])
+            if "shaft-symbol" in item.get("detectedBy", "")
+        )
+        if shaft_symbol_count:
+            response["warnings"].append(
+                f"{shaft_symbol_count} kazık, kesit/cephe (elevation) görünümündeki tekrarlanan sembollerden "
+                "tespit edildi. Bu görünüm, plan görünümünde ayrıca sayılmış olabilecek kazıkları "
+                "gösteriyor olabilir — aynı kazıkların birden fazla sayılmadığından emin olmak için "
+                "'Tespit Edilen Kazıklar' tablosunu elle gözden geçirin."
+            )
+
         response["needsReview"] = bool(uncertain) or bool(doc.warnings)
 
         total_ms = round((time.perf_counter() - t_start) * 1000)

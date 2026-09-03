@@ -76,11 +76,13 @@ class DetectionRules:
     pile_exclude_layer_keywords: list[str] = field(default_factory=list)
     pile_min_repeat_count: int = 5
     pile_numeric_layer_diameter_heuristic: bool = True
+    pile_shaft_width_range_m: tuple[float, float] = (0.15, 2.5)
 
     anchor_layer_keywords: list[str] = field(default_factory=list)
     anchor_block_keywords: list[str] = field(default_factory=list)
     anchor_text_keywords: list[str] = field(default_factory=list)
     anchor_exclude_layer_keywords: list[str] = field(default_factory=list)
+    anchor_min_repeat_count: int = 5
 
     confidence: dict[str, float] = field(default_factory=dict)
     confidence_bands: dict[str, list[float]] = field(default_factory=dict)  # HIGH/MEDIUM/LOW -> [min,max)
@@ -98,10 +100,12 @@ class DetectionRules:
             pile_exclude_layer_keywords=pile.get("excludeLayerKeywords", []),
             pile_min_repeat_count=pile.get("minRepeatCount", 5),
             pile_numeric_layer_diameter_heuristic=pile.get("numericLayerDiameterHeuristic", True),
+            pile_shaft_width_range_m=tuple(pile.get("shaftWidthRangeM", [0.15, 2.5])),
             anchor_layer_keywords=anchor.get("layerKeywords", []),
             anchor_block_keywords=anchor.get("blockKeywords", []),
             anchor_text_keywords=anchor.get("textKeywords", []),
             anchor_exclude_layer_keywords=anchor.get("excludeLayerKeywords", []),
+            anchor_min_repeat_count=anchor.get("minRepeatCount", 5),
             confidence=d.get("confidence", {}),
             confidence_bands=d.get("confidenceBands", {}),
             duplicate_tolerance_by_unit=d.get("duplicateToleranceByUnit", {}),
@@ -119,6 +123,12 @@ class DetectionRules:
 
     def text_proximity_for_unit(self, unit: str) -> float:
         return self.text_proximity_by_unit.get(unit, self.text_proximity_by_unit.get("unknown", 1.0))
+
+
+# DXF/DWG document units -> meters. Used wherever a real-world plausibility
+# check (e.g. "is this gap a plausible pile diameter?") needs an absolute
+# scale rather than raw document units.
+UNIT_TO_METERS = {"mm": 0.001, "cm": 0.01, "m": 1.0, "in": 0.0254, "ft": 0.3048}
 
 
 @lru_cache(maxsize=4)

@@ -8,10 +8,20 @@ them into candidates specifically so a multi-primitive anchor symbol
 (LINE + LINE + CIRCLE, a common way to draw a tieback head) collapses into
 one AnchorCandidate instead of being counted once per primitive.
 
-Not implemented in this version (documented, not silently approximated):
-general geometric pattern recognition for anchor symbols that share neither
-a block nor a keyword-matched layer. Those show up only as low-confidence
-geometry noise, if at all — they are not silently promoted to a count.
+Also handles a real-world naming gap found via forensic analysis of
+production DWGs (see CAD_FORENSIC_REPORT.md): Turkish CAD offices routinely
+abbreviate "ankraj" unpredictably in block/layer names — e.g. "CEPANK"
+("cephe ankraj"), "ILAAVEANK" ("ilave ankraj") on layer "KARSIILAVEANK",
+"KARSI ANKK" — none of which contain the literal substring "ANKRAJ" or
+"ANCHOR" our keyword lists match on. Rather than hard-code those specific
+names (which would only work for this one office's convention), a block is
+also promoted when it (a) repeats at least `anchor_min_repeat_count` times
+in modelspace — a single stray INSERT proves nothing, but a repeated
+pattern along a wall is what an anchor row actually looks like — AND
+(b) a majority of its instances have anchor-keyword text nearby (the
+drawing's own annotations, e.g. "1.SIRA ANKRAJ KOTU", corroborate what an
+unfamiliar block name alone can't). Repetition or text alone never
+promotes anything; both together is required. See `_from_repeated_blocks`.
 """
 from __future__ import annotations
 
@@ -34,6 +44,7 @@ class AnchorDetector(StructuralElementDetector):
         proximity = rules.text_proximity_for_unit(doc.units)
         out = self._from_blocks(doc, rules, text_index, proximity)
         out += self._from_bare_geometry(doc, rules, text_index, proximity)
+        out += self._from_repeated_blocks(doc, rules, text_index, proximity)
         return out
 
     # ── Block / INSERT based candidates ────────────────────────────────
@@ -63,6 +74,54 @@ class AnchorDetector(StructuralElementDetector):
 
             for ce in inserts_by_block.get(name, []):
                 out.append(self._make_candidate(ce, doc, rules, text_index, proximity, base_score, list(detected_by)))
+        return out
+
+    # ── Repeated-block + text-corroboration fallback (unnamed blocks) ──
+    def _from_repeated_blocks(self, doc, rules, text_index, proximity):
+        """See module docstring. Skips any block name already handled by
+        `_from_blocks` (block-keyword match) so nothing is double-counted."""
+        out: list[StructuralCandidate] = []
+        inserts_by_block: dict[str, list[CadEntity]] = defaultdict(list)
+        for ce in doc.model_space_entities:
+            if ce.entity_type == "INSERT" and ce.block_name:
+                inserts_by_block[ce.block_name].append(ce)
+
+        for name, entities in inserts_by_block.items():
+            if len(entities) < rules.anchor_min_repeat_count:
+                continue
+            if keyword_hit(name, rules.anchor_block_keywords):
+                continue  # already handled by _from_blocks
+            block = doc.blocks.get(name)
+            if block is None or block.is_xref:
+                continue
+            if block.entity_total == 0:
+                # An empty block definition (no LINE/CIRCLE/LWPOLYLINE/etc.
+                # inside it) is a generic leader/attribute anchor point —
+                # the same glyph a coordinate table reuses for every row
+                # type (piles, boundary points, anchors, ...). Nearby text
+                # alone can't tell those apart; per this module's own
+                # architecture (see text_analyzer.py), text corroborates
+                # geometry, it never substitutes for it. Confirmed via a
+                # real production file where this exact pattern (block
+                # "KOTKESITICIN" on layer "XYZTABLO", a coordinate table)
+                # produced ~700 false-positive candidates before this gate.
+                continue
+            layers = {ce.layer for ce in entities}
+            if any(keyword_hit(l, rules.anchor_exclude_layer_keywords) for l in layers):
+                continue
+
+            corroborated = 0
+            for ce in entities:
+                if ce.point and text_index.any_matching_keyword_nearby(
+                    ce.point.x, ce.point.y, proximity, rules.anchor_text_keywords
+                ):
+                    corroborated += 1
+            if corroborated == 0 or corroborated < len(entities) / 2:
+                continue  # a couple of coincidental hits isn't enough — require a majority
+
+            base_score = rules.confidence["block_repetition_text_match"]
+            for ce in entities:
+                out.append(self._make_candidate(ce, doc, rules, text_index, proximity, base_score, ["block", "repetition"]))
         return out
 
     # ── Bare-geometry fallback, pre-clustered by proximity ─────────────

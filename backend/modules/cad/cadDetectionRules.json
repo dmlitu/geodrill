@@ -5,16 +5,18 @@
     "layerKeywords": ["KAZIK", "FOREKAZIK", "FORE KAZIK", "PILE", "BOREDPILE", "BORED PILE", "FK", "MINIKAZIK", "MINI KAZIK"],
     "blockKeywords": ["KAZIK", "PILE", "FORE", "BOREDPILE", "FK"],
     "textKeywords": ["FORE KAZIK", "KAZIK", "PILE", "BORED PILE", "MINI KAZIK"],
-    "excludeLayerKeywords": ["CEPHE", "KESIT", "DETAY", "LEJANT", "LEGEND", "DONATI", "REBAR", "OLCU", "DIM", "SEMBOL", "NUMBER", "NO"],
+    "excludeLayerKeywords": ["KESIT", "DETAY", "LEJANT", "LEGEND", "DONATI", "REBAR", "OLCU", "DIM", "SEMBOL", "NUMBER", "NO"],
     "minRepeatCount": 5,
-    "numericLayerDiameterHeuristic": true
+    "numericLayerDiameterHeuristic": true,
+    "shaftWidthRangeM": [0.15, 2.5]
   },
 
   "anchor": {
-    "layerKeywords": ["ANKRAJ", "ZEMIN ANKRAJI", "ZEMINANKRAJI", "IKSA ANKRAJI", "IKSAANKRAJI", "ANCHOR", "GROUND ANCHOR", "GROUNDANCHOR", "TIEBACK", "TIE ROD"],
-    "blockKeywords": ["ANKRAJ", "ANCHOR", "TIEBACK", "GROUND ANCHOR", "GROUNDANCHOR"],
-    "textKeywords": ["ANKRAJ", "ANCHOR", "ANKRAJ BOYU", "TIEBACK"],
-    "excludeLayerKeywords": ["CEPHE", "KESIT", "DETAY", "LEJANT", "LEGEND", "SEMBOL"]
+    "layerKeywords": ["ANKRAJ", "ZEMIN ANKRAJI", "ZEMINANKRAJI", "IKSA ANKRAJI", "IKSAANKRAJI", "ANCHOR", "GROUND ANCHOR", "GROUNDANCHOR", "TIEBACK", "TIE ROD", "TENDON"],
+    "blockKeywords": ["ANKRAJ", "ANCHOR", "TIEBACK", "GROUND ANCHOR", "GROUNDANCHOR", "TENDON"],
+    "textKeywords": ["ANKRAJ", "ANCHOR", "ANKRAJ BOYU", "TIEBACK", "TENDON"],
+    "excludeLayerKeywords": ["CEPHE", "KESIT", "DETAY", "LEJANT", "LEGEND", "SEMBOL", "TABLO", "TABLE", "LISTE", "CETVEL", "KOORDINAT"],
+    "minRepeatCount": 5
   },
 
   "confidence": {
@@ -22,6 +24,8 @@
     "layer_keyword_geometry_match": 0.95,
     "block_keyword_match": 0.85,
     "layer_keyword_only": 0.80,
+    "nested_anonymous_geometry_layer_match": 0.80,
+    "block_repetition_text_match": 0.75,
     "geometry_numeric_layer_diameter": 0.55,
     "geometry_only": 0.45,
     "text_corroboration_bonus": 0.05
