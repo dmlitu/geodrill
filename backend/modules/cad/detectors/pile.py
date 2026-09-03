@@ -20,7 +20,7 @@ from collections import defaultdict
 
 from ..candidates import StructuralCandidate
 from ..document import CadBlockInfo, CadDocument, CadEntity
-from ..rules import DetectionRules, keyword_hit, normalize_token
+from ..rules import UNIT_TO_METERS, DetectionRules, keyword_hit, normalize_token
 from ..text_analyzer import TextIndex, extract_diameter_mm
 from .base import StructuralElementDetector
 
@@ -48,6 +48,84 @@ def _is_symbol_block(block: CadBlockInfo) -> bool:
     if total == 0 or total > 8:
         return False
     return block.entity_type_counts.get("CIRCLE", 0) >= 1
+
+
+def _is_symbol_block_raw(raw_block) -> bool:
+    """Same test as `_is_symbol_block`, but for a block that never appears
+    at the top level of modelspace (only nested inside another block) —
+    such blocks have no entry in CadDocument.blocks, so this works
+    directly off the raw ezdxf block definition instead."""
+    entities = list(raw_block)
+    total = len(entities)
+    if total == 0 or total > 8:
+        return False
+    return sum(1 for e in entities if e.dxftype() == "CIRCLE") >= 1
+
+
+def _is_shaft_symbol(raw_block, unit: str, width_range_m: tuple[float, float]) -> tuple[bool, float | None]:
+    """A pile/column/casing drawn in elevation or cross-section is
+    conventionally a pair of parallel lines — its two edges, often broken
+    into dashed segments to suggest concrete/rebar hatching — plus an
+    outline polyline. This is the elevation-view counterpart of
+    `_is_symbol_block`'s "circle = pile in plan view": generalizable
+    geometry, not tied to any block name.
+
+    Signature: the block's LINE entities cluster into exactly two
+    positions along one axis (both vertical, sharing X, or both
+    horizontal, sharing Y), and the perpendicular gap between the two
+    falls in a plausible pile/shaft-diameter range. Returns
+    (matched, gap_in_document_units)."""
+    entities = list(raw_block)
+    if not entities or len(entities) > 40:
+        return False, None
+    lines = [e for e in entities if e.dxftype() == "LINE"]
+    if len(lines) < 2:
+        return False, None
+
+    def _is_vertical(l) -> bool:
+        dx = abs(l.dxf.start.x - l.dxf.end.x)
+        dy = abs(l.dxf.start.y - l.dxf.end.y)
+        return dy > dx * 3
+
+    def _is_horizontal(l) -> bool:
+        dx = abs(l.dxf.start.x - l.dxf.end.x)
+        dy = abs(l.dxf.start.y - l.dxf.end.y)
+        return dx > dy * 3
+
+    scale = UNIT_TO_METERS.get(unit)
+    lo, hi = width_range_m
+
+    for axis_lines, coord in (
+        ([l for l in lines if _is_vertical(l)], lambda l: l.dxf.start.x),
+        ([l for l in lines if _is_horizontal(l)], lambda l: l.dxf.start.y),
+    ):
+        if len(axis_lines) < 2:
+            continue
+        positions = sorted(set(round(coord(l), 1) for l in axis_lines))
+        if len(positions) != 2:
+            continue  # exactly two edges, not one (a single wall) or 3+ (something else)
+        gap = abs(positions[1] - positions[0])
+        if gap <= 0:
+            continue
+        if scale is None:
+            return True, gap  # unit unknown — accept the shape alone, can't validate scale
+        if lo <= gap * scale <= hi:
+            return True, gap
+    return False, None
+
+
+def _raw_block(doc, name: str):
+    """Fetch a block definition directly from the underlying ezdxf
+    document — needed for blocks that never appear at modelspace top
+    level (e.g. AutoCAD ARRAY-generated anonymous blocks nested only
+    inside another block), which CadDocument.blocks doesn't catalog."""
+    ezdxf_doc = getattr(doc, "ezdxf_doc", None)
+    if ezdxf_doc is None:
+        return None
+    try:
+        return ezdxf_doc.blocks.get(name)
+    except Exception:
+        return None
 
 
 class PileDetector(StructuralElementDetector):
@@ -202,14 +280,40 @@ class PileDetector(StructuralElementDetector):
         if ezdxf_doc is None:
             return out
         budget = {"n": self._NESTED_MAX_VIRTUAL_ENTITIES}
+        # `budget` is shared across every top-level container in this loop
+        # (a DoS guard against an adversarial/pathological file's total
+        # walk cost, not a per-container allowance). On a real production
+        # file with hundreds of top-level INSERTs this can run out partway
+        # through modelspace's iteration order — found via forensic
+        # analysis (see CAD_FORENSIC_REPORT.md §7): on one real fixture the
+        # budget is exhausted before reaching container #1321 of 1553,
+        # silently producing zero candidates from every container after
+        # that point, with no signal to the caller. Checking the budget
+        # explicitly here (rather than only inside `_walk_container`,
+        # which already no-ops once exhausted) lets this be reported
+        # instead of hidden — never silently guess/hide uncertainty is the
+        # standing rule for this module.
+        exhausted_at: str | None = None
         for top_insert in ezdxf_doc.modelspace().query("INSERT"):
             name = _safe(lambda: top_insert.dxf.name)
             if not name or name in claimed_blocks:
                 continue
-            self._walk_container(top_insert, doc, rules, text_index, proximity, out, budget, {name}, 0)
+            if budget["n"] <= 0:
+                exhausted_at = exhausted_at or name
+                continue
+            root_layer = _safe(lambda: top_insert.dxf.layer, "0") or "0"
+            self._walk_container(top_insert, doc, rules, text_index, proximity, out, budget, {name}, 0, root_layer)
+        if exhausted_at is not None:
+            doc.warnings.append(
+                "İç içe (nested) block tarama sınırına ulaşıldı — dosya çok büyük/karmaşık. "
+                f"'{exhausted_at}' ve modelspace sıralamasında sonrasında gelen bazı top-level bloklar "
+                "iç içe geçmiş kazık taramasına dahil edilemedi; bu bloklarda gözden kaçan kazık "
+                "olabilir. Büyük/karmaşık dosyalarda sonucu 'GET /cad/inspect' → blockInventory ile "
+                "çapraz kontrol edin."
+            )
         return out
 
-    def _walk_container(self, insert_entity, doc, rules, text_index, proximity, out, budget, visited, depth):
+    def _walk_container(self, insert_entity, doc, rules, text_index, proximity, out, budget, visited, depth, root_layer):
         if depth >= self._NESTED_MAX_DEPTH or budget["n"] <= 0:
             return
         try:
@@ -225,12 +329,26 @@ class PileDetector(StructuralElementDetector):
                 child_name = _safe(lambda: child.dxf.name)
                 if not child_name or child_name in visited:
                     continue
+                # ezdxf's virtual_entities() doesn't reliably carry a
+                # per-item layer override through a large AutoCAD
+                # associative ARRAY — verified on a real production file
+                # where only the first few of 78 array copies kept their
+                # own layer, the rest defaulted to "0". The array's own
+                # top-level container layer (root_layer) is the one
+                # attribute guaranteed to be real, so it's used as a
+                # fallback whenever the item's own layer looks like a
+                # generic default rather than a real, different layer.
+                own_layer = _safe(lambda: child.dxf.layer, "0") or "0"
+                own_hit, own_excluded = _layer_signal(own_layer, rules)
+                if own_layer == "0" and not own_hit:
+                    layer, layer_hit, excluded = root_layer, *_layer_signal(root_layer, rules)
+                else:
+                    layer, layer_hit, excluded = own_layer, own_hit, own_excluded
+
                 if keyword_hit(child_name, rules.pile_block_keywords):
-                    layer = _safe(lambda: child.dxf.layer, "0") or "0"
-                    block_info = doc.blocks.get(child_name)
-                    layer_hit, excluded = _layer_signal(layer, rules)
                     if excluded:
                         continue
+                    block_info = doc.blocks.get(child_name)
                     geom_ok = bool(block_info) and _is_symbol_block(block_info)
                     if layer_hit and geom_ok:
                         base_score = rules.confidence["block_layer_geometry_match"]
@@ -244,10 +362,43 @@ class PileDetector(StructuralElementDetector):
                     p = child.dxf.insert
                     out.append(self._finalize(p.x, p.y, getattr(p, "z", 0.0) or 0.0, layer, child_name,
                                                "INSERT", base_score, tags, doc, rules, text_index, proximity))
-                    # Claimed — its own internals are not walked further.
-                else:
-                    self._walk_container(child, doc, rules, text_index, proximity, out, budget,
-                                          visited | {child_name}, depth + 1)
+                    continue  # claimed — its own internals are not walked further
+
+                # The block's own name means nothing (AutoCAD ARRAY features
+                # generate anonymous names like "*U78") — try pure geometry,
+                # corroborated by a matching layer name (e.g. a
+                # "...KAZIK..." layer), before falling through to recursing
+                # into it like any other unnamed container. Geometry alone,
+                # on an anonymous block, on an unrelated layer, is too weak
+                # a basis to trust.
+                raw_child = _raw_block(doc, child_name)
+                if layer_hit and not excluded and raw_child is not None:
+                    circle_ok = _is_symbol_block_raw(raw_child)
+                    shaft_ok, shaft_gap = _is_shaft_symbol(raw_child, doc.units, rules.pile_shaft_width_range_m)
+                    if circle_ok or shaft_ok:
+                        base_score = rules.confidence["nested_anonymous_geometry_layer_match"]
+                        tags = ["layer", "geometry", "nested", "anonymous"]
+                        if shaft_ok:
+                            tags.append("shaft-symbol")
+                        p = child.dxf.insert
+                        out.append(self._finalize(
+                            p.x, p.y, getattr(p, "z", 0.0) or 0.0, layer, child_name, "INSERT",
+                            base_score, tags, doc, rules, text_index, proximity,
+                            diameter=shaft_gap if shaft_ok else None,
+                        ))
+                        continue  # claimed as a leaf symbol
+
+                # No name match, no geometry match — recurse unconditionally,
+                # regardless of whether this child is a "pure" INSERT-only
+                # container. (Gating recursion on purity was tried and
+                # reverted: on a real production file it silently stopped
+                # short of a second, independent pile array nested a few
+                # levels beneath a mixed INSERT+TEXT+DIMENSION container,
+                # undercounting real piles. A block with no nested INSERTs
+                # of its own just yields no further candidates here — same
+                # as before, harmless.)
+                self._walk_container(child, doc, rules, text_index, proximity, out, budget,
+                                      visited | {child_name}, depth + 1, root_layer)
             elif ctype == "CIRCLE":
                 layer = _safe(lambda: child.dxf.layer, "0") or "0"
                 circles_by_layer[layer].append(child)

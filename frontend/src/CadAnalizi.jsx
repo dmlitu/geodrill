@@ -64,7 +64,9 @@ function ElemanTablosu({ baslik, items }) {
                 <td style={{ padding: "7px 12px", color: "var(--text-secondary)" }}>{it.layer || "—"}</td>
                 <td style={{ padding: "7px 12px", color: "var(--text-secondary)" }}>{it.blockName || "—"}</td>
                 <td style={{ padding: "7px 12px", color: "var(--text-muted)", fontSize: "11px" }}>{it.detectedBy}</td>
-                <td style={{ padding: "7px 12px" }}><GuvenRozeti band={it.confidenceBand} /></td>
+                <td style={{ padding: "7px 12px" }} title={it.evidence?.length ? it.evidence.join("\n") : undefined}>
+                  <GuvenRozeti band={it.confidenceBand} />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -116,7 +118,11 @@ export default function CadAnalizi({ projeId }) {
       const result = await analyzeCadFile(projeId, file)
       setSonuc(result)
       setAnaliz(true)
-      toast.success(`CAD analizi tamamlandı: ${result.summary.pileCount} kazık, ${result.summary.anchorCount} ankraj tespit edildi.`)
+      const { pileCount, anchorCount } = result.summary
+      toast.success(
+        `CAD analizi tamamlandı: ${pileCount === null ? "belirsiz sayıda" : pileCount} kazık, ` +
+        `${anchorCount === null ? "belirsiz sayıda" : anchorCount} ankraj tespit edildi.`
+      )
     } catch (err) {
       toast.error("CAD analizi başarısız: " + err.message)
     } finally {
@@ -173,8 +179,14 @@ export default function CadAnalizi({ projeId }) {
       {analiz && sonuc && (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "16px", marginBottom: "20px" }}>
-            <MetrikKart baslik="Kazık" deger={`${sonuc.summary.pileCount} adet`} renk="var(--accent-dark)" />
-            <MetrikKart baslik="Ankraj" deger={`${sonuc.summary.anchorCount} adet`} renk="var(--teal)" />
+            <MetrikKart baslik="Kazık"
+              deger={sonuc.summary.pileStatus === "uncertain" ? "Belirlenemedi" : `${sonuc.summary.pileCount} adet`}
+              renk={sonuc.summary.pileStatus === "uncertain" ? "var(--warning)" : "var(--accent-dark)"}
+              alt={sonuc.summary.pileStatus === "uncertain" ? "Kanıt var, sayı doğrulanamadı — belirsiz adaylara bakın" : undefined} />
+            <MetrikKart baslik="Ankraj"
+              deger={sonuc.summary.anchorStatus === "uncertain" ? "Belirlenemedi" : `${sonuc.summary.anchorCount} adet`}
+              renk={sonuc.summary.anchorStatus === "uncertain" ? "var(--warning)" : "var(--teal)"}
+              alt={sonuc.summary.anchorStatus === "uncertain" ? "Kanıt var, sayı doğrulanamadı — belirsiz adaylara bakın" : undefined} />
             <MetrikKart baslik="Birim" deger={sonuc.diagnostics.units.toUpperCase()} renk="var(--accent)"
               alt={`${sonuc.diagnostics.modelSpaceEntityCount} model space eleman`} />
             <MetrikKart baslik="Gözden Geçirme" deger={sonuc.needsReview ? "Gerekli" : "Gerekmiyor"}

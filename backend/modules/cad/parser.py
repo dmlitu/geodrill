@@ -227,6 +227,10 @@ class CadParser:
             for be in _safe(lambda: list(block), []):
                 bt = be.dxftype()
                 info.entity_type_counts[bt] = info.entity_type_counts.get(bt, 0) + 1
+                if bt == "ATTDEF":
+                    tag = _safe(lambda be=be: be.dxf.tag)
+                    if tag:
+                        info.attribute_defs.append(tag)
             cad_doc.blocks[name] = info
             if info.is_xref:
                 cad_doc.xref_blocks.append(name)
